@@ -5,6 +5,7 @@ from pathlib import Path
 import os
 import torch
 import torch.nn as nn
+import numpy as np
 import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -98,14 +99,14 @@ class IRISCCLightningModule(pl.LightningModule):
             y_hat = self(x)
 
             fig, ax = plt.subplots()
-            y_hat[y_hat == self.fill_value] = torch.nan 
-            im = ax.imshow(y_hat[0,0,:,:].cpu().numpy(), aspect='equal', cmap='jet')
+            y_hat[y_hat < self.fill_value + 1] = torch.nan 
+            im = ax.imshow(np.flip(y_hat[0,0,:,:].cpu().numpy(),axis=0), aspect='equal', cmap='jet')
             plt.colorbar(im, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
 
             fig, ax = plt.subplots()
             y[y == self.fill_value] = torch.nan
-            im = ax.imshow(y[0,0,:,:].cpu().numpy(), aspect='equal', cmap='jet')
+            im = ax.imshow(np.flip(y[0,0,:,:].cpu().numpy(),axis=0), aspect='equal', cmap='jet')
             plt.colorbar(im, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_y_0', fig)
 

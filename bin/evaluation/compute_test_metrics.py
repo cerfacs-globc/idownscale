@@ -20,7 +20,7 @@ from iriscc.transforms import UnPad
 test_name = str(sys.argv[1])
 version = str(sys.argv[2])
 checkpoint_dir = RUNS_DIR/f'exp0/{test_name}/lightning_logs/version_{version}/checkpoints/best-checkpoint.ckpt'
-save_dir = GRAPHS_DIR/f'metrics/exp0/{test_name}'
+save_dir = GRAPHS_DIR/f'metrics/exp0/{test_name}/version_{version}'
 os.makedirs(save_dir, exist_ok=True)
 
 hparams = IRISCCHyperParameters() 
@@ -88,7 +88,7 @@ plt.figure(figsize=(8, 6))
 plt.suptitle('Unet', fontsize=16)
 ax = plt.gca()
 plt.title(f'Mean RMSE spatial distribution ({period})')
-plt.imshow(np.flip(rmse_spatial, axis=0), cmap='jet')
+plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
 plt.colorbar(label='RMSE (K)')
 plt.axis('off')
 ax.text(0.02, 0.08, f"Mean RMSE: {np.mean(rmse_daily):.2f}", transform=ax.transAxes, fontsize=12, 
@@ -96,13 +96,12 @@ ax.text(0.02, 0.08, f"Mean RMSE: {np.mean(rmse_daily):.2f}", transform=ax.transA
 plt.savefig(f"{save_dir}/spatial_rmse_distribution.png") 
 
 bias_spatial = bias_spatial / len(DATES_TEST)
-vabs = max(abs(np.nanmin(bias_spatial)), abs(np.nanmax(bias_spatial)))
 plt.figure(figsize=(8, 6))
 plt.suptitle('Unet', fontsize=16)
 ax = plt.gca()
 plt.title(f'Mean bias spatial distribution ({period})')
-plt.imshow(np.flip(bias_spatial, axis=0), cmap='coolwarm', vmin=-vabs, vmax=vabs)
-plt.colorbar(label='bias (K)')
+plt.imshow(np.flip(bias_spatial, axis=0), cmap='BrBG', vmin=-5, vmax=5)
+plt.colorbar(label='Bias (K)')
 plt.axis('off')
 ax.text(0.02, 0.08, f"Mean Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
@@ -134,3 +133,4 @@ plt.tight_layout()
 plt.savefig(f"{save_dir}/monthly_rmse_cycle.png") 
 
 print("Mean RMSE :", np.mean(rmse_daily))
+print("Mean Bias :", np.mean(np.nanmean(bias_spatial)))

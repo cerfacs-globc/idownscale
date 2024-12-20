@@ -39,7 +39,7 @@ if __name__=='__main__':
 
     transforms = v2.Compose([
                 MinMaxNormalisation(), 
-                LandSeaMask(hparams.mask, hparams.fill_value),
+                LandSeaMask(hparams.mask, hparams.fill_value, hparams.landseamask),
                 FillMissingValue(hparams.fill_value),
                 Pad(hparams.fill_value)
                 ])
@@ -53,6 +53,10 @@ if __name__=='__main__':
     x = torch.unsqueeze(x, dim=0).float()
     y_hat = model(x.to(device)).to(device)
     y_hat = y_hat.detach().cpu()
+    y_hat_raw = y_hat[0,0,:,:].numpy()
+    #y_hat_raw[x[0,0,:,:] ==  hparams.fill_value] = np.nan
+    plot_test(y_hat_raw, 'y_hat_raw', GRAPHS_DIR/f'pred/{date}_yhatraw.png')
+    
     y_hat = postprocess_pred(y_hat.detach().cpu()[0])
     
     plot_test(y_hat, 'y_hat', GRAPHS_DIR/f'pred/{date}_yhat.png')
