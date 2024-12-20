@@ -1,0 +1,10 @@
+.*
+!.gitignore
+log
+name.e
+name.o
+run_batch_prod.sh
+PET0.ESMF_LogFile
+garcia.code-workspace
+__pycache__
+*.pyc
