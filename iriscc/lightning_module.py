@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
 from torchmetrics import MeanSquaredError, MeanAbsoluteError
+
 from iriscc.unet import UNet
 from iriscc.loss import MaskedMSELoss
 
@@ -37,6 +38,7 @@ class IRISCCLightningModule(pl.LightningModule):
         self.test_metrics = {}
         self.train_step_outputs = []
         self.val_step_outputs = []
+        
         self.save_hyperparameters()
 
     def forward(self, x):
@@ -44,7 +46,7 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def on_train_start(self):
         self.logger.experiment.add_custom_scalars(layout)
-        self.logger.log_hyperparams({'learning_rate': self.learning_rate})
+        self.logger.log_hyperparams(vars(self.hparams))
 
     def common_step(self, x, y):
         y_hat = self(x)
@@ -85,6 +87,7 @@ class IRISCCLightningModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat, loss = self.common_step(x, y)
+        self.log('hp_metric', loss, on_epoch=True, sync_dist=True)
         self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
             
         batch_dict = {"loss": loss}
@@ -99,18 +102,23 @@ class IRISCCLightningModule(pl.LightningModule):
             y_hat = self(x)
 
             fig, ax = plt.subplots()
-            y_hat[y_hat < self.fill_value + 1] = torch.nan 
-            im = ax.imshow(np.flip(y_hat[0,0,:,:].cpu().numpy(),axis=0), aspect='equal', cmap='jet')
-            plt.colorbar(im, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
-
-            fig, ax = plt.subplots()
             y[y == self.fill_value] = torch.nan
-            im = ax.imshow(np.flip(y[0,0,:,:].cpu().numpy(),axis=0), aspect='equal', cmap='jet')
+            im = ax.imshow(np.flip(y[0,0,:,:].cpu().numpy(), axis=0), aspect='equal', cmap='OrRd')
             plt.colorbar(im, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_y_0', fig)
 
+            fig, ax = plt.subplots()
+            im = ax.imshow(np.flip(y_hat[0,0,:,:].cpu().numpy(), axis=0), aspect='equal', cmap='OrRd')
+            plt.colorbar(im, ax=ax, pad=0.05)
+            self.logger.experiment.add_figure('Figure/test_yhat_raw_0', fig)
 
+            fig, ax = plt.subplots()
+            y_hat[torch.isnan(y)] = torch.nan 
+            im = ax.imshow(np.flip(y_hat[0,0,:,:].cpu().numpy(), axis=0), aspect='equal', cmap='OrRd')
+            plt.colorbar(im, ax=ax, pad=0.05)
+            self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
+
+            
     def build_metrics_dataframe(self):
         data = []
         first_sample = list(self.test_metrics.keys())[0]
@@ -130,6 +138,5 @@ class IRISCCLightningModule(pl.LightningModule):
     
         
     def configure_optimizers(self):
-        print(self.model.parameters())
         return torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 

@@ -7,7 +7,6 @@ import xarray as xr
 import numpy as np
 from torchvision.transforms import v2
 
-from iriscc.hparams import IRISCCHyperParameters
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.plotutils import plot_test
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
@@ -33,15 +32,15 @@ def postprocess_pred(y):
 if __name__=='__main__':
     date = str(sys.argv[1])
     checkpoint_dir = str(sys.argv[2])
-    hparams = IRISCCHyperParameters()
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir)
     model.eval()
-
+    hparams = model.hparams['hparams']
+    arch = hparams['model']
     transforms = v2.Compose([
                 MinMaxNormalisation(), 
-                LandSeaMask(hparams.mask, hparams.fill_value, hparams.landseamask),
-                FillMissingValue(hparams.fill_value),
-                Pad(hparams.fill_value)
+                LandSeaMask(hparams['mask'], hparams['fill_value'], hparams['landseamask']),
+                FillMissingValue(hparams['fill_value']),
+                Pad(hparams['fill_value'])
                 ])
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

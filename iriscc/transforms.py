@@ -63,9 +63,10 @@ class LandSeaMask():
 
     def __call__(self, sample):
         x, y = sample
-        for C in range(len(x)):
-            x[C][self.condition] = self.fill_value
         if self.landseamask is True:
+            for C in range(len(x)):
+                x[C][self.condition] = self.fill_value
+
             mask = (~self.condition).astype(int)
             mask = np.expand_dims(mask, axis=0)
             x = torch.concatenate([x, torch.tensor(mask)], axis=0)
