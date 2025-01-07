@@ -18,8 +18,8 @@ DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 
 RUNS_DIR = Path('/scratch/globc/garcia/runs/')
-
 GRAPHS_DIR = Path('/scratch/globc/garcia/graph/')
+METRICS_DIR = Path('/scratch/globc/garcia/metrics/')
 
 # Plot standard
 ## FRANCE DOMAIN 

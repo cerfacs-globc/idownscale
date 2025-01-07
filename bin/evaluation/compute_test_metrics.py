@@ -11,17 +11,20 @@ import matplotlib.pyplot as plt
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
-
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.settings import DATASET_EXP1_DIR, DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR
+from iriscc.settings import DATASET_EXP1_DIR, DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR
 from iriscc.transforms import UnPad
 
-test_name = str(sys.argv[1])
-version = str(sys.argv[2])
-checkpoint_dir = RUNS_DIR/f'exp0/{test_name}/lightning_logs/version_{version}/checkpoints/best-checkpoint.ckpt'
-save_dir = GRAPHS_DIR/f'metrics/exp0/{test_name}/version_{version}'
-os.makedirs(save_dir, exist_ok=True)
+exp = str(sys.argv[1]) # ex : exp 1
+test_name = str(sys.argv[2]) # ex : mask_continents
+version = str(sys.argv[3])
+run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_{version}'
+checkpoint_dir = run_dir/'checkpoints/best-checkpoint.ckpt'
+graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/version_{version}'
+metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
+os.makedirs(graph_dir, exist_ok=True)
+os.makedirs(metric_dir, exist_ok=True)
 
 
 model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir)
@@ -43,6 +46,8 @@ rmse_daily = []
 rmse_spatial = []  
 bias_spatial = []
 corr_spatial = []
+y_temporal = []
+y_hat_temporal = []
 corr_temporal = []
 
 startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
@@ -86,9 +91,28 @@ for date in DATES_TEST:
     rmse_daily.append(rmse_value)
     corr_spatial.append(corr_value)
 
+    y_temporal.append(y_flat)
+    y_hat_temporal.append(y_hat_flat)
+
+y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
+corr_temporal = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in range(y_temporal.size(dim=1))]
+corr_temporal = np.stack(corr_temporal)
+rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
+bias_spatial = bias_spatial / len(DATES_TEST)
+
+# Scalars
+d= {'rmse_daily_mean' : [np.mean(rmse_daily)],
+    'rmse_spatial_mean' : [np.nanmean(rmse_spatial)],
+    'bias_spatial_mean' : [np.nanmean(bias_spatial)],
+    'corr_spatial_mean' : [np.mean(corr_spatial)],
+    'corr_temporal_mean' : [np.mean(corr_temporal)]}
+
+df = pd.DataFrame(d)
+print(df)
+
+'''
 # Spatial distribution
 ## RMSE
-rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
@@ -98,10 +122,9 @@ plt.colorbar(label='RMSE (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{save_dir}/spatial_rmse_distribution.png") 
+plt.savefig(f"{graph_dir}/spatial_rmse_distribution.png") 
 
 ## Bias
-bias_spatial = bias_spatial / len(DATES_TEST)
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
@@ -111,7 +134,7 @@ plt.colorbar(label='Bias (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{save_dir}/spatial_bias_distribution.png") 
+plt.savefig(f"{graph_dir}/spatial_bias_distribution.png") 
 
 # Temporal distribution
 ## monthly RMSE
@@ -137,12 +160,8 @@ plt.legend(loc='upper right', fontsize=12, ncol=2)
 ax.text(0.02, 0.10, f"Mean temporal RMSE: {np.mean(rmse_daily):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
 plt.tight_layout()
-plt.savefig(f"{save_dir}/monthly_rmse_cycle.png") 
+plt.savefig(f"{graph_dir}/monthly_rmse_cycle.png") 
 
+'''
 
-# Scalars
-print("Mean temporal RMSE :", np.mean(rmse_daily))
-print("Mean spatial RMSE :", np.nanmean(rmse_spatial))
-print("Mean spatial Bias :", np.nanmean(bias_spatial))
-print("Mean spatial Pearson correlation :", sum(corr_spatial) / len(DATES_TEST))
-
+df.to_csv(metric_dir/f'metrics_test_mean_{exp}_{test_name}.csv')
