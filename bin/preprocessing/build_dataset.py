@@ -9,7 +9,7 @@ from datetime import datetime
 import pandas as pd
 import json
 
-from iriscc.plotutils import plot_image
+from iriscc.plotutils import plot_test
 from iriscc.datautils import reformat_as_target
 from iriscc.settings import (SAFRAN_DIR, 
                              CMIP6_RAW_DIR,
@@ -20,8 +20,7 @@ from iriscc.settings import (SAFRAN_DIR,
                              IMERG_MASK,
                              TARGET_GRID_FILE,
                              TARGET,
-                             CHANELS,
-                             DATASET_EXP1_CONTINENTS_DIR,
+                             DATASET_EXP1_30Y_DIR,
                              DATASET_EXP1_DIR)
 
 
@@ -99,27 +98,9 @@ def target_data(date):
 
 
 
-def update_statistics(sum, square_sum, n_total, x):
-    ''' Compute and update samples statistics '''
-    x = x[~np.isnan(x)]
-    sum += np.sum(x)
-    square_sum += np.sum(x**2)
-    n_total += x.size
-    return sum, square_sum, n_total
-
-
-
-
-
 if __name__=='__main__':
 
     dates = DATES
-
-    ch = len(CHANELS)
-    sum = np.zeros(ch)
-    square_sum = np.zeros(ch)
-    n_total = np.zeros(ch)
-
     for date in dates:
         print(date)
 
@@ -129,24 +110,8 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_EXP1_DIR/f'sample_{date_str}.npz', **sample)
+        #np.savez(DATASET_EXP1_30Y_DIR/f'sample_{date_str}.npz', **sample)
 
-        for i in range(ch):
-            sum[i], square_sum[i], n_total[i] = update_statistics(sum[i], 
-                                                                    square_sum[i], 
-                                                                    n_total[i],
-                                                                    x[i])
 
-    mean = sum / n_total
-    std = np.sqrt((square_sum / n_total) - (mean**2))
-    print(mean, std)
-
-    stats = {}
-    for i, chanel in enumerate(CHANELS):
-        stats[chanel] = {'mean': mean[i],
-                         'std': std[i]}
-
-    with open(DATASET_EXP1_DIR/'statistics.json', "w") as f: 
-	    json.dump(stats, f)
 
       

@@ -6,7 +6,6 @@ import glob
 import json
 
 from iriscc.settings import DATASET_EXP1_DIR, CHANELS
-from iriscc.transforms import LandSeaMask
 
 def update_statistics(sum, square_sum, n_total, min, max, x):
     ''' Compute and update samples statistics '''
@@ -31,9 +30,8 @@ if __name__=='__main__':
     for nb, sample in enumerate(dataset):
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
-        mask_transform = LandSeaMask('france')
-        x, _ = mask_transform((x,y))
-        x[x == -9999] = np.nan
+        condition = np.isnan(y[0])
+        x[condition] = np.nan
       
 
         if nb == 0:
@@ -56,5 +54,5 @@ if __name__=='__main__':
                          'min': min[i],
                          'max': max[i]}
 
-    with open(DATASET_EXP1_DIR/'statistics_france.json', "w") as f: 
+    with open(DATASET_EXP1_DIR/'statistics.json', "w") as f: 
 	    json.dump(stats, f)

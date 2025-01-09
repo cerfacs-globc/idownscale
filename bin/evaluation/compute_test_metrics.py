@@ -33,7 +33,7 @@ hparams = model.hparams['hparams']
 arch = hparams['model']
 transforms = v2.Compose([
             MinMaxNormalisation(), 
-            LandSeaMask(hparams['mask'], hparams['fill_value'], hparams['landseamask']),
+            LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
             ])
@@ -108,6 +108,7 @@ d= {'rmse_daily_mean' : [np.mean(rmse_daily)],
     'corr_temporal_mean' : [np.mean(corr_temporal)]}
 
 df = pd.DataFrame(d)
+df.to_csv(metric_dir/f'metrics_test_mean_{exp}_{test_name}.csv')
 print(df)
 
 '''
@@ -164,4 +165,4 @@ plt.savefig(f"{graph_dir}/monthly_rmse_cycle.png")
 
 '''
 
-df.to_csv(metric_dir/f'metrics_test_mean_{exp}_{test_name}.csv')
+

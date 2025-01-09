@@ -14,7 +14,7 @@ from iriscc.settings import (TARGET_GRID_FILE,
                              LATMIN,
                              LATMAX,
                              TARGET_PROJ_PYPROJ)
-from iriscc.plotutils import plot_image
+from iriscc.plotutils import plot_image, plot_contour
 
 
 
@@ -126,9 +126,10 @@ def reformat_as_target(ds):
 
 
 if __name__=='__main__':
-   date_str = '2014-12-31'
+   date_str = '1984-01-01'
    date = pd.Timestamp(date_str).date()
    
+   '''
    #ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/cmip6/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r10i1p1f2_gr_18500101-20141231.nc')
    ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/cmip6/CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc')
    ds = standardize_longitudes(ds)
@@ -145,8 +146,9 @@ if __name__=='__main__':
    ds = ds.isel(time=0)
    ds = ds.sel(lon=slice(-6,12), lat=slice(40.,52.))
    #ds_out = interpolation_target_grid(ds)
-   plot_image(ds['tas'].values, date_str, '/scratch/globc/garcia/graph/cmip6LR_raw.png')
-
+   plot_contour(ds['tas'].values, date_str, '/scratch/globc/garcia/graph/test/test.png')
+   print('ok')
+   '''
    ds_s = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/safran/SAFRAN_2014080107_2015080106_reformat.nc')
    ds_s = ds_s.sel(time=pd.date_range(start=date_str, periods = 23, freq='h').to_numpy())
    print(np.shape(ds_s['tas'].values.mean(axis=0)))

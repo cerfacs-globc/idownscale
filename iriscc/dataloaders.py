@@ -47,7 +47,7 @@ def get_dataloaders(data_type):
     hparams = IRISCCHyperParameters()
     transforms = v2.Compose([
             MinMaxNormalisation(), 
-            LandSeaMask(hparams.mask, hparams.fill_value, hparams.landseamask),
+            LandSeaMask(hparams.mask, hparams.fill_value),
             FillMissingValue(hparams.fill_value),
             Pad(hparams.fill_value)
             ])

@@ -49,21 +49,23 @@ class MinMaxNormalisation():
 
     
 class LandSeaMask():
-    def __init__(self, mask, fill_value, landseamask):
-        if mask == 'france':
+    def __init__(self, mask, fill_value):
+        self.mask = mask
+        if self.mask == 'france':
             ds = xr.open_dataset(TARGET_GRID_FILE)
             ds = ds.isel(time=0)
             self.condition = np.isnan(ds['tas'].values)
-        elif mask == 'continents':
+        elif self.mask == 'continents':
             ds = xr.open_dataset(IMERG_MASK)
             ds['landseamask'].values = 100 - ds['landseamask'].values
             self.condition = ds['landseamask'].values < 25
         self.fill_value = fill_value
-        self.landseamask = landseamask
 
     def __call__(self, sample):
         x, y = sample
-        if self.landseamask is True:
+        if self.mask == 'none':
+            pass
+        else:
             for C in range(len(x)):
                 x[C][self.condition] = self.fill_value
 

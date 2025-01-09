@@ -35,12 +35,19 @@ def plot_image(var,
     plt.title(title, fontsize=12)
     plt.savefig(save_dir)
 
-def plot_test(var, title, save_dir):
+def plot_test(var, title, save_dir, vmin=None, vmax=None):
     ''' Simple test plot '''
     var = np.flip(var, axis=0)
     _, ax = plt.subplots()
-    im = ax.imshow(var, aspect='equal', cmap='jet')
+    im = ax.imshow(var, aspect='equal', cmap='OrRd', vmin=vmin, vmax=vmax)
     plt.colorbar(im, ax=ax, pad=0.05)
+    plt.title(title)
+    plt.savefig(save_dir)
+
+def plot_contour(var, title, save_dir, levels=None):
+    _, ax = plt.subplots()
+    cs = ax.contourf(var, cmap='OrRd', levels=levels)
+    plt.colorbar(cs, ax=ax, pad=0.05)
     plt.title(title)
     plt.savefig(save_dir)
 

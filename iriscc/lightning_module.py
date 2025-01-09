@@ -9,8 +9,8 @@ import numpy as np
 import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
-from torchmetrics import MeanSquaredError, MeanAbsoluteError
 
+from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.unet import UNet
 from iriscc.loss import MaskedMSELoss
 
@@ -27,8 +27,8 @@ class IRISCCLightningModule(pl.LightningModule):
         #self.loss = nn.MSELoss()  
         self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
-                    "rmse": MeanSquaredError(squared=False),
-                    "mae": MeanAbsoluteError()
+                    "rmse": MaskedRMSE(ignore_value = hparams['fill_value']),
+                    "mae": MaskedMAE(ignore_value = hparams['fill_value'])
                 })
         self.fill_value = hparams['fill_value']    
         self.learning_rate = hparams['learning_rate']
@@ -103,21 +103,29 @@ class IRISCCLightningModule(pl.LightningModule):
 
             fig, ax = plt.subplots()
             y[y == self.fill_value] = torch.nan
-            im = ax.imshow(np.flip(y[0,0,:,:].cpu().numpy(), axis=0), aspect='equal', cmap='OrRd')
-            plt.colorbar(im, ax=ax, pad=0.05)
+            vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
+            levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
+            cs = ax.contourf(y[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
+            plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_y_0', fig)
+    
+            fig, ax = plt.subplots()
+            x[x == self.fill_value] = torch.nan
+            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd')
+            plt.colorbar(cs, ax=ax, pad=0.05)
+            self.logger.experiment.add_figure('Figure/test_x_0', fig)
 
             fig, ax = plt.subplots()
-            im = ax.imshow(np.flip(y_hat[0,0,:,:].cpu().numpy(), axis=0), aspect='equal', cmap='OrRd')
-            plt.colorbar(im, ax=ax, pad=0.05)
+            cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd')
+            plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_yhat_raw_0', fig)
 
             fig, ax = plt.subplots()
             y_hat[torch.isnan(y)] = torch.nan 
-            im = ax.imshow(np.flip(y_hat[0,0,:,:].cpu().numpy(), axis=0), aspect='equal', cmap='OrRd')
-            plt.colorbar(im, ax=ax, pad=0.05)
+            cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
+            plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
-
+ 
             
     def build_metrics_dataframe(self):
         data = []
