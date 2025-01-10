@@ -91,6 +91,8 @@ def target_data(date):
         ds = ds.merge(ds_before)
     else : 
         ds = ds.sel(time=pd.date_range(start=date.strftime("%Y-%m-%d"), periods = 24, freq='h').to_numpy())
+        print(ds.time)
+        print(ds.tas)
 
     y = ds[TARGET].values.mean(axis=0)
     y = np.expand_dims(y, axis=0)
@@ -110,7 +112,7 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        #np.savez(DATASET_EXP1_30Y_DIR/f'sample_{date_str}.npz', **sample)
+        np.savez(DATASET_EXP1_30Y_DIR/f'sample_{date_str}.npz', **sample)
 
 
 
