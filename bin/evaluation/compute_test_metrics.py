@@ -21,7 +21,7 @@ test_name = str(sys.argv[2]) # ex : mask_continents
 version = str(sys.argv[3])
 run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_{version}'
 checkpoint_dir = run_dir/'checkpoints/best-checkpoint.ckpt'
-graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/version_{version}'
+graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
 metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
 os.makedirs(graph_dir, exist_ok=True)
 os.makedirs(metric_dir, exist_ok=True)
@@ -61,14 +61,14 @@ startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
 enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
-for i, date in enumerate(DATES_TEST):
+for i, date in enumerate(DATES_TEST[:300]):
     print(date)
     if date.month in [6,7,8]:
         i_summer.append(i)
     if date.month in [1,2,12]:
         i_winter.append(i)
     date_str = date.date().strftime('%Y%m%d')
-    sample = glob.glob(str(DATASET_EXP1_30Y_DIR/f'sample_{date_str}.npz'))[0]
+    sample = glob.glob(str(hparams['sample_dir']/f'sample_{date_str}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
@@ -93,7 +93,6 @@ for i, date in enumerate(DATES_TEST):
     else:
         rmse_spatial += error_squared
         bias_spatial += error
-
     if date.month in [6,7,8]:
         if len(rmse_spatial_summer) == 0:
             rmse_spatial_summer = error_squared
@@ -129,7 +128,6 @@ corr_temporal = np.stack(corr_temporal_summer)
 corr_temporal_winter = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in i_winter]
 corr_temporal = np.stack(corr_temporal_winter)
 
-
 rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
 rmse_spatial_summer = np.sqrt(rmse_spatial_summer / len(i_summer))
 rmse_spatial_winter = np.sqrt(rmse_spatial_winter / len(i_winter))
@@ -153,6 +151,8 @@ d = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_summe
 df = pd.DataFrame(d, index = ['all', 'summer', 'winter'])
 df.to_csv(metric_dir/f'metrics_test_mean_{exp}_{test_name}.csv')
 print(df)
+
+
 
 '''
 # Spatial distribution
@@ -180,6 +180,7 @@ ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transf
         verticalalignment='top', horizontalalignment='left', color = 'red')
 plt.savefig(f"{graph_dir}/spatial_bias_distribution.png") 
 
+
 # Temporal distribution
 ## monthly RMSE
 df_rmse = pd.DataFrame({'date': DATES_TEST, 'rmse_temporal': rmse_temporal})
@@ -206,6 +207,5 @@ ax.text(0.02, 0.10, f"Mean temporal RMSE: {np.mean(rmse_temporal):.2f}", transfo
 plt.tight_layout()
 plt.savefig(f"{graph_dir}/monthly_rmse_cycle.png") 
 
+
 '''
-
-

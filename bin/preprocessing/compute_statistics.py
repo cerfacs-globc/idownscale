@@ -43,7 +43,7 @@ def plot_histogram(data, min, max, mean, std, variable:str, title:str, save_dir:
 
 
 if __name__=='__main__':
-    dataset = glob.glob(str(DATASET_EXP1_30Y_DIR/'sample*'))
+    dataset = np.sort(glob.glob(str(DATASET_EXP1_30Y_DIR/'sample*')))
     ch = len(CHANELS)
     sum = np.zeros(ch)
     square_sum = np.zeros(ch)
@@ -52,6 +52,7 @@ if __name__=='__main__':
     nb = len(dataset)
     train_end = int(0.6 * nb) 
     val_end = train_end + int(0.2 * nb)
+    print(dataset[val_end])
     
     x_data = {'train' : [],
                  'val' : [],
@@ -110,7 +111,7 @@ if __name__=='__main__':
                         'tas (K)', 
                         f'{name} {type} dataset histogram', 
                         DATASET_EXP1_30Y_DIR/f'hist_{name}_{type}.png')
-        
+         
 
 
     with open(DATASET_EXP1_30Y_DIR/'statistics.json', "w") as f: 

@@ -10,12 +10,11 @@ from torchvision.transforms import v2
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.plotutils import plot_test, plot_contour
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import DATASET_EXP1_DIR, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_EXP1_30Y_DIR
+from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR
 
 
 if __name__=='__main__':
     date = str(sys.argv[1])
-
     exp = str(sys.argv[2]) # ex : exp 1
     test_name = str(sys.argv[3]) # ex : mask_continents
     version = str(sys.argv[4])
@@ -34,7 +33,7 @@ if __name__=='__main__':
                 ])
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    sample = glob.glob(str(DATASET_EXP1_30Y_DIR/f'sample_{date}.npz'))[0]
+    sample = glob.glob(str(hparams['sample_dir']/f'sample_{date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     x_init, y = data['x'], data['y']
     condition = np.isnan(y[0])
