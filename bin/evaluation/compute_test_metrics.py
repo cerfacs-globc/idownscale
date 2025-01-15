@@ -61,7 +61,7 @@ startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
 enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
-for i, date in enumerate(DATES_TEST[:300]):
+for i, date in enumerate(DATES_TEST):
     print(date)
     if date.month in [6,7,8]:
         i_summer.append(i)

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.unet import UNet
+from iriscc.swin2sr import Swin2SR
 from iriscc.loss import MaskedMSELoss
 
 layout = {
@@ -23,7 +24,11 @@ layout = {
 class IRISCCLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
-        self.model = UNet(in_channels=hparams['in_channels'], out_channels=1, init_features=32).float()
+        if hparams['model'] == 'unet':
+            self.model = UNet(in_channels=hparams['in_channels'], out_channels=1, init_features=32).float()
+        elif hparams['model'] == 'swin2sr':
+            self.model = Swin2SR(upscale=1, img_size=hparams['img_size'], out_chans=1, in_chans=hparams['in_channels'],
+                   embed_dim=32, depths=[4, 4, 4, 4], num_heads=[4, 4, 4, 4],window_size=8, upsampler='pixelshuffle')
         #self.loss = nn.MSELoss()  
         self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
@@ -111,7 +116,7 @@ class IRISCCLightningModule(pl.LightningModule):
     
             fig, ax = plt.subplots()
             x[x == self.fill_value] = torch.nan
-            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd')
+            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd', levels=11)
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_x_0', fig)
 

@@ -54,4 +54,4 @@ if __name__=='__main__':
     plot_contour(x_init[1], f'x ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png')
     plot_contour(y_hat, f'y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
     plot_contour(y[0], f'y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
-    plot_contour(y[0]-y_hat, f'y-y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_diff_{exp}_{test_name}.png')
+    plot_contour(y_hat-y[0], f'y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_diff_{exp}_{test_name}.png')

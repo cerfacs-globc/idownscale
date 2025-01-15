@@ -38,4 +38,6 @@ for key, df in metrics_dict.items():
     ax = df.plot.bar(rot=0)
     plt.axhline(y=0)
     plt.title(f'{key} ({period})')
+    if key.startswith(('rmse', 'bias')):
+        plt.ylabel('K')
     plt.savefig(f"{GRAPHS_DIR}/metrics/{exp}/{key}_barplot.png") 
