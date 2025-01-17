@@ -64,18 +64,16 @@ def standardize_longitudes(ds) :
       
    return ds
 
-
-
-def add_lon_lat_bounds(ds):
-   ''' Irregular grid '''
-   ''' Generate boundaries coordonates from cells center for the consevative interpolation method '''
-
-   def generate_bounds(coord):
+def generate_bounds(coord):
       bounds = np.zeros(len(coord) + 1)
       bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
       bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
       bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
       return bounds.astype(np.int32)
+
+def add_lon_lat_bounds(ds):
+   ''' Irregular grid '''
+   ''' Generate boundaries coordonates from cells center for the consevative interpolation method '''
 
    x = ds['x'].values
    y = ds['y'].values
@@ -99,10 +97,14 @@ def add_lon_lat_bounds(ds):
 
 
 
-def interpolation_target_grid(ds):
-   ds_target = xr.open_dataset(TARGET_GRID_FILE)
-   ds_target = add_lon_lat_bounds(ds_target)
+def interpolation_target_grid(ds, ds_target):
 
+   if 'x' in ds.coords :
+      if 'x_b' not in ds.coords:
+         ds = add_lon_lat_bounds(ds)
+   if 'x' in ds.coords :
+      if 'x_b' not in ds.coords:
+         ds_target = add_lon_lat_bounds(ds_target)
    for i, coord in enumerate(['lat','lon']):
       if len(ds[coord].dims) == 1:
          if len(ds[coord].values) > TARGET_SIZE[i]: # if resolution is finer than target's
@@ -111,17 +113,17 @@ def interpolation_target_grid(ds):
    for var in ds.data_vars:
       ds[var].values = np.asfortranarray(ds[var].values)
       ds[var].values = np.ascontiguousarray(ds[var].values)
-   
-   regridder = xe.Regridder(ds, ds_target, "conservative")
+   regridder = xe.Regridder(ds, ds_target, "conservative_normed")
    ds_out = regridder(ds)
    return ds_out
 
 
-def reformat_as_target(ds):
+def reformat_as_target(ds, target_file):
     ''' Returns Input dataset interpolated at target target grid '''
     ds = standardize_longitudes(ds)
     ds = ds.sel(lon=slice(LONMIN,LONMAX), lat=slice(LATMIN, LATMAX))
-    ds = interpolation_target_grid(ds)
+    ds_target = xr.open_dataset(target_file)
+    ds = interpolation_target_grid(ds, ds_target)
     return ds
 
 

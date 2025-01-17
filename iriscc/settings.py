@@ -8,10 +8,12 @@ SAFRAN_RAW_DIR = Path('/archive2/globc/dcom/globc_obs/SAFRAN/')
 RAW_DIR = Path('/scratch/globc/garcia/rawdata/')
 SAFRAN_DIR = RAW_DIR / 'safran'
 CMIP6_RAW_DIR = RAW_DIR / 'cmip6'
+ERA5_DIR = RAW_DIR / "era5"
 TARGET_GRID_FILE = SAFRAN_DIR / 'SAFRAN_1958080107_1959080106_reformat.nc'
 OROG_FILE = RAW_DIR / 'topography/ETOPO_2022_v1_30s_N90W180_bed_regrid.nc'
 IMERG_MASK= RAW_DIR / 'landseamask/IMERG_land_sea_mask_regrid.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
+
 
 DATASET_DIR = Path('/scratch/globc/garcia/datasets/')
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'

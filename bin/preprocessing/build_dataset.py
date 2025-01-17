@@ -67,7 +67,7 @@ def input_data(date):
                 #if mask == 'coarse':
                     #ds[var].values = mask_coverage_func(ds[var].values, mask, model)
                 ds[var] = ds[var].transpose()
-                ds = reformat_as_target(ds)
+                ds = reformat_as_target(ds, target_file=TARGET_GRID_FILE)
                 #if mask == 'continents' or mask == 'france':
                     #ds[var].values = mask_coverage_func(ds[var].values, mask, None)
                 x.append(ds[var].values)
@@ -102,7 +102,7 @@ def target_data(date):
 
 if __name__=='__main__':
 
-    dates = DATES
+    dates = DATES[0:10]
     for date in dates:
         print(date)
 
