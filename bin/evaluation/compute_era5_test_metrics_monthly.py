@@ -16,10 +16,11 @@ from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissing
 from iriscc.settings import DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR, ERA5_DIR, TARGET_GRID_FILE
 from iriscc.transforms import UnPad
 from iriscc.datautils import standardize_dims_and_coords, standardize_longitudes, interpolation_target_grid
+from iriscc.plotutils import plot_test, plot_contour
 
 def get_era5_dataset(date):
-    file = glob.glob(str(ERA5_DIR/f'*{date.year}*'))
-    ds = xr.open_dataset(file, engine='netcdf4')
+    file = glob.glob(str(ERA5_DIR/f'*{date.year}*'))[0]
+    ds = xr.open_dataset(file)
     ds = standardize_dims_and_coords(ds)
     ds = standardize_longitudes(ds)
     ds = ds.reindex(lat=ds.lat[::-1])
@@ -38,7 +39,7 @@ def reformat_pred_to_era5(y_hat, ds_era5):
                             y=('y', y_grid.y.values),
                             x=('x', y_grid.x.values)
                             ))
-    y_ds = interpolation_target_grid(y_ds, ds_era5)
+    y_ds = interpolation_target_grid(y_ds, ds_target=ds_era5)
     y_hat = y_ds.tas.values
     y_hat[y_hat == 0.] = np.nan
     return y_hat
@@ -53,8 +54,10 @@ metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
 os.makedirs(graph_dir, exist_ok=True)
 os.makedirs(metric_dir, exist_ok=True)
 
-
-model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir)
+#device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = 'cpu'
+print(device)
+model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
 model.eval()
 hparams = model.hparams['hparams']
 arch = hparams['model']
@@ -64,7 +67,6 @@ transforms = v2.Compose([
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
             ])
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
@@ -79,7 +81,7 @@ bias_spatial_winter = []
 corr_spatial = []
 corr_spatial_summer = []
 corr_spatial_winter = []
-y_temporal = []
+y_era5_temporal = []
 y_hat_temporal = []
 i_summer = []
 i_winter = []
@@ -99,7 +101,7 @@ for i, date in enumerate(DATES_TEST):
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
-    x, y = transforms((x, y))
+    x, _ = transforms((x, y))
 
     x = torch.unsqueeze(x, dim=0).float()
     y_hat = model(x.to(device)).to(device)
@@ -112,15 +114,25 @@ for i, date in enumerate(DATES_TEST):
     ds_era5 = get_era5_dataset(date)
     y_era5 = ds_era5.tas.values
     y_hat = reformat_pred_to_era5(y_hat, ds_era5)
-
-    print(y_era5.shape)
-    print(y_hat.shape)
-
+    condition2 = np.isnan(y_hat)
+    y_era5[condition2] = np.nan
 
     '''
+    _, ax = plt.subplots()
+    im = ax.imshow(np.flip(y_era5, axis=0), aspect='auto', cmap='OrRd')
+    plt.colorbar(im, ax=ax, pad=0.05)
+    plt.title( 'era5')
+    plt.savefig('/scratch/globc/garcia/graph/test.png')
+    _, ax = plt.subplots()
+    im = ax.imshow(np.flip(y_hat, axis=0), aspect='auto', cmap='OrRd', vmin=np.nanmin(y_era5), vmax=np.nanmax(y_era5))
+    plt.colorbar(im, ax=ax, pad=0.05)
+    plt.title( 'y_hat (default)')
+    plt.savefig('/scratch/globc/garcia/graph/test2.png')
+    '''
+
     # compute metrics
     ## spatial metrics
-    error = (y_hat - y)
+    error = (y_hat - y_era5)
     error_squared = error ** 2
     if len(rmse_spatial) == 0:
         rmse_spatial = error_squared
@@ -144,23 +156,23 @@ for i, date in enumerate(DATES_TEST):
             bias_spatial_winter += error
 
     ## temporal metrics
-    y, y_hat = torch.tensor(y), torch.tensor(y_hat)
-    y_flat, y_hat_flat = y[~torch.isnan(y)].to(device), y_hat[~torch.isnan(y_hat)].to(device)
-    rmse_value = rmse(y_hat_flat, y_flat).item()
-    corr_value = corr(y_hat_flat - torch.mean(y_hat_flat), y_flat - torch.mean(y_flat)).item()
+    y_era5, y_hat = torch.tensor(y_era5), torch.tensor(y_hat)
+    y_era5_flat, y_hat_flat = y_era5[~torch.isnan(y_era5)], y_hat[~torch.isnan(y_hat)]
+    rmse_value = rmse(y_hat_flat, y_era5_flat).item()
+    corr_value = corr(y_hat_flat - torch.mean(y_hat_flat), y_era5_flat - torch.mean(y_era5_flat)).item()
     rmse_temporal.append(rmse_value)
     corr_spatial.append(corr_value)
 
-    y_temporal.append(y_flat)
+    y_era5_temporal.append(y_era5_flat)
     y_hat_temporal.append(y_hat_flat)
 
 
-y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
-corr_temporal = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in range(y_temporal.size(dim=1))]
+y_era5_temporal, y_hat_temporal = torch.stack(y_era5_temporal), torch.stack(y_hat_temporal)
+corr_temporal = [corr(y_hat_temporal[:,i], y_era5_temporal[:,i]).cpu() for i in range(y_era5_temporal.size(dim=1))]
 corr_temporal = np.stack(corr_temporal)
-corr_temporal_summer = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in i_summer]
+corr_temporal_summer = [corr(y_hat_temporal[:,i], y_era5_temporal[:,i]).cpu() for i in i_summer]
 corr_temporal = np.stack(corr_temporal_summer)
-corr_temporal_winter = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in i_winter]
+corr_temporal_winter = [corr(y_hat_temporal[:,i], y_era5_temporal[:,i]).cpu() for i in i_winter]
 corr_temporal = np.stack(corr_temporal_winter)
 
 rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
@@ -184,10 +196,8 @@ d = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_summe
     'corr_temporal_mean' : [np.mean(corr_temporal), np.mean(corr_temporal_summer), np.mean(corr_temporal_winter)]}
 
 df = pd.DataFrame(d, index = ['all', 'summer', 'winter'])
-df.to_csv(metric_dir/f'metrics_test_mean_{exp}_{test_name}.csv')
+df.to_csv(metric_dir/f'metrics_test_era5_mean_{exp}_{test_name}.csv')
 print(df)
-
-
 
 
 # Spatial distribution
@@ -195,25 +205,25 @@ print(df)
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Mean RMSE spatial distribution ({period})')
-plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
+plt.title(f'ERA5 Mean RMSE spatial distribution ({period})')
+plt.imshow(np.flip(rmse_spatial, axis=0), aspect='auto', cmap='OrRd', vmin=0, vmax=6)
 plt.colorbar(label='RMSE (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{graph_dir}/spatial_rmse_distribution.png") 
+plt.savefig(f"{graph_dir}/era5_spatial_rmse_distribution.png") 
 
 ## Bias
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Mean bias spatial distribution ({period})')
-plt.imshow(np.flip(bias_spatial, axis=0), cmap='BrBG', vmin=-5, vmax=5)
+plt.title(f'ERA5 Mean bias spatial distribution ({period})')
+plt.imshow(np.flip(bias_spatial, axis=0), aspect='auto', cmap='BrBG', vmin=-5, vmax=5)
 plt.colorbar(label='Bias (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{graph_dir}/spatial_bias_distribution.png") 
+plt.savefig(f"{graph_dir}/era5_spatial_bias_distribution.png") 
 
 
 # Temporal distribution
@@ -226,7 +236,7 @@ rmse_per_year = df_rmse.pivot_table(index='month', columns='year', values='rmse_
 plt.figure(figsize=(10, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'RMSE seasonal cycle ({period})')
+plt.title(f'ERA5 RMSE seasonal cycle ({period})')
 plt.plot(rmse_monthly_mean.index, rmse_monthly_mean.values, label='Mean', color='red', linewidth=2)
 for year in rmse_per_year.columns:
     plt.plot(rmse_per_year.index, rmse_per_year[year], label=str(year), alpha=0.3, linestyle='--')
@@ -240,7 +250,6 @@ plt.legend(loc='upper right', fontsize=12, ncol=2)
 ax.text(0.02, 0.10, f"Mean temporal RMSE: {np.mean(rmse_temporal):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
 plt.tight_layout()
-plt.savefig(f"{graph_dir}/monthly_rmse_cycle.png") 
+plt.savefig(f"{graph_dir}/era5_monthly_rmse_cycle.png") 
 
 
-'''

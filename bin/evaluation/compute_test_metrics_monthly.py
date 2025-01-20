@@ -42,8 +42,12 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
 
-rmse_temporal = []  
-rmse_spatial = []  
+monthly_indices = defaultdict(list)
+monthly_y = defaultdict(list)
+monthly_y_hat = defaultdict(list)
+
+rmse_temporal = []
+rmse_spatial = []
 rmse_spatial_summer = []
 rmse_spatial_winter = []
 bias_spatial = []
@@ -61,15 +65,21 @@ startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
 enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
+# Regroupement des indices par mois
 for i, date in enumerate(DATES_TEST):
     print(date)
-    if date.month in [6,7,8]:
+    month_id = date.strftime('%Y/%m')
+    monthly_indices[month_id].append(i)
+
+    if date.month in [6, 7, 8]:
         i_summer.append(i)
-    if date.month in [1,2,12]:
+    if date.month in [1, 2, 12]:
         i_winter.append(i)
+
+    # Chargement des données
     date_str = date.date().strftime('%Y%m%d')
-    sample = glob.glob(str(hparams['sample_dir']/f'sample_{date_str}.npz'))[0]
-    data = dict(np.load(sample), allow_pickle=True)
+    sample = glob.glob(str(hparams['sample_dir'] / f'sample_{date_str}.npz'))[0]
+    data = dict(np.load(sample, allow_pickle=True))
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
     x, y = transforms((x, y))
@@ -83,24 +93,36 @@ for i, date in enumerate(DATES_TEST):
     y[condition] = np.nan
     y_hat[condition] = np.nan
 
-    # compute metrics
-    ## spatial metrics
-    error = (y_hat - y)
+    # Regroupement par mois
+    monthly_y[month_id].append(y)
+    monthly_y_hat[month_id].append(y_hat)
+
+# Calcul des moyennes mensuelles et des métriques
+for month_id, indices in monthly_indices.items():
+    y_monthly = np.nanmean(monthly_y[month_id], axis=0)
+    y_hat_monthly = np.nanmean(monthly_y_hat[month_id], axis=0)
+
+    # Calcul des erreurs
+    error = y_hat_monthly - y_monthly
     error_squared = error ** 2
+
     if len(rmse_spatial) == 0:
         rmse_spatial = error_squared
         bias_spatial = error
     else:
         rmse_spatial += error_squared
         bias_spatial += error
-    if date.month in [6,7,8]:
+
+    # Saisons
+    if month_id.split('/')[1] in ['06', '07', '08']:
         if len(rmse_spatial_summer) == 0:
             rmse_spatial_summer = error_squared
             bias_spatial_summer = error
         else:
             rmse_spatial_summer += error_squared
             bias_spatial_summer += error
-    elif date.month in [1,2,12]:
+
+    elif month_id.split('/')[1] in ['12', '01', '02']:
         if len(rmse_spatial_winter) == 0:
             rmse_spatial_winter = error_squared
             bias_spatial_winter = error
@@ -108,26 +130,19 @@ for i, date in enumerate(DATES_TEST):
             rmse_spatial_winter += error_squared
             bias_spatial_winter += error
 
-    ## temporal metrics
-    y, y_hat = torch.tensor(y), torch.tensor(y_hat)
-    y_flat, y_hat_flat = y[~torch.isnan(y)].to(device), y_hat[~torch.isnan(y_hat)].to(device)
+    # Conversion en tensors pour calcul des métriques temporelles
+    y_tensor = torch.tensor(y_monthly)
+    y_hat_tensor = torch.tensor(y_hat_monthly)
+    y_flat, y_hat_flat = y_tensor[~torch.isnan(y_tensor)], y_hat_tensor[~torch.isnan(y_hat_tensor)]
+
+    # Calcul des métriques temporelles
     rmse_value = rmse(y_hat_flat, y_flat).item()
-    corr_value = corr(y_hat_flat - torch.mean(y_hat_flat), y_flat - torch.mean(y_flat)).item()
+    corr_value = corr(y_hat_flat - y_hat_flat.mean(), y_flat - y_flat.mean()).item()
+
     rmse_temporal.append(rmse_value)
     corr_spatial.append(corr_value)
 
-    y_temporal.append(y_flat)
-    y_hat_temporal.append(y_hat_flat)
-
-
-y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
-corr_temporal = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in range(y_temporal.size(dim=1))]
-corr_temporal = np.stack(corr_temporal)
-corr_temporal_summer = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in i_summer]
-corr_temporal = np.stack(corr_temporal_summer)
-corr_temporal_winter = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in i_winter]
-corr_temporal = np.stack(corr_temporal_winter)
-
+# Calcul final des moyennes et des écarts-types
 rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
 rmse_spatial_summer = np.sqrt(rmse_spatial_summer / len(i_summer))
 rmse_spatial_winter = np.sqrt(rmse_spatial_winter / len(i_winter))
@@ -141,18 +156,18 @@ corr_spatial_summer = [corr_spatial[i] for i in i_summer]
 corr_spatial_winter = [corr_spatial[i] for i in i_winter]
 
 # Scalars
-d = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_summer), np.mean(rmse_temporal_winter)],
-    'rmse_spatial_mean' : [np.nanmean(rmse_spatial),np.nanmean(rmse_spatial_summer), np.nanmean(rmse_spatial_winter)],
-    'bias_spatial_mean' : [np.nanmean(bias_spatial),np.nanmean(bias_spatial_summer), np.nanmean(bias_spatial_winter)],
-    'bias_spatial_std' : [np.nanstd(bias_spatial),np.nanstd(bias_spatial_summer), np.nanstd(bias_spatial_winter)],
-    'corr_spatial_mean' : [np.mean(corr_spatial), np.mean(corr_spatial_summer), np.mean(corr_spatial_winter)],
-    'corr_temporal_mean' : [np.mean(corr_temporal), np.mean(corr_temporal_summer), np.mean(corr_temporal_winter)]}
+d = {
+    'rmse_temporal_mean': [np.mean(rmse_temporal), np.mean(rmse_temporal_summer), np.mean(rmse_temporal_winter)],
+    'rmse_spatial_mean': [np.nanmean(rmse_spatial), np.nanmean(rmse_spatial_summer), np.nanmean(rmse_spatial_winter)],
+    'bias_spatial_mean': [np.nanmean(bias_spatial), np.nanmean(bias_spatial_summer), np.nanmean(bias_spatial_winter)],
+    'bias_spatial_std': [np.nanstd(bias_spatial), np.nanstd(bias_spatial_summer), np.nanstd(bias_spatial_winter)],
+    'corr_spatial_mean': [np.mean(corr_spatial), np.mean(corr_spatial_summer), np.mean(corr_spatial_winter)],
+    'corr_temporal_mean': [np.mean(rmse_temporal), np.mean(rmse_temporal_summer), np.mean(rmse_temporal_winter)],
+}
 
-df = pd.DataFrame(d, index = ['all', 'summer', 'winter'])
-df.to_csv(metric_dir/f'metrics_test_mean_{exp}_{test_name}.csv')
+df = pd.DataFrame(d, index=['all', 'summer', 'winter'])
+df.to_csv(metric_dir / f'metrics_test_mean_{exp}_{test_name}.csv')
 print(df)
-
-
 
 '''
 # Spatial distribution

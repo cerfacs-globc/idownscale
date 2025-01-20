@@ -11,7 +11,7 @@ class IRISCCHyperParameters():
         self.mask = 'france'
         if self.mask != 'none':
             self.in_channels +=1
-        self.learning_rate = 0.0005
+        self.learning_rate = 0.0001
         self.batch_size = 32
         self.max_epoch = 50
         self.model = 'swin2sr'

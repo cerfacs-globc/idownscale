@@ -102,9 +102,10 @@ def interpolation_target_grid(ds, ds_target):
    if 'x' in ds.coords :
       if 'x_b' not in ds.coords:
          ds = add_lon_lat_bounds(ds)
-   if 'x' in ds.coords :
-      if 'x_b' not in ds.coords:
+   if 'x' in ds_target.coords :
+      if 'x_b' not in ds_target.coords:
          ds_target = add_lon_lat_bounds(ds_target)
+
    for i, coord in enumerate(['lat','lon']):
       if len(ds[coord].dims) == 1:
          if len(ds[coord].values) > TARGET_SIZE[i]: # if resolution is finer than target's
