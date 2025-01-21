@@ -196,7 +196,7 @@ d = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_summe
     'corr_temporal_mean' : [np.mean(corr_temporal), np.mean(corr_temporal_summer), np.mean(corr_temporal_winter)]}
 
 df = pd.DataFrame(d, index = ['all', 'summer', 'winter'])
-df.to_csv(metric_dir/f'metrics_test_daily_era5_mean_{exp}_{test_name}.csv')
+df.to_csv(metric_dir/f'metrics_test_mean_daily_era5_{exp}_{test_name}.csv')
 print(df)
 
 

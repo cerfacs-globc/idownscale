@@ -26,7 +26,6 @@ metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
 os.makedirs(graph_dir, exist_ok=True)
 os.makedirs(metric_dir, exist_ok=True)
 
-
 model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir)
 model.eval()
 hparams = model.hparams['hparams']
@@ -42,10 +41,6 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
 
-monthly_indices = defaultdict(list)
-monthly_y = defaultdict(list)
-monthly_y_hat = defaultdict(list)
-
 rmse_temporal = []
 rmse_spatial = []
 rmse_spatial_summer = []
@@ -58,23 +53,21 @@ corr_spatial_summer = []
 corr_spatial_winter = []
 y_temporal = []
 y_hat_temporal = []
-i_summer = []
-i_winter = []
+i_summer = set() 
+i_winter = set()
+data_with_date = []
 
 startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
 enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
-# Regroupement des indices par mois
-for i, date in enumerate(DATES_TEST):
+for i, date in enumerate(DATES_TEST[0:300]):
     print(date)
-    month_id = date.strftime('%Y/%m')
-    monthly_indices[month_id].append(i)
 
     if date.month in [6, 7, 8]:
-        i_summer.append(i)
+        i_summer.add(date.strftime('%Y/%m'))  # Un identifiant par mois
     if date.month in [1, 2, 12]:
-        i_winter.append(i)
+        i_winter.add(date.strftime('%Y/%m'))
 
     # Chargement des données
     date_str = date.date().strftime('%Y%m%d')
@@ -93,16 +86,23 @@ for i, date in enumerate(DATES_TEST):
     y[condition] = np.nan
     y_hat[condition] = np.nan
 
-    # Regroupement par mois
-    monthly_y[month_id].append(y)
-    monthly_y_hat[month_id].append(y_hat)
+    # Stocker les données pour le traitement mensuel
+    data_with_date.append({
+        'date': date,
+        'month_id': date.strftime('%Y/%m'),
+        'y': y,
+        'y_hat': y_hat
+    })
 
-# Calcul des moyennes mensuelles et des métriques
-for month_id, indices in monthly_indices.items():
-    y_monthly = np.nanmean(monthly_y[month_id], axis=0)
-    y_hat_monthly = np.nanmean(monthly_y_hat[month_id], axis=0)
+# Conversion en dataframe et regroupement par mois
+df_data = pd.DataFrame(data_with_date)
+monthly_groups = df_data.groupby('month_id')
 
-    # Calcul des erreurs
+# Calculs des métriques par mois
+for month_id, group in monthly_groups:
+    y_monthly = np.nanmean(np.stack(group['y'].values), axis=0)
+    y_hat_monthly = np.nanmean(np.stack(group['y_hat'].values), axis=0)
+
     error = y_hat_monthly - y_monthly
     error_squared = error ** 2
 
@@ -113,8 +113,8 @@ for month_id, indices in monthly_indices.items():
         rmse_spatial += error_squared
         bias_spatial += error
 
-    # Saisons
-    if month_id.split('/')[1] in ['06', '07', '08']:
+    # Calcul pour les mois d'été
+    if month_id in i_summer:
         if len(rmse_spatial_summer) == 0:
             rmse_spatial_summer = error_squared
             bias_spatial_summer = error
@@ -122,7 +122,8 @@ for month_id, indices in monthly_indices.items():
             rmse_spatial_summer += error_squared
             bias_spatial_summer += error
 
-    elif month_id.split('/')[1] in ['12', '01', '02']:
+    # Calcul pour les mois d'hiver
+    elif month_id in i_winter:
         if len(rmse_spatial_winter) == 0:
             rmse_spatial_winter = error_squared
             bias_spatial_winter = error
@@ -130,30 +131,30 @@ for month_id, indices in monthly_indices.items():
             rmse_spatial_winter += error_squared
             bias_spatial_winter += error
 
-    # Conversion en tensors pour calcul des métriques temporelles
-    y_tensor = torch.tensor(y_monthly)
-    y_hat_tensor = torch.tensor(y_hat_monthly)
+    y_tensor = torch.tensor(y_monthly).to(device)
+    y_hat_tensor = torch.tensor(y_hat_monthly).to(device)
     y_flat, y_hat_flat = y_tensor[~torch.isnan(y_tensor)], y_hat_tensor[~torch.isnan(y_hat_tensor)]
 
-    # Calcul des métriques temporelles
     rmse_value = rmse(y_hat_flat, y_flat).item()
     corr_value = corr(y_hat_flat - y_hat_flat.mean(), y_flat - y_flat.mean()).item()
 
     rmse_temporal.append(rmse_value)
     corr_spatial.append(corr_value)
 
-# Calcul final des moyennes et des écarts-types
-rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
+rmse_spatial = np.sqrt(rmse_spatial / len(monthly_groups))
 rmse_spatial_summer = np.sqrt(rmse_spatial_summer / len(i_summer))
 rmse_spatial_winter = np.sqrt(rmse_spatial_winter / len(i_winter))
-bias_spatial = bias_spatial / len(DATES_TEST)
+bias_spatial = bias_spatial / len(monthly_groups)
 bias_spatial_summer = bias_spatial_summer / len(i_summer)
 bias_spatial_winter = bias_spatial_winter / len(i_winter)
 
-rmse_temporal_summer = [rmse_temporal[i] for i in i_summer]
-rmse_temporal_winter = [rmse_temporal[i] for i in i_winter]
-corr_spatial_summer = [corr_spatial[i] for i in i_summer]
-corr_spatial_winter = [corr_spatial[i] for i in i_winter]
+summer_month_ids = {month_id for month_id in i_summer}
+winter_month_ids = {month_id for month_id in i_winter}
+
+rmse_temporal_summer = [rmse_temporal[i] for i, date in enumerate(DATES_TEST) if date.strftime('%Y/%m') in summer_month_ids]
+rmse_temporal_winter = [rmse_temporal[i] for i, date in enumerate(DATES_TEST) if date.strftime('%Y/%m') in winter_month_ids]
+corr_spatial_summer = [corr_spatial[i] for i, date in enumerate(DATES_TEST) if date.strftime('%Y/%m') in summer_month_ids]
+corr_spatial_winter = [corr_spatial[i] for i, date in enumerate(DATES_TEST) if date.strftime('%Y/%m') in winter_month_ids]
 
 # Scalars
 d = {
@@ -166,34 +167,34 @@ d = {
 }
 
 df = pd.DataFrame(d, index=['all', 'summer', 'winter'])
-df.to_csv(metric_dir / f'metrics_test_mean_{exp}_{test_name}.csv')
+df.to_csv(metric_dir / f'metrics_test_mean_monthly_{exp}_{test_name}.csv')
 print(df)
 
-'''
+
 # Spatial distribution
 ## RMSE
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Mean RMSE spatial distribution ({period})')
+plt.title(f'Monthly Mean RMSE spatial distribution ({period})')
 plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
 plt.colorbar(label='RMSE (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{graph_dir}/spatial_rmse_distribution.png") 
+plt.savefig(f"{graph_dir}/monthly_spatial_rmse_distribution.png") 
 
 ## Bias
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Mean bias spatial distribution ({period})')
+plt.title(f'Monthly Mean bias spatial distribution ({period})')
 plt.imshow(np.flip(bias_spatial, axis=0), cmap='BrBG', vmin=-5, vmax=5)
 plt.colorbar(label='Bias (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{graph_dir}/spatial_bias_distribution.png") 
+plt.savefig(f"{graph_dir}/monthly_spatial_bias_distribution.png") 
 
 
 # Temporal distribution
@@ -201,12 +202,13 @@ plt.savefig(f"{graph_dir}/spatial_bias_distribution.png")
 df_rmse = pd.DataFrame({'date': DATES_TEST, 'rmse_temporal': rmse_temporal})
 df_rmse['month'] = pd.to_datetime(df_rmse['date']).dt.month
 df_rmse['year'] = pd.to_datetime(df_rmse['date']).dt.year
+df_rmse['month_id'] = pd.to_datetime(df_rmse['date']).dt.strftime('%Y/%m')
 rmse_monthly_mean = df_rmse.groupby('month')['rmse_temporal'].mean()
 rmse_per_year = df_rmse.pivot_table(index='month', columns='year', values='rmse_temporal')
 plt.figure(figsize=(10, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'RMSE seasonal cycle ({period})')
+plt.title(f'Monthly RMSE seasonal cycle ({period})')
 plt.plot(rmse_monthly_mean.index, rmse_monthly_mean.values, label='Mean', color='red', linewidth=2)
 for year in rmse_per_year.columns:
     plt.plot(rmse_per_year.index, rmse_per_year[year], label=str(year), alpha=0.3, linestyle='--')
@@ -218,9 +220,6 @@ plt.xlabel('Month')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.legend(loc='upper right', fontsize=12, ncol=2)
 ax.text(0.02, 0.10, f"Mean temporal RMSE: {np.mean(rmse_temporal):.2f}", transform=ax.transAxes, fontsize=12, 
-        verticalalignment='top', horizontalalignment='left', color = 'red')
+        verticalalignment='top', horizontalalignment='left', color='red')
 plt.tight_layout()
-plt.savefig(f"{graph_dir}/monthly_rmse_cycle.png") 
-
-
-'''
+plt.savefig(f"{graph_dir}/monthly_rmse_seasonal.png")

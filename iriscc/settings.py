@@ -47,8 +47,8 @@ PROJ = TARGET_PROJ
 
 # Experience settings
 ## First experience
-STATISTICS_FILE = DATASET_EXP1_30Y_DIR / 'statistics.json'
-DATES = pd.date_range(start='2004-01-01', end='2014-12-31', freq='D')
+STATISTICS_FILE = DATASET_EXP1_6MB_DIR / 'statistics.json'
+DATES = pd.date_range(start='2012-05-13', end='2014-12-31', freq='D')
 #DATES = pd.date_range(start='1984-01-01', end='2003-12-31', freq='D')
 GCM = ['CNRM-CM6-1']
 

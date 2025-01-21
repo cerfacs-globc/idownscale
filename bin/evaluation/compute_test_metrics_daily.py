@@ -13,7 +13,7 @@ from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.settings import DATASET_EXP1_DIR, DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR, DATASET_EXP1_30Y_DIR
+from iriscc.settings import DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR
 from iriscc.transforms import UnPad
 
 exp = str(sys.argv[1]) # ex : exp 1
@@ -153,8 +153,6 @@ df.to_csv(metric_dir/f'metrics_test_mean_daily_{exp}_{test_name}.csv')
 print(df)
 
 
-
-'''
 # Spatial distribution
 ## RMSE
 plt.figure(figsize=(8, 6))
@@ -208,4 +206,3 @@ plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_rmse_seasonal.png") 
 
 
-'''

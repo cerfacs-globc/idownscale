@@ -28,7 +28,7 @@ class IRISCCLightningModule(pl.LightningModule):
             self.model = UNet(in_channels=hparams['in_channels'], out_channels=1, init_features=32).float()
         elif hparams['model'] == 'swin2sr':
             self.model = Swin2SR(upscale=1, img_size=hparams['img_size'], out_chans=1, in_chans=hparams['in_channels'],
-                   embed_dim=32, depths=[4, 4, 4, 4], num_heads=[4, 4, 4, 4],window_size=8, upsampler='pixelshuffle')
+                   embed_dim=32, depths=[2, 2, 2, 2], num_heads=[2 ,2 ,2 ,2],window_size=8, upsampler='pixelshuffle')
         #self.loss = nn.MSELoss()  
         self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
