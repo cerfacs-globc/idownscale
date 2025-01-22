@@ -9,6 +9,7 @@ import numpy as np
 import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
+from monai.networks.nets import SwinUNETR
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.unet import UNet
@@ -29,6 +30,9 @@ class IRISCCLightningModule(pl.LightningModule):
         elif hparams['model'] == 'swin2sr':
             self.model = Swin2SR(upscale=1, img_size=hparams['img_size'], out_chans=1, in_chans=hparams['in_channels'],
                    embed_dim=32, depths=[2, 2, 2, 2], num_heads=[2 ,2 ,2 ,2],window_size=8, upsampler='pixelshuffle')
+        elif hparams['model'] == 'swinunetr':
+            self.model = SwinUNETR(img_size=hparams['img_size'], in_channels=hparams['in_channels'], out_channels=1,spatial_dims=2)
+
         #self.loss = nn.MSELoss()  
         self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
@@ -116,7 +120,7 @@ class IRISCCLightningModule(pl.LightningModule):
     
             fig, ax = plt.subplots()
             x[x == self.fill_value] = torch.nan
-            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd', levels=11)
+            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd')
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_x_0', fig)
 

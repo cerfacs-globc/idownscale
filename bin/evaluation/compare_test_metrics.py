@@ -38,7 +38,7 @@ for col in columns:
     metrics_dict[col] = new_df
 
 for key, df in metrics_dict.items():
-    ax = df.plot.bar(rot=0, figsize=(11,4))
+    ax = df.plot.bar(rot=0, figsize=(18,4))
     plt.axhline(y=0)
     plt.title(f'{key} ({period})')
     plt.legend(loc='lower right')
