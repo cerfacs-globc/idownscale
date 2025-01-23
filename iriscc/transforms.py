@@ -8,7 +8,7 @@ import xarray as xr
 import torch.nn.functional as F
 
 from iriscc.plotutils import plot_test
-from iriscc.settings import (TARGET_GRID_FILE, IMERG_MASK, STATISTICS_FILE)
+from iriscc.settings import (TARGET_GRID_FILE, IMERG_MASK)
 
 class StandardNormalisation():
     def __init__(self):
@@ -30,8 +30,9 @@ class StandardNormalisation():
         
 
 class MinMaxNormalisation():
-    def __init__(self):
-        with open(STATISTICS_FILE) as f:
+    def __init__(self, sample_dir):
+        statistics_file = sample_dir / 'statistics.json'
+        with open(statistics_file) as f:
             stats = json.load(f)
         min = []
         max = []

@@ -15,15 +15,36 @@ Ce document fournit un aperçu de la structure du code, des commandes utiles pou
 Le projet est organisé comme suit :
 
 ```
-IRISCC/
-├── data/               # Dossier contenant les datasets
-│   ├── raw/           # Données brutes
-│   ├── processed/     # Données transformées et prêtes à l'utilisation
-├── src/                # Code source principal
-│   ├── preprocessing/ # Scripts de pré-traitement des données
-│   ├── models/        # Définition des modèles
-│   ├── training/      # Scripts pour l'entraînement
-│   ├── evaluation/    # Scripts pour l'évaluation
+iriscc/
+├── bin/               # Dossier contenant les datasets
+│   ├── preprocessing/           # Données brutes
+│   │   ├── safran_reformat.py    # Scripts pour l'évaluation
+│   │   ├── build_dataset.py    # Scripts pour l'évaluation
+│   │   ├── compute_statistics.py    # Scripts pour l'évaluation
+│   ├── training/     # Données transformées et prêtes à l'utilisation
+│   │   ├── train.py    # Scripts pour l'évaluation
+│   │   ├── predict.py    # Scripts pour l'évaluation
+│   ├── evaluation/     # Données transformées et prêtes à l'utilisation
+│   │
+├── iriscc/                # Code source principal
+│   ├── dataloaders.py # Scripts de pré-traitement des données
+│   ├── hparams.py        # Définition des modèles
+│   ├── settings.py    # Scripts pour l'évaluation
+│   ├── lightning_module.py     # Scripts pour l'entraînement
+│   ├── loss.py    # Scripts pour l'évaluation
+│   ├── metrics.py    # Scripts pour l'évaluation
+│   ├── plotutils.py    # Scripts pour l'évaluation
+│   ├── datautils.py    # Scripts pour l'évaluation
+│   ├── transforms.py    # Scripts pour l'évaluation
+│   ├── unet.py    # Scripts pour l'évaluation
+│   ├── swin2sr.py    # Scripts pour l'évaluation
+
+scratch/globc/garcia/
+├── datasets/               # Dossier contenant les datasets
+├── graphs/                # Code source principal
+├── rawdata/                # Code source principal
+├── runs/                # Code source principal
+
 ├── notebooks/          # Jupyter Notebooks pour exploration et prototypage
 ├── scripts/            # Scripts utilitaires pour automatisation
 ├── logs/               # Logs générés pendant l'entraînement ou les tests

@@ -62,7 +62,7 @@ model.eval()
 hparams = model.hparams['hparams']
 arch = hparams['model']
 transforms = v2.Compose([
-            MinMaxNormalisation(), 
+            MinMaxNormalisation(hparams['sample_dir']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
@@ -205,9 +205,11 @@ print(df)
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'ERA5 Daily Mean RMSE spatial distribution ({period})')
-plt.imshow(np.flip(rmse_spatial, axis=0), aspect='auto', cmap='OrRd', vmin=0, vmax=6)
-plt.colorbar(label='RMSE (K)')
+plt.title(f'Daily Mean RMSE spatial distribution ({period})')
+cs = ax.contourf(rmse_spatial, cmap='Set3', levels=np.linspace(0,6,11))
+plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
+#plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
+#plt.colorbar(label='RMSE (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
@@ -217,9 +219,11 @@ plt.savefig(f"{graph_dir}/daily_era5_spatial_rmse_distribution.png")
 plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'ERA5 Daily Mean bias spatial distribution ({period})')
-plt.imshow(np.flip(bias_spatial, axis=0), aspect='auto', cmap='BrBG', vmin=-5, vmax=5)
-plt.colorbar(label='Bias (K)')
+plt.title(f'Daily Mean bias spatial distribution ({period})')
+cs = ax.contourf(bias_spatial, cmap='BrBG', levels= np.linspace(-4,4,9))
+plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
+#plt.imshow(np.flip(bias_spatial, axis=0), cmap='BrBG', vmin=-5, vmax=5)
+#plt.colorbar(label='Bias (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')

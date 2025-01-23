@@ -22,7 +22,8 @@ from iriscc.settings import (SAFRAN_DIR,
                              TARGET,
                              DATASET_EXP1_30Y_DIR,
                              DATASET_EXP1_DIR, 
-                             DATASET_EXP1_6MB_DIR)
+                             DATASET_EXP1_6MB_DIR,
+                             DATASET_EXP1_6MB_30Y_DIR)
 
 
 def mask_coverage_func(var_array, mask, model):
@@ -111,7 +112,7 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_EXP1_6MB_DIR/f'sample_{date_str}.npz', **sample)
+        np.savez(DATASET_EXP1_6MB_30Y_DIR/f'sample_{date_str}.npz', **sample)
 
 
 

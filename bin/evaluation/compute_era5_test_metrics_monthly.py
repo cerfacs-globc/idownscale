@@ -62,7 +62,7 @@ model.eval()
 hparams = model.hparams['hparams']
 arch = hparams['model']
 transforms = v2.Compose([
-            MinMaxNormalisation(), 
+            MinMaxNormalisation(hparams['sample_dir']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
