@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.plotutils import plot_test, plot_contour
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, ERA5_DIR, TARGET_GRID_FILE
+from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, ERA5_DIR, TARGET_GRID_FILE, DATASET_TEST_6MB_ISAFRAN
 from iriscc.datautils import standardize_dims_and_coords, standardize_longitudes, interpolation_target_grid
 
 def get_era5_dataset(date):
@@ -70,8 +70,9 @@ if __name__=='__main__':
     date = str(sys.argv[1])
     exp = str(sys.argv[2]) # ex : exp 1
     test_name = str(sys.argv[3]) # ex : mask_continents
-    version = str(sys.argv[4])
-    run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_{version}'
+    pp_test = str(sys.argv[4]) # Perfect prognosis, yes or no
+
+    run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
     checkpoint_dir = run_dir/'checkpoints/best-checkpoint.ckpt'
 
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
@@ -84,9 +85,14 @@ if __name__=='__main__':
                 FillMissingValue(hparams['fill_value']),
                 Pad(hparams['fill_value'])
                 ])
+    
+    sample_dir = hparams['sample_dir']
+    if pp_test == 'yes':
+        test_name = f'{test_name}_pp'
+        sample_dir = DATASET_TEST_6MB_ISAFRAN
     device = 'cpu'
 
-    sample = glob.glob(str(hparams['sample_dir']/f'sample_{date}.npz'))[0]
+    sample = glob.glob(str(sample_dir/f'sample_{date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     x_init, y = data['x'], data['y']
     condition = np.isnan(y[0])
@@ -109,12 +115,12 @@ if __name__=='__main__':
     vmin, vmax = np.nanmin(y), np.nanmax(y)
     levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
 
-    plot_contour(x_init[1], f'{date} x ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png')
-    plot_contour(y_hat, f'{date} y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
-    plot_contour(y[0], f'{date} y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
-    plot_contour(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_diff_{exp}_{test_name}.png')
-    plot_contour(y_hat_reformat, f'{date} y_hat_reformat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhatreformat_{exp}_{test_name}.png', levels=levels)
-    plot_contour(y_era5, f'{date} y_era5 ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yera5_{exp}_{test_name}.png', levels=levels)
+    #plot_contour(x_init[1], f'{date} x ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png')
+    #plot_contour(y_hat, f'{date} y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
+    #plot_contour(y[0], f'{date} y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
+    #plot_contour(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_diff_{exp}_{test_name}.png')
+    #plot_contour(y_hat_reformat, f'{date} y_hat_reformat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhatreformat_{exp}_{test_name}.png', levels=levels)
+    #plot_contour(y_era5, f'{date} y_era5 ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yera5_{exp}_{test_name}.png', levels=levels)
 
     plot_6_subplots(y[0], 
                     y_hat, 

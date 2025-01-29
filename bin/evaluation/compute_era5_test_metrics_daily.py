@@ -13,10 +13,19 @@ from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.settings import DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR, ERA5_DIR, TARGET_GRID_FILE
 from iriscc.transforms import UnPad
 from iriscc.datautils import standardize_dims_and_coords, standardize_longitudes, interpolation_target_grid
 from iriscc.plotutils import plot_test, plot_contour
+from iriscc.settings import (DATES_TEST, 
+                             GRAPHS_DIR, 
+                             TARGET_SIZE, 
+                             RUNS_DIR, 
+                             METRICS_DIR, 
+                             ERA5_DIR, 
+                             TARGET_GRID_FILE,
+                             DATASET_TEST_6MB_ISAFRAN)
+
+
 
 def get_era5_dataset(date):
     file = glob.glob(str(ERA5_DIR/f'*{date.year}*'))[0]
@@ -46,8 +55,10 @@ def reformat_pred_to_era5(y_hat, ds_era5):
 
 exp = str(sys.argv[1]) # ex : exp 1
 test_name = str(sys.argv[2]) # ex : mask_continents
-version = str(sys.argv[3])
-run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_{version}'
+pp_test = str(sys.argv[3]) # Perfect prognosis, yes or no
+
+
+run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
 checkpoint_dir = run_dir/'checkpoints/best-checkpoint.ckpt'
 graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
 metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
@@ -60,13 +71,20 @@ print(device)
 model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
 model.eval()
 hparams = model.hparams['hparams']
-arch = hparams['model']
 transforms = v2.Compose([
             MinMaxNormalisation(hparams['sample_dir']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
             ])
+
+arch = hparams['model']
+sample_dir = hparams['sample_dir']
+pp = ''
+if pp_test == 'yes':
+    test_name = f'{test_name}_pp'
+    sample_dir = DATASET_TEST_6MB_ISAFRAN
+    pp = '_pp'
 
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
@@ -97,7 +115,7 @@ for i, date in enumerate(DATES_TEST):
     if date.month in [1,2,12]:
         i_winter.append(i)
     date_str = date.date().strftime('%Y%m%d')
-    sample = glob.glob(str(hparams['sample_dir']/f'sample_{date_str}.npz'))[0]
+    sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
@@ -117,18 +135,6 @@ for i, date in enumerate(DATES_TEST):
     condition2 = np.isnan(y_hat)
     y_era5[condition2] = np.nan
 
-    '''
-    _, ax = plt.subplots()
-    im = ax.imshow(np.flip(y_era5, axis=0), aspect='auto', cmap='OrRd')
-    plt.colorbar(im, ax=ax, pad=0.05)
-    plt.title( 'era5')
-    plt.savefig('/scratch/globc/garcia/graph/test.png')
-    _, ax = plt.subplots()
-    im = ax.imshow(np.flip(y_hat, axis=0), aspect='auto', cmap='OrRd', vmin=np.nanmin(y_era5), vmax=np.nanmax(y_era5))
-    plt.colorbar(im, ax=ax, pad=0.05)
-    plt.title( 'y_hat (default)')
-    plt.savefig('/scratch/globc/garcia/graph/test2.png')
-    '''
 
     # compute metrics
     ## spatial metrics
@@ -206,14 +212,14 @@ plt.figure(figsize=(8, 6))
 plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
 plt.title(f'Daily Mean RMSE spatial distribution ({period})')
-cs = ax.contourf(rmse_spatial, cmap='Set3', levels=np.linspace(0,6,11))
+cs = ax.contourf(rmse_spatial, cmap='Reds', levels=np.linspace(0,6,11))
 plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
 #plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
 #plt.colorbar(label='RMSE (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{graph_dir}/daily_era5_spatial_rmse_distribution.png") 
+plt.savefig(f"{graph_dir}/daily_era5_spatial_rmse_distribution{pp}.png") 
 
 ## Bias
 plt.figure(figsize=(8, 6))
@@ -227,7 +233,7 @@ plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
-plt.savefig(f"{graph_dir}/daily_era5_spatial_bias_distribution.png") 
+plt.savefig(f"{graph_dir}/daily_era5_spatial_bias_distribution{pp}.png") 
 
 
 # Temporal distribution
@@ -254,6 +260,6 @@ plt.legend(loc='upper right', fontsize=12, ncol=2)
 ax.text(0.02, 0.10, f"Mean temporal RMSE: {np.mean(rmse_temporal):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
 plt.tight_layout()
-plt.savefig(f"{graph_dir}/daily_era5_rmse_seasonal.png") 
+plt.savefig(f"{graph_dir}/daily_era5_rmse_seasonal{pp}.png") 
 
 

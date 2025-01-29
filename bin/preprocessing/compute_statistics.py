@@ -6,7 +6,7 @@ import glob
 import json
 import matplotlib.pyplot as plt
 
-from iriscc.settings import DATASET_EXP1_DIR, CHANELS, DATASET_EXP1_30Y_DIR, DATASET_EXP1_6MB_DIR
+from iriscc.settings import DATASET_EXP1_DIR, CHANELS, DATASET_EXP1_30Y_DIR, DATASET_EXP1_6MB_DIR, DATASET_EXP1_6MB_30Y_DIR
 
 def update_statistics(sum, square_sum, n_total, min, max, x):
     ''' Compute and update samples statistics '''
@@ -43,7 +43,7 @@ def plot_histogram(data, min, max, mean, std, variable:str, title:str, save_dir:
 
 
 if __name__=='__main__':
-    dataset = np.sort(glob.glob(str(DATASET_EXP1_6MB_DIR/'sample*')))
+    dataset = np.sort(glob.glob(str(DATASET_EXP1_6MB_30Y_DIR/'sample*')))
     ch = len(CHANELS)
     sum = np.zeros(ch)
     square_sum = np.zeros(ch)
@@ -98,10 +98,14 @@ if __name__=='__main__':
                          'std': std[i],
                          'min': min[i],
                          'max': max[i]}
-
+        
+    with open(DATASET_EXP1_6MB_30Y_DIR/'statistics.json', "w") as f: 
+        json.dump(stats, f)
+    
+    '''
     for name, dict in {'x':x_data, 'y':y_data}.items():
         for type, data in dict.items():
-            ''' Only Temperature values are kept '''
+            # Only Temperature values are kept
             data = np.concatenate(data)
             plot_histogram(data, 
                         min[1:].min(), 
@@ -110,9 +114,8 @@ if __name__=='__main__':
                         np.nanstd(data), 
                         'tas (K)', 
                         f'{name} {type} dataset histogram', 
-                        DATASET_EXP1_6MB_DIR/f'hist_{name}_{type}.png')
-         
+                        DATASET_EXP1_6MB_30Y_DIR/f'hist_{name}_{type}.png')
+         '''
 
+    
 
-    with open(DATASET_EXP1_6MB_DIR/'statistics.json', "w") as f: 
-	    json.dump(stats, f)

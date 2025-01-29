@@ -21,6 +21,8 @@ DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
 DATASET_EXP1_6MB_DIR = DATASET_DIR / 'dataset_exp1_6mb'
 DATASET_EXP1_6MB_30Y_DIR = DATASET_DIR / 'dataset_exp1_6mb_30y'
+DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
+DATASET_TEST_6MB_ISAFRAN = DATASET_DIR / 'dataset_test_6mb_iSAFRAN'
 
 RUNS_DIR = Path('/scratch/globc/garcia/runs/')
 GRAPHS_DIR = Path('/scratch/globc/garcia/graph/')
@@ -50,7 +52,7 @@ PROJ = TARGET_PROJ
 ## First experience
 #STATISTICS_FILE = DATASET_EXP1_30Y_DIR / 'statistics.json'
 #DATES = pd.date_range(start='2012-05-13', end='2014-12-31', freq='D')
-DATES = pd.date_range(start='1984-01-01', end='2014-12-31', freq='D')
+DATES = pd.date_range(start='2008-05-25', end='2014-12-31', freq='D')
 GCM = ['CNRM-CM6-1']
 
 ### Preprocessing

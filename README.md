@@ -88,7 +88,7 @@ Tester un modèle déjà entraîné pour évaluer ses performances.
 
 #### Commande bash
 ```bash
-python src/evaluation/test.py --model outputs/model.pth --data data/processed/test
+python3 bin/evaluation/compute_era5_test_metrics_daily.py exp1 swinunet_6mb_30y yes
 ```
 
 ---
