@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
@@ -209,30 +211,38 @@ print(df)
 # Spatial distribution
 ## RMSE
 plt.figure(figsize=(8, 6))
-plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Daily Mean RMSE spatial distribution ({period})')
-cs = ax.contourf(rmse_spatial, cmap='Reds', levels=np.linspace(0,6,11))
-plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
-#plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
-#plt.colorbar(label='RMSE (K)')
+plt.title(f'{test_name} (ERA5 Evalutaion)', fontsize=16)
+levels = np.arange(0, 6.5, 0.5) 
+colors = [
+    '#a1d99b', '#41ab5d', '#006d2c',  # Vert clair -> foncé
+    '#ffeda0', '#feb24c', '#d45f00',
+    '#fc9272', '#de2d26', '#a50f15',   # Rouge clair -> foncé
+    '#9ecae1', '#3182bd', '#08519c'
+]
+cmap = mcolors.ListedColormap(colors[:len(levels) - 1])
+cs = ax.contourf(rmse_spatial, levels = levels, cmap=cmap )
+cbar = plt.colorbar(cs, ax=ax, pad=0.05)
+cbar.set_label(label='RMSE (K)', size=16)
+cbar.ax.tick_params(labelsize=14)
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
+plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_era5_spatial_rmse_distribution{pp}.png") 
 
 ## Bias
 plt.figure(figsize=(8, 6))
-plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Daily Mean bias spatial distribution ({period})')
+plt.title(f'{test_name} (ERA5 Evalutaion)', fontsize=16)
 cs = ax.contourf(bias_spatial, cmap='BrBG', levels= np.linspace(-4,4,9))
-plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
-#plt.imshow(np.flip(bias_spatial, axis=0), cmap='BrBG', vmin=-5, vmax=5)
-#plt.colorbar(label='Bias (K)')
+cbar = plt.colorbar(cs, ax=ax, pad=0.05)
+cbar.set_label(label='Bias (K)', size=16)
+cbar.ax.tick_params(labelsize=14)
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
+plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_era5_spatial_bias_distribution{pp}.png") 
 
 

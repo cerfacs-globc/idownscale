@@ -18,16 +18,17 @@ enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
 dataframes = []
-df_names = []  
+df_names = ['unet', 'unet_continents', 'unet_none', 'unet_6mb', 'unet_30y', 'swin2sr', 'swin2sr_6mb', 'swin2sr_30y', 'swinunetr', 'swinunetr_6mb', 'swinunetr_6mb_30y']  
 
 for test in test_list:
     if eval == 'y':
         file = glob.glob(str(METRICS_DIR / f'{exp}/mean_metrics/metrics_test_mean_{freq}_{exp}_{test}.csv'))[0]
     else : 
+        print(test)
         file = glob.glob(str(METRICS_DIR / f'{exp}/mean_metrics/metrics_test_mean_{freq}_{eval}_{exp}_{test}.csv'))[0]
     df = pd.read_csv(file, delimiter=',', index_col=0) 
     dataframes.append(df)
-    df_names.append(test) 
+    #df_names.append(test) 
 
 columns = dataframes[0].columns  
 metrics_dict = {}
@@ -40,7 +41,7 @@ for col in columns:
 
 
 for key, df in metrics_dict.items():
-    ax = df.plot.bar(rot=0, figsize=(8,4))
+    ax = df.plot.bar(rot=0, figsize=(18,4))
     plt.axhline(y=0)
     plt.title(f'{key} {eval} ({period})')
     plt.legend(loc='lower right')

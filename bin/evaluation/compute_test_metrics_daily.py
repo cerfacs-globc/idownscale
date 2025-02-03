@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
@@ -68,6 +69,8 @@ startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
 enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
+
+
 for i, date in enumerate(DATES_TEST):
     print(date)
     if date.month in [6,7,8]:
@@ -79,6 +82,8 @@ for i, date in enumerate(DATES_TEST):
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
+
+
     x, y = transforms((x, y))
 
     x = torch.unsqueeze(x, dim=0).float()
@@ -89,6 +94,7 @@ for i, date in enumerate(DATES_TEST):
     y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
     y[condition] = np.nan
     y_hat[condition] = np.nan
+
 
     # compute metrics
     ## spatial metrics
@@ -159,34 +165,41 @@ df = pd.DataFrame(d, index = ['all', 'summer', 'winter'])
 df.to_csv(metric_dir/f'metrics_test_mean_daily_{exp}_{test_name}.csv')
 print(df)
 
-
 # Spatial distribution
 ## RMSE
 plt.figure(figsize=(8, 6))
-plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Daily Mean RMSE spatial distribution ({period})')
-cs = ax.contourf(rmse_spatial, cmap='Reds', levels=np.linspace(0,6,11))
-plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
-#plt.imshow(np.flip(rmse_spatial, axis=0), cmap='OrRd', vmin=0, vmax=6)
-#plt.colorbar(label='RMSE (K)')
+plt.title(f'{test_name} (SAFRAN Evalutaion)', fontsize=18)
+levels = np.arange(0, 6.5, 0.5) 
+colors = [
+    '#a1d99b', '#41ab5d', '#006d2c',  # Vert clair -> foncé
+    '#ffeda0', '#feb24c', '#d45f00',
+    '#fc9272', '#de2d26', '#a50f15',   # Rouge clair -> foncé
+    '#9ecae1', '#3182bd', '#08519c'
+]
+cmap = mcolors.ListedColormap(colors[:len(levels) - 1])
+cs = ax.contourf(rmse_spatial, levels = levels, cmap=cmap )
+cbar = plt.colorbar(cs, ax=ax, pad=0.05)
+cbar.set_label(label='RMSE (K)', size=16)
+cbar.ax.tick_params(labelsize=14)
 plt.axis('off')
-ax.text(0.02, 0.05, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
+ax.text(0.02, 0.05, f"Mean RMSE: {np.nanmean(rmse_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
+plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_spatial_rmse_distribution{pp}.png") 
 
 ## Bias
 plt.figure(figsize=(8, 6))
-plt.suptitle(f'{arch} ({test_name} config)', fontsize=16)
 ax = plt.gca()
-plt.title(f'Daily Mean bias spatial distribution ({period})')
+plt.title(f'{test_name} (SAFRAN Evalutaion)', fontsize=16)
 cs = ax.contourf(bias_spatial, cmap='BrBG', levels= np.linspace(-4,4,9))
-plt.colorbar(cs, ax=ax, pad=0.05, label='Bias (K)')
-#plt.imshow(np.flip(bias_spatial, axis=0), cmap='BrBG', vmin=-5, vmax=5)
-#plt.colorbar(label='Bias (K)')
+cbar = plt.colorbar(cs, ax=ax, pad=0.05)
+cbar.set_label(label='Bias (K)', size=16)
+cbar.ax.tick_params(labelsize=14)
 plt.axis('off')
 ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transform=ax.transAxes, fontsize=12, 
         verticalalignment='top', horizontalalignment='left', color = 'red')
+plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_spatial_bias_distribution{pp}.png") 
 
 '''
@@ -218,3 +231,4 @@ plt.savefig(f"{graph_dir}/daily_rmse_seasonal{pp}.png")
 
 
 '''
+

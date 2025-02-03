@@ -57,7 +57,8 @@ def plot_6_subplots(y, y_hat, y_era5, y_hat_reformat, title, save_dir):
     levels_list = [levels_y, levels_y, levels_diff, levels_y, levels_y, levels_diff]
 
     for i, ax in enumerate(axes.flat):
-        cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
+        #cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
+        cs = ax.contourf(data[i], cmap=cmaps[i])
         plt.colorbar(cs, ax=ax, pad=0.05)
         ax.set_title(subtitles[i], fontsize=12)
 
@@ -112,13 +113,14 @@ if __name__=='__main__':
     condition2 = np.isnan(y_hat_reformat)
     y_era5[condition2] = np.nan
 
-    vmin, vmax = np.nanmin(y), np.nanmax(y)
-    levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
+    #vmin, vmax = np.nanmin(y), np.nanmax(y)
+    #levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
+    levels = np.linspace(0,0.5,11)
 
-    #plot_contour(x_init[1], f'{date} x ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png')
+    plot_contour(x[0,1], f'{date} x ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png', levels=levels)
     #plot_contour(y_hat, f'{date} y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
     #plot_contour(y[0], f'{date} y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
-    #plot_contour(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_diff_{exp}_{test_name}.png')
+    #plot_test(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/'test.png')
     #plot_contour(y_hat_reformat, f'{date} y_hat_reformat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhatreformat_{exp}_{test_name}.png', levels=levels)
     #plot_contour(y_era5, f'{date} y_era5 ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yera5_{exp}_{test_name}.png', levels=levels)
 
@@ -126,5 +128,11 @@ if __name__=='__main__':
                     y_hat, 
                     y_era5, 
                     y_hat_reformat, 
-                    f'{date} ({arch} {test_name} config)', 
+                    f'{date} {test_name}', 
                     GRAPHS_DIR/f'pred/{date}_subplot_{exp}_{test_name}.png')
+    
+    diff = y[0]-y_hat
+    diff = diff.flatten()
+    print(diff.shape)
+    indices = np.argwhere(diff>50)
+    print(indices)

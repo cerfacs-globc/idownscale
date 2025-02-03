@@ -10,7 +10,7 @@ import pandas as pd
 import json
 
 from iriscc.plotutils import plot_test
-from iriscc.datautils import reformat_as_target
+from iriscc.datautils import reformat_as_target, standardize_longitudes
 from iriscc.settings import (SAFRAN_DIR, 
                              CMIP6_RAW_DIR,
                              DATES,
@@ -68,8 +68,13 @@ def input_data(date):
                 ds = ds.isel(time=0)
                 #if mask == 'coarse':
                     #ds[var].values = mask_coverage_func(ds[var].values, mask, model)
+                ds = standardize_longitudes(ds)
+                ds = ds.sel(lon=slice(-6,12), lat=slice(40.,52.))
+                plot_test(ds['tas'].values, 'tas (K) 20040101 CNRM-CM6-1', '/scratch/globc/garcia/graph/test.png', vmin = 262, vmax = 286)
                 ds[var] = ds[var].transpose()
+                print('coucou')
                 ds = reformat_as_target(ds, target_file=TARGET_GRID_FILE)
+                plot_test(ds['tas'].values, 'tas (K) 20040101 CNRM-CM6-1 interpolated', '/scratch/globc/garcia/graph/test4.png', vmin = 262, vmax = 286)
                 #if mask == 'continents' or mask == 'france':
                     #ds[var].values = mask_coverage_func(ds[var].values, mask, None)
                 x.append(ds[var].values)
@@ -95,6 +100,7 @@ def target_data(date):
         ds = ds.sel(time=pd.date_range(start=date.strftime("%Y-%m-%d"), periods = 24, freq='h').to_numpy())
 
     y = ds[TARGET].values.mean(axis=0)
+    plot_test(y, 'tas (K) 20040101 SAFRAN', '/scratch/globc/garcia/graph/test3.png',vmin = 262, vmax = 286)
     y = np.expand_dims(y, axis=0)
     return y
 
@@ -102,7 +108,7 @@ def target_data(date):
 
 if __name__=='__main__':
 
-    dates = DATES
+    dates = DATES[0:1]
     for date in dates:
         print(date)
 
@@ -112,7 +118,7 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_EXP1_6MB_30Y_DIR/f'sample_{date_str}.npz', **sample)
+        #np.savez(DATASET_EXP1_6MB_30Y_DIR/f'sample_{date_str}.npz', **sample)
 
 
 
