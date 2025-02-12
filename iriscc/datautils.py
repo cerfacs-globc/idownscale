@@ -97,7 +97,7 @@ def add_lon_lat_bounds(ds):
 
 
 
-def interpolation_target_grid(ds, ds_target):
+def interpolation_target_grid(ds, ds_target, method):
 
    if 'x' in ds.coords :
       if 'x_b' not in ds.coords:
@@ -114,17 +114,17 @@ def interpolation_target_grid(ds, ds_target):
    for var in ds.data_vars:
       ds[var].values = np.asfortranarray(ds[var].values)
       ds[var].values = np.ascontiguousarray(ds[var].values)
-   regridder = xe.Regridder(ds, ds_target, "conservative_normed")
+   regridder = xe.Regridder(ds, ds_target, method)
    ds_out = regridder(ds)
    return ds_out
 
 
-def reformat_as_target(ds, target_file):
+def reformat_as_target(ds, target_file, method):
     ''' Returns Input dataset interpolated at target target grid '''
     ds = standardize_longitudes(ds)
     ds = ds.sel(lon=slice(LONMIN,LONMAX), lat=slice(LATMIN, LATMAX))
     ds_target = xr.open_dataset(target_file)
-    ds = interpolation_target_grid(ds, ds_target)
+    ds = interpolation_target_grid(ds, ds_target, method)
     return ds
 
 

@@ -3,6 +3,7 @@ sys.path.append('.')
 
 from pathlib import Path
 import os
+import time
 import torch
 import torch.nn as nn
 import numpy as np
@@ -49,6 +50,7 @@ class IRISCCLightningModule(pl.LightningModule):
         self.val_step_outputs = []
         
         self.save_hyperparameters()
+        self.epoch_start_time = None
 
     def forward(self, x):
         return self.model(x) 
@@ -56,6 +58,9 @@ class IRISCCLightningModule(pl.LightningModule):
     def on_train_start(self):
         self.logger.experiment.add_custom_scalars(layout)
         self.logger.log_hyperparams(vars(self.hparams))
+
+    def on_train_epoch_start(self):
+        self.epoch_start_time = time.time()
 
     def common_step(self, x, y):
         y_hat = self(x)
@@ -73,6 +78,8 @@ class IRISCCLightningModule(pl.LightningModule):
         epoch_average = torch.stack(self.train_step_outputs).mean()
         self.logger.experiment.add_scalar("loss/train", epoch_average, self.current_epoch)
         self.train_step_outputs.clear()
+        epoch_duration = time.time() - self.epoch_start_time
+        self.log("epoch_time", epoch_duration, on_step=False, on_epoch=True, prog_bar=True)
 
     def validation_step(self, batch, batch_idx):
         x, y = batch

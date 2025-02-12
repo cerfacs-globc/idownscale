@@ -7,7 +7,7 @@ import numpy as np
 import glob
 
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, RemoveTopography
 
 class IRISCC(Dataset):
     def __init__(self,

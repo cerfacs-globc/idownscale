@@ -1,3 +1,5 @@
+''' Experience 2 : ERA5 and topography as input and SAFRAN as target'''
+
 import sys
 sys.path.append('.')
 
@@ -12,6 +14,8 @@ from iriscc.datautils import standardize_dims_and_coords, standardize_longitudes
 from iriscc.settings import (DATES,
                              ERA5_DIR,
                              DATASET_EXP2_6MB_DIR,
+                             DATASET_EXP2_BI_DIR,
+                             DATASET_EXP2_DIR,
                              TARGET,
                              SAFRAN_DIR,
                              OROG_FILE,
@@ -50,10 +54,10 @@ def input_data(date):
     for var in INPUTS:
         ds_era5 = get_era5_dataset(date)
         ds_cmip6 = get_cmip6_dataset()
-        ds_era5_to_cmip6 = interpolation_target_grid(ds_era5, ds_target=ds_cmip6)
-        ds = reformat_as_target(ds_era5_to_cmip6, target_file=TARGET_GRID_FILE)
+        ds_era5_to_cmip6 = interpolation_target_grid(ds_era5, ds_target=ds_cmip6, method="conservative_normed")
+        ds = reformat_as_target(ds_era5_to_cmip6, target_file=TARGET_GRID_FILE, method='bilinear')
         x.append(ds[var].values)
-    x = np.concatenate([x[0][np.newaxis, :, :]] + [x[1][np.newaxis, :, :]] * 6, axis=0)
+    x = np.concatenate([x[0][np.newaxis, :, :]] + [x[1][np.newaxis, :, :]] * 1, axis=0)
 
     return x
 
@@ -92,7 +96,7 @@ if __name__=='__main__':
         sample = {'x' : x,
                   'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_EXP2_6MB_DIR/f'sample_{date_str}.npz', **sample)
+        np.savez(DATASET_EXP2_BI_DIR/f'sample_{date_str}.npz', **sample)
          
 
 

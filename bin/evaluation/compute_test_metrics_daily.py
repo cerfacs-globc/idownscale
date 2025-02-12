@@ -6,7 +6,6 @@ import glob
 import torch
 import numpy as np
 import pandas as pd
-import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from torchvision.transforms import v2
@@ -14,12 +13,12 @@ from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.settings import DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR, DATASET_TEST_6MB_ISAFRAN
+from iriscc.settings import DATES_TEST, GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, METRICS_DIR, DATASET_TEST_BC_CMIP6_DIR
 from iriscc.transforms import UnPad
 
 exp = str(sys.argv[1]) # ex : exp 1
 test_name = str(sys.argv[2]) # ex : mask_continents
-pp_test = str(sys.argv[3]) # Perfect prognosis, yes or no
+cmip6_test = str(sys.argv[3]) # Perfect prognosis, yes or no
 
 run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
 checkpoint_dir = run_dir/'checkpoints/best-checkpoint.ckpt'
@@ -42,10 +41,11 @@ transforms = v2.Compose([
 device = 'cpu'
 sample_dir = hparams['sample_dir']
 pp = ''
-if pp_test == 'yes':
-    test_name = f'{test_name}_pp'
-    sample_dir = DATASET_TEST_6MB_ISAFRAN
-    pp = '_pp'
+dates = DATES_TEST
+if cmip6_test == 'yes':
+    test_name = f'{test_name}_cmip6'
+    sample_dir = DATASET_TEST_BC_CMIP6_DIR
+    pp = '_cmip6'
 
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
@@ -65,13 +65,13 @@ y_hat_temporal = []
 i_summer = []
 i_winter = []
 
-startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
-enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
+startdate = dates[0].date().strftime('%d/%m/%Y')
+enddate = dates[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
 
 
-for i, date in enumerate(DATES_TEST):
+for i, date in enumerate(dates):
     print(date)
     if date.month in [6,7,8]:
         i_summer.append(i)
@@ -82,7 +82,6 @@ for i, date in enumerate(DATES_TEST):
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
-
 
     x, y = transforms((x, y))
 
@@ -141,10 +140,10 @@ corr_temporal = np.stack(corr_temporal_summer)
 corr_temporal_winter = [corr(y_hat_temporal[:,i], y_temporal[:,i]).cpu() for i in i_winter]
 corr_temporal = np.stack(corr_temporal_winter)
 
-rmse_spatial = np.sqrt(rmse_spatial / len(DATES_TEST))
+rmse_spatial = np.sqrt(rmse_spatial / len(dates))
 rmse_spatial_summer = np.sqrt(rmse_spatial_summer / len(i_summer))
 rmse_spatial_winter = np.sqrt(rmse_spatial_winter / len(i_winter))
-bias_spatial = bias_spatial / len(DATES_TEST)
+bias_spatial = bias_spatial / len(dates)
 bias_spatial_summer = bias_spatial_summer / len(i_summer)
 bias_spatial_winter = bias_spatial_winter / len(i_winter)
 
@@ -170,6 +169,14 @@ print(df)
 plt.figure(figsize=(8, 6))
 ax = plt.gca()
 plt.title(f'{test_name} (SAFRAN Evalutaion)', fontsize=18)
+levels = np.arange(0, 3.25, 0.25) 
+colors = [
+    '#a1d99b', '#41ab5d', '#006d2c',  # Vert clair -> foncé
+    '#ffeda0', '#feb24c', '#d45f00',
+    '#fc9272', '#de2d26', '#a50f15',   # Rouge clair -> foncé
+    '#9ecae1', '#3182bd', '#08519c'
+]
+'''
 levels = np.arange(0, 6.5, 0.5) 
 colors = [
     '#a1d99b', '#41ab5d', '#006d2c',  # Vert clair -> foncé
@@ -177,6 +184,7 @@ colors = [
     '#fc9272', '#de2d26', '#a50f15',   # Rouge clair -> foncé
     '#9ecae1', '#3182bd', '#08519c'
 ]
+'''
 cmap = mcolors.ListedColormap(colors[:len(levels) - 1])
 cs = ax.contourf(rmse_spatial, levels = levels, cmap=cmap )
 cbar = plt.colorbar(cs, ax=ax, pad=0.05)
@@ -192,7 +200,7 @@ plt.savefig(f"{graph_dir}/daily_spatial_rmse_distribution{pp}.png")
 plt.figure(figsize=(8, 6))
 ax = plt.gca()
 plt.title(f'{test_name} (SAFRAN Evalutaion)', fontsize=16)
-cs = ax.contourf(bias_spatial, cmap='BrBG', levels= np.linspace(-4,4,9))
+cs = ax.contourf(bias_spatial, cmap='BrBG', levels= np.linspace(-1.5,1.5,13))
 cbar = plt.colorbar(cs, ax=ax, pad=0.05)
 cbar.set_label(label='Bias (K)', size=16)
 cbar.ax.tick_params(labelsize=14)
@@ -202,10 +210,10 @@ ax.text(0.02, 0.05, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", transf
 plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_spatial_bias_distribution{pp}.png") 
 
-'''
+
 # Temporal distribution
 ## monthly RMSE
-df_rmse = pd.DataFrame({'date': DATES_TEST, 'rmse_temporal': rmse_temporal})
+df_rmse = pd.DataFrame({'date': dates, 'rmse_temporal': rmse_temporal})
 df_rmse['month'] = pd.to_datetime(df_rmse['date']).dt.month
 df_rmse['year'] = pd.to_datetime(df_rmse['date']).dt.year
 rmse_monthly_mean = df_rmse.groupby('month')['rmse_temporal'].mean()
@@ -230,5 +238,5 @@ plt.tight_layout()
 plt.savefig(f"{graph_dir}/daily_rmse_seasonal{pp}.png") 
 
 
-'''
+
 

@@ -11,8 +11,9 @@ from iriscc.plotutils import plot_test
 from iriscc.settings import (TARGET_GRID_FILE, IMERG_MASK)
 
 class StandardNormalisation():
-    def __init__(self):
-        with open(STATISTICS_FILE) as f:
+    def __init__(self, sample_dir):
+        statistics_file = sample_dir / 'statistics.json'
+        with open(statistics_file) as f:
             stats = json.load(f)
         mean = []
         std = []
@@ -48,6 +49,13 @@ class MinMaxNormalisation():
         x = np.stack(x, axis=0)
         return torch.tensor(x), torch.tensor(y)
 
+class RemoveTopography():
+    def __init__(self):
+        pass
+    def __call__(self, sample):
+        x, y = sample
+        x = x[1:,:,:]
+        return x, y
     
 class LandSeaMask():
     def __init__(self, mask, fill_value):

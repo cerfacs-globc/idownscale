@@ -21,9 +21,13 @@ DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
 DATASET_EXP1_6MB_DIR = DATASET_DIR / 'dataset_exp1_6mb'
 DATASET_EXP1_6MB_30Y_DIR = DATASET_DIR / 'dataset_exp1_6mb_30y'
+DATASET_EXP2_DIR = DATASET_DIR / 'dataset_exp2'
 DATASET_EXP2_6MB_DIR = DATASET_DIR / 'dataset_exp2_6mb'
+DATASET_EXP2_BI_DIR = DATASET_DIR / 'dataset_exp2_bi'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_TEST_6MB_ISAFRAN = DATASET_DIR / 'dataset_test_6mb_iSAFRAN'
+DATASET_BC_CMIP6_ERA5 = DATASET_DIR / 'dataset_bc_era5_cmip6.npz' # Historical data for bias correction
+DATASET_TEST_BC_CMIP6_DIR = DATASET_DIR / 'dataset_test_bc_cmip6' # Bias corrected dataset
 
 
 RUNS_DIR = Path('/scratch/globc/garcia/runs/')
@@ -61,15 +65,14 @@ GCM = ['CNRM-CM6-1']
 INPUTS = ['tas']
 TARGET = 'tas'
 CHANELS = ['topography',
-           'CNRM-CM6-1 r10i1p1f2',
-           'CNRM-CM6-1 r11i1p1f2',
-           'CNRM-CM6-1 r12i1p1f2',
-           'CNRM-CM6-1 r13i1p1f2',
-           'CNRM-CM6-1 r14i1p1f2',
-           'CNRM-CM6-1 r15i1p1f2'
-           ]
+           'CNRM-CM6-1 r10i1p1f2']
 TARGET_SIZE = [134, 143]
 TARGET_MODEL_SIZE =[160, 160]
 
 # Test settings
 DATES_TEST = pd.date_range(start='2012-10-18', end='2014-12-31', freq='D')
+
+DATES_BC_FUTURE = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
+DATES_BC_HIST = pd.date_range(start='1984-01-01', end='1999-12-31', freq='D')
+
+

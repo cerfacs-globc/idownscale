@@ -25,7 +25,8 @@ from iriscc.settings import (DATES_TEST,
                              METRICS_DIR, 
                              ERA5_DIR, 
                              TARGET_GRID_FILE,
-                             DATASET_TEST_6MB_ISAFRAN)
+                             DATASET_TEST_6MB_ISAFRAN,
+                             DATASET_TEST_BC_CMIP6_DIR)
 
 
 
@@ -57,7 +58,7 @@ def reformat_pred_to_era5(y_hat, ds_era5):
 
 exp = str(sys.argv[1]) # ex : exp 1
 test_name = str(sys.argv[2]) # ex : mask_continents
-pp_test = str(sys.argv[3]) # Perfect prognosis, yes or no
+cmip6_test = str(sys.argv[3]) # Perfect prognosis, yes or no
 
 
 run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
@@ -83,10 +84,10 @@ transforms = v2.Compose([
 arch = hparams['model']
 sample_dir = hparams['sample_dir']
 pp = ''
-if pp_test == 'yes':
-    test_name = f'{test_name}_pp'
-    sample_dir = DATASET_TEST_6MB_ISAFRAN
-    pp = '_pp'
+if cmip6_test == 'yes':
+    test_name = f'{test_name}_cmip6'
+    sample_dir = DATASET_TEST_BC_CMIP6_DIR
+    pp = '_cmip6'
 
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
@@ -130,6 +131,7 @@ for i, date in enumerate(DATES_TEST):
     unpad_func = UnPad(TARGET_SIZE)
     y_hat = unpad_func(y_hat[0])[0].numpy()
     y_hat[condition] = np.nan
+
 
     ds_era5 = get_era5_dataset(date)
     y_era5 = ds_era5.tas.values

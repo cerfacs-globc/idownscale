@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.plotutils import plot_test, plot_contour
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, ERA5_DIR, TARGET_GRID_FILE, DATASET_TEST_6MB_ISAFRAN
+from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, ERA5_DIR, TARGET_GRID_FILE, DATASET_EXP1_30Y_DIR
 from iriscc.datautils import standardize_dims_and_coords, standardize_longitudes, interpolation_target_grid
 
 def get_era5_dataset(date):
@@ -42,36 +42,38 @@ def reformat_pred_to_era5(y_hat, ds_era5):
     return y_hat
 
 def plot_6_subplots(y, y_hat, y_era5, y_hat_reformat, title, save_dir):
-    diff_y = y - y_hat
-    diff_y_era5 = y_era5 - y_hat_reformat
+    diff_y = y_hat-y  
+    diff_y_era5 = y_hat_reformat-y_era5
 
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(15, 9))
 
     vmin_y, vmax_y = np.nanmin(y), np.nanmax(y)
     levels_y = np.round(np.linspace(vmin_y, vmax_y, 11)).astype(int)
-    levels_diff = np.linspace(-10, 10, 9) 
+    levels_diff = np.arange(-5,6,1)
 
     data = [y, y_hat, diff_y, y_era5, y_hat_reformat, diff_y_era5]
-    subtitles = ["y", "y_hat", "y - y_hat", "y_era5", "y_hat", "y_era5 - y_hat"]
+    subtitles = ["y", "y_hat", "y_hat - y", "y_era5", "y_hat", "y_hat - y_era5"]
     cmaps = ["OrRd", "OrRd", "RdBu", "OrRd", "OrRd", "RdBu"]
     levels_list = [levels_y, levels_y, levels_diff, levels_y, levels_y, levels_diff]
 
     for i, ax in enumerate(axes.flat):
-        #cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
-        cs = ax.contourf(data[i], cmap=cmaps[i])
-        plt.colorbar(cs, ax=ax, pad=0.05)
+        cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
+        #cs = ax.contourf(data[i], cmap=cmaps[i])
+        cbar = plt.colorbar(cs, ax=ax, pad=0.05)
         ax.set_title(subtitles[i], fontsize=12)
+        cbar.set_label(label='tas (K)', size=12)
 
     # Titre général
     fig.suptitle(title, fontsize=20)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    #fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.tight_layout()
     plt.savefig(save_dir)
 
 if __name__=='__main__':
     date = str(sys.argv[1])
     exp = str(sys.argv[2]) # ex : exp 1
     test_name = str(sys.argv[3]) # ex : mask_continents
-    pp_test = str(sys.argv[4]) # Perfect prognosis, yes or no
+    cmip6_test = str(sys.argv[4]) # CMIP6, yes or no
 
     run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
     checkpoint_dir = run_dir/'checkpoints/best-checkpoint.ckpt'
@@ -88,14 +90,16 @@ if __name__=='__main__':
                 ])
     
     sample_dir = hparams['sample_dir']
-    if pp_test == 'yes':
-        test_name = f'{test_name}_pp'
-        sample_dir = DATASET_TEST_6MB_ISAFRAN
+    if cmip6_test == 'yes':
+        test_name = f'{test_name}_cmip6'
+        sample_dir = DATASET_EXP1_30Y_DIR
     device = 'cpu'
 
     sample = glob.glob(str(sample_dir/f'sample_{date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     x_init, y = data['x'], data['y']
+
+
     condition = np.isnan(y[0])
     x, _ = transforms((x_init, y))
 
@@ -115,9 +119,10 @@ if __name__=='__main__':
 
     #vmin, vmax = np.nanmin(y), np.nanmax(y)
     #levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
-    levels = np.linspace(0,0.5,11)
+    levels = np.linspace(0,1,11)
 
-    plot_contour(x[0,1], f'{date} x ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png', levels=levels)
+    x[x == 0] = np.nan
+    plot_contour(x[0,2], f' binary mask {date}', GRAPHS_DIR/f'pred/{date}_x_{exp}_{test_name}.png', levels=levels)
     #plot_contour(y_hat, f'{date} y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
     #plot_contour(y[0], f'{date} y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
     #plot_test(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/'test.png')
@@ -131,8 +136,3 @@ if __name__=='__main__':
                     f'{date} {test_name}', 
                     GRAPHS_DIR/f'pred/{date}_subplot_{exp}_{test_name}.png')
     
-    diff = y[0]-y_hat
-    diff = diff.flatten()
-    print(diff.shape)
-    indices = np.argwhere(diff>50)
-    print(indices)
