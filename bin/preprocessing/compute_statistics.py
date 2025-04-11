@@ -6,7 +6,7 @@ import glob
 import json
 import matplotlib.pyplot as plt
 
-from iriscc.settings import DATASET_EXP1_DIR, CHANELS, DATASET_TEST_6MB_ISAFRAN, DATASET_EXP2_BI_DIR,DATASET_EXP2_DIR
+from iriscc.settings import DATASET_EXP1_DIR, CHANELS, DATASET_EXP3_30Y_DIR, DATASET_EXP4_30Y_DIR
 
 def update_statistics(sum, square_sum, n_total, min, max, x):
     ''' Compute and update samples statistics '''
@@ -43,16 +43,19 @@ def plot_histogram(data, min, max, mean, std, variable:str, title:str, save_dir:
 
 
 if __name__=='__main__':
-    dataset = np.sort(glob.glob(str(DATASET_EXP2_BI_DIR/'sample*')))
+    dataset_dir = DATASET_EXP3_30Y_DIR
+    dataset = np.sort(glob.glob(str(dataset_dir/'sample*')))
     ch = len(CHANELS)
     sum = np.zeros(ch)
     square_sum = np.zeros(ch)
     n_total = np.zeros(ch)
 
-    nb = len(dataset)
-    train_end = int(0.6 * nb) 
-    val_end = train_end + int(0.2 * nb)
-    print(dataset[val_end])
+    #nb = len(dataset)
+    #train_end = int(0.6 * nb) 
+    #val_end = train_end + int(0.2 * nb)
+    train_end = np.where(dataset == str(dataset_dir/'sample_20051231.npz'))[0][0]
+    val_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
+
     
     x_data = {'train' : [],
                  'val' : [],
@@ -62,7 +65,7 @@ if __name__=='__main__':
                  'test' : []}
 
     for nb, sample in enumerate(dataset):
-        print(nb)
+        print(sample)
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
@@ -71,13 +74,29 @@ if __name__=='__main__':
 
         if nb == 0:
             min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
+            min = np.concatenate((min, np.nanmin(y, axis=(1, 2))))
+            max = np.concatenate((max, np.nanmax(y, axis=(1, 2))))
+        
         for i in range(ch):
-            sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+            if i == ch-1:
+                sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                                                                    square_sum[i], 
+                                                                    n_total[i],
+                                                                    min[i],
+                                                                    max[i],
+                                                                    y[0])
+            else:
+                sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
                                                                     square_sum[i], 
                                                                     n_total[i],
                                                                     min[i],
                                                                     max[i],
                                                                     x[i])
+            
+        if max[-1] > 350:
+            print(max[-1])
+        
+
         if nb < train_end :
             x_data['train'].append(x[1:,:,:].flatten())
             y_data['train'].append(y.flatten())
@@ -96,10 +115,10 @@ if __name__=='__main__':
     for i, chanel in enumerate(CHANELS):
         stats[chanel] = {'mean': mean[i],
                          'std': std[i],
-                         'min': min[i],
-                         'max': max[i]}
-        
-    with open(DATASET_EXP2_BI_DIR/'statistics.json', "w") as f: 
+                         'min': min[i].astype(np.float64),
+                         'max': max[i].astype(np.float64)}
+    
+    with open(dataset_dir/'statistics.json', "w") as f: 
         json.dump(stats, f)
 
     for name, dict in {'x':x_data, 'y':y_data}.items():
@@ -113,7 +132,7 @@ if __name__=='__main__':
                         np.nanstd(data), 
                         'tas (K)', 
                         f'{name} {type} dataset histogram', 
-                        DATASET_EXP2_BI_DIR/f'hist_{name}_{type}.png')
-
+                        dataset_dir/f'hist_{name}_{type}.png')
+ 
     
 

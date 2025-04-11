@@ -48,7 +48,7 @@ def reformat_safran_xy(file):
     new_ds['tas'] = (['time', 'y', 'x'], tas_grid)
     new_ds['tas'].attrs = tas_attrs
 
-    new_ds.to_netcdf(SAFRAN_DIR/f'{os.path.basename(file)[:-3]}_reformat.nc')
+    #new_ds.to_netcdf(SAFRAN_DIR/f'{os.path.basename(file)[:-3]}_reformat.nc')
 
 if __name__=='__main__':
     safran_files = glob.glob(str(SAFRAN_RAW_DIR/'SAFRAN*'))

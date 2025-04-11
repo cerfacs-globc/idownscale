@@ -6,17 +6,14 @@ import os
 import time
 import torch
 import torch.nn as nn
+import pandas as pd
 import numpy as np
 import pytorch_lightning as pl
-import pandas as pd
 import matplotlib.pyplot as plt
-from monai.networks.nets import SwinUNETR
 
+from iriscc.transforms import DeMinMaxNormalisation
 from iriscc.metrics import MaskedMAE, MaskedRMSE
-from iriscc.models.unet import UNet
-from iriscc.models.miniunet import MiniUNet
-from iriscc.models.swin2sr import Swin2SR
-from iriscc.models.miniswinunetr import MiniSwinUNETR
+from iriscc.models.cddpm import CDDPM
 from iriscc.loss import MaskedMSELoss
 
 layout = {
@@ -25,47 +22,58 @@ layout = {
     },
 }
 
-class IRISCCLightningModule(pl.LightningModule):
+class IRISCCCDDPMLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
- 
-        #self.loss = nn.MSELoss()  
-        self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
-        self.metrics_dict = nn.ModuleDict({
-                    "rmse": MaskedRMSE(ignore_value = hparams['fill_value']),
-                    "mae": MaskedMAE(ignore_value = hparams['fill_value'])
-                })
+
         self.fill_value = hparams['fill_value']    
         self.learning_rate = hparams['learning_rate']
         self.runs_dir = hparams['runs_dir']
+        self.n_steps = hparams['n_steps']
+        self.min_beta = hparams['min_beta']
+        self.max_beta = hparams['max_beta']
         self.scheduler_step_size = hparams['scheduler_step_size']
         self.scheduler_gamma = hparams['scheduler_gamma']
-        self.in_channels = hparams['in_channels']
-        self.img_size = hparams['img_size']
+        self.output_norm = hparams['output_norm']
         os.makedirs(self.runs_dir, exist_ok=True)
 
-        if hparams['model'] == 'unet':
-            self.model = UNet(in_channels=self.in_channels, out_channels=1, init_features=32).float()
-        elif hparams['model'] == 'miniunet':
-            self.model = MiniUNet(in_channels=self.in_channels, out_channels=1, init_features=32).float()
-        elif hparams['model'] == 'swin2sr':
-            self.model = Swin2SR(upscale=1, img_size=self.img_size, out_chans=1, in_chans=self.in_channels,
-                   embed_dim=32, depths=[2, 2, 2, 2], num_heads=[2 ,2 ,2 ,2],window_size=8, upsampler='pixelshuffle')
-        elif hparams['model'] == 'swinunetr':
-            self.model = SwinUNETR(img_size=self.img_size, in_channels=self.in_channels, out_channels=1,spatial_dims=2)
-        elif hparams['model'] == 'miniswinunetr':
-            self.model = MiniSwinUNETR(img_size=self.img_size, in_channels=self.in_channels, out_channels=1,spatial_dims=2)
+        self.loss = nn.MSELoss()  
+        #self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
+        self.metrics_dict = nn.ModuleDict({
+                    "rmse": MaskedRMSE(ignore_value = self.fill_value),  
+                    "mae": MaskedMAE(ignore_value = self.fill_value)
+                })
 
+        self.model = CDDPM(n_steps=self.n_steps, 
+                           min_beta=self.min_beta, 
+                           max_beta=self.max_beta, 
+                           encode_conditioning_image=False, 
+                           in_ch=hparams['in_channels'])
+        
+        self.denorm = DeMinMaxNormalisation(hparams['sample_dir'], self.output_norm)
 
         self.test_metrics = {}
         self.train_step_outputs = []
         self.val_step_outputs = []
-        
+
         self.save_hyperparameters()
         self.epoch_start_time = None
 
-    def forward(self, x):
-        return self.model(x) 
+    def configure_model(self) -> None:
+        self.model.betas = self.model.betas.to(self.device)
+        self.model.alpha_bars = self.model.alpha_bars.to(self.device)
+        self.model.alphas = self.model.alphas.to(self.device)
+
+    def forward(self, x, y):
+        # x = conditionning image
+        # y = image to noise
+        b = x.size(0)
+        eta = torch.randn_like(y)
+        t = torch.randint(1, self.model.n_steps, (b,), device=self.device)
+        noisy_images = self.model(y, t, eta)
+        eta_theta = self.model.backward(noisy_images, t.reshape(b, -1), x)
+        return eta, eta_theta
+
 
     def on_train_start(self):
         self.logger.experiment.add_custom_scalars(layout)
@@ -75,13 +83,14 @@ class IRISCCLightningModule(pl.LightningModule):
         self.epoch_start_time = time.time()
 
     def common_step(self, x, y):
-        y_hat = self(x)
-        loss = torch.sqrt(self.loss(y_hat, y))
-        return y_hat, loss
+        eta, eta_theta = self(x, y)
+        loss = torch.sqrt(self.loss(eta_theta, eta))
+        return loss
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, loss = self.common_step(x, y)
+        loss = self.common_step(x, y)
+        print('loss =', loss)
         self.train_step_outputs.append(loss)
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
@@ -95,9 +104,9 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, loss = self.common_step(x, y)
-        self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
+        loss = self.common_step(x, y)
         self.val_step_outputs.append(loss)
+        self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
     def on_validation_epoch_end(self):
@@ -105,13 +114,18 @@ class IRISCCLightningModule(pl.LightningModule):
         self.logger.experiment.add_scalar("loss/val", epoch_average, self.current_epoch)
         self.val_step_outputs.clear()
 
-        
+
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, loss = self.common_step(x, y)
-        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-            
-        batch_dict = {"loss": loss}
+        y_hat = self.model.sampling(start_t=200, 
+                                        conditioning_image=x.to(self.device), 
+                                        eta = None)
+        
+        if self.output_norm is True:
+            x[0,...], y[0,...] = self.denorm((x[0,...], y[0,...]))
+            y_hat[0,...] = self.denorm((False, y_hat[0,...]))
+
+        batch_dict = {}
         for metric_name, metric in self.metrics_dict.items():
             metric.update(y_hat, y)
             batch_dict[metric_name] = metric.compute()
@@ -119,30 +133,30 @@ class IRISCCLightningModule(pl.LightningModule):
             metric.reset()
         self.test_metrics[batch_idx] = batch_dict
 
-        if batch_idx == 0:
-
-            fig, ax = plt.subplots()
+        if batch_idx == 0: 
             y[y == self.fill_value] = torch.nan
+            x[x == self.fill_value] = torch.nan
+            y_hat_mask = y_hat
+            y_hat_mask[torch.isnan(y)] = torch.nan 
+            fig, ax = plt.subplots()
             vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
             levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
-            cs = ax.contourf(y[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
+            cs = ax.contourf(y[0,0,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_y_0', fig)
     
             fig, ax = plt.subplots()
-            x[x == self.fill_value] = torch.nan
-            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd')
+            cs = ax.contourf(x[0,-1,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_x_0', fig)
 
             fig, ax = plt.subplots()
-            cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd')
+            cs = ax.contourf(y_hat[0,0,:,:].cpu().detach().numpy(), cmap='OrRd')
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_yhat_raw_0', fig)
 
             fig, ax = plt.subplots()
-            y_hat[torch.isnan(y)] = torch.nan 
-            cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
+            cs = ax.contourf(y_hat_mask[0,0,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
  
@@ -164,11 +178,11 @@ class IRISCCLightningModule(pl.LightningModule):
         self.save_test_metrics_as_csv(df)
         df = df.drop("Name", axis=1)
         self.log('hp_metric', df['rmse'].mean())
+
     
-        
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
-        #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
+        return [optimizer], [scheduler]
 
 

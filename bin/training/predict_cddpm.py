@@ -3,15 +3,17 @@ sys.path.append('.')
 
 import glob
 import torch
+import xarray as xr
 import numpy as np
 from torchvision.transforms import v2
+from datetime import datetime
 import matplotlib.pyplot as plt
 
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.plotutils import plot_test, plot_contour, plot_map_image
+from iriscc.diffusionutils import generate
+from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+from iriscc.plotutils import plot_test, plot_contour
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_EXP1_30Y_DIR, CONFIG
-
+from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_EXP1_30Y_DIR
 
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
@@ -34,7 +36,9 @@ def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
             else: 
                 cs = ax.imshow(np.flip(data[i],axis=0), cmap=cmaps[i],vmin=vmin_y, vmax=vmax_y)
         else:
-            cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
+            #cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
+            cs = ax.contourf(data[i], cmap=cmaps[i])
+
         cbar = plt.colorbar(cs, ax=ax, pad=0.05)
         ax.set_title(subtitles[i], fontsize=12)
         if i == 3:
@@ -57,13 +61,12 @@ if __name__=='__main__':
     run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
     checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
 
-    model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
+    model = IRISCCCDDPMLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
     model.eval()
     hparams = model.hparams['hparams']
     arch = hparams['model']
-
     transforms = v2.Compose([
-                MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
+                MinMaxNormalisation(hparams['sample_dir']), 
                 LandSeaMask(hparams['mask'], hparams['fill_value']),
                 FillMissingValue(hparams['fill_value']),
                 Pad(hparams['fill_value'])
@@ -77,33 +80,33 @@ if __name__=='__main__':
 
     sample = glob.glob(str(sample_dir/f'sample_{date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
-    x_init, y = data['x'], data['y']
+    conditioning_image_init, y = data['x'], data['y']
 
     condition = np.isnan(y[0])
-    x, _ = transforms((x_init, y))
+    conditioning_image, _ = transforms((conditioning_image_init, y))
 
-    x = torch.unsqueeze(x, dim=0).float()
-    y_hat = model(x.to(device)).to(device)
-    y_hat = y_hat.detach().cpu()
+    conditioning_image = torch.unsqueeze(conditioning_image, dim=0).float()
+    intermediate_images = generate(model.model,
+                                   conditioning_image, 
+                                   n_samples=2,
+                                   neighbours=False, 
+                                   std=1e-1, 
+                                   start_t = None, 
+                                   clamp=None, 
+                                   device='cpu')
+    print(len(intermediate_images))
+    print(intermediate_images[-1].shape)
+    y_hat = intermediate_images[-1][0,...]
+    
 
     unpad_func = UnPad(TARGET_SIZE)
-    y_hat = unpad_func(y_hat[0])[0].numpy()
+    y_hat = unpad_func(torch.Tensor(y_hat))[0].numpy()
     y_hat[condition] = np.nan
-    x_init = x_init[1]
-    x_init[condition] = np.nan
+    conditioning_image_init = conditioning_image_init[1]
+    conditioning_image_init[condition] = np.nan
 
-    #plot_contour(y_hat, f'{date} y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
-    #plot_contour(y[0], f'{date} y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
-    #plot_test(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/'test.png')
-    #plot_contour(y_hat_reformat, f'{date} y_hat_reformat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhatreformat_{exp}_{test_name}.png', levels=levels)
-    #plot_contour(y_era5, f'{date} y_era5 ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yera5_{exp}_{test_name}.png', levels=levels)
-
-    plot_map_image(y_hat,
-                   domain = CONFIG['eobs']['domain']['france'],
-                   title=f'{date} y_hat {test_name}',
-                   save_dir=GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png')
-
-    compare_4_subplots(x_init,
+    
+    compare_4_subplots(conditioning_image_init,
                         y[0], 
                         y_hat, 
                         False,
@@ -111,9 +114,10 @@ if __name__=='__main__':
                         GRAPHS_DIR/f'pred/{date}_subplot_{exp}_{test_name}.png')
     
     
-    compare_4_subplots(x_init[10:40,50:80],
+    compare_4_subplots(conditioning_image_init[10:40,50:80],
                         y[0][10:40,50:80], 
                         y_hat[10:40,50:80], 
                         True,
                         f'{date} {test_name}', 
                         GRAPHS_DIR/f'pred/{date}_subplot_{exp}_{test_name}_local.png')
+                        
