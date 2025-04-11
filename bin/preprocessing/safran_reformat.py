@@ -9,7 +9,7 @@ import os
 
 from iriscc.settings import SAFRAN_RAW_DIR, SAFRAN_DIR
 
-def reformate_safran_xy(file):
+def reformat_safran_xy(file):
 
     # target dataset
     ds_grid = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/utils/tasmax_1d_21000101_21001231.nc')
@@ -48,12 +48,12 @@ def reformate_safran_xy(file):
     new_ds['tas'] = (['time', 'y', 'x'], tas_grid)
     new_ds['tas'].attrs = tas_attrs
 
-    new_ds.to_netcdf(SAFRAN_DIR/f'{os.path.basename(file)[:-3]}_reformat.nc')
+    #new_ds.to_netcdf(SAFRAN_DIR/f'{os.path.basename(file)[:-3]}_reformat.nc')
 
 if __name__=='__main__':
     safran_files = glob.glob(str(SAFRAN_RAW_DIR/'SAFRAN*'))
     for file in safran_files:
         print(file)
-        reformate_safran_xy(file)
+        reformat_safran_xy(file)
 
     

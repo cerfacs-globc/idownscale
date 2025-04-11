@@ -4,12 +4,13 @@ import sys
 sys.path.append('.')
 
 from collections import OrderedDict
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 
 import numpy as np 
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
 from iriscc.plotutils import plot_test
 from torchvision.transforms import v2
 
@@ -28,6 +29,8 @@ class UNet(nn.Module):
         self.encoder4 = UNet._block(features * 4, features * 8, name="enc4")
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
 
+        
+        #self.bottleneck = UNet._block(features * 4, features * 8, name="bottleneck") ##minMiniUNet
         self.bottleneck = UNet._block(features * 8, features * 16, name="bottleneck")
 
         self.upconv4 = nn.ConvTranspose2d(
@@ -55,6 +58,7 @@ class UNet(nn.Module):
         enc1 = self.encoder1(x)
         enc2 = self.encoder2(self.pool1(enc1))
         enc3 = self.encoder3(self.pool2(enc2))
+
         enc4 = self.encoder4(self.pool3(enc3))
 
         bottleneck = self.bottleneck(self.pool4(enc4))
@@ -72,6 +76,7 @@ class UNet(nn.Module):
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
         return torch.relu(self.conv(dec1))
+
 
     @staticmethod
     def _block(in_channels, features, name):
@@ -107,24 +112,23 @@ class UNet(nn.Module):
         )
 
 if __name__=='__main__':
-    model = UNet(in_channels=3, out_channels=1, init_features=32)
+    model = UNet(in_channels=2, out_channels=1, init_features=32)
     model = model.float()
 
-    data = dict(np.load('/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp1/sample_20040101.npz', allow_pickle=True))
+    data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
     x, y = data['x'], data['y']
     transforms = v2.Compose([
-            MinMaxNormalisation(), 
-            LandSeaMask('france'),
-            Pad()
+            MinMaxNormalisation(Path('/scratch/globc/garcia/datasets/dataset_exp3_30y')), 
+            LandSeaMask('france', 0),
+            FillMissingValue(0),
+            Pad(0)
             ])
     
     x, y = transforms((x,y))
-    print(np.argwhere(np.isnan(x[1])))
-    #print(np.isnan(x))
     x = np.expand_dims(x, axis=0)
     x = torch.tensor(x)
     y_hat = model(x.float())
     print(y_hat)
-    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', '/gpfs-calypso/scratch/globc/garcia/graph/datasets/testunet.png')
+    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', '/gpfs-calypso/scratch/globc/garcia/graph/test4.png')
     
 

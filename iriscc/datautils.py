@@ -5,16 +5,20 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import xesmf as xe
-import numpy.ma as ma
+import glob
 
-from iriscc.settings import (TARGET_GRID_FILE,
+from iriscc.plotutils import plot_test
+from iriscc.settings import (TARGET_SAFRAN_FILE,
+                             TARGET_EOBS_FILE,
+                             CMIP6_RAW_DIR,
+                             COUNTRIES_MASK,
+                             LANDSEAMASK_CMIP6,
+                             LANDSEAMASK_ERA5,
+                             LANDSEAMASK_EOBS,
                              TARGET_SIZE,
-                             LONMIN,
-                             LONMAX,
-                             LATMIN,
-                             LATMAX,
-                             TARGET_PROJ_PYPROJ)
-from iriscc.plotutils import plot_image
+                             SAFRAN_PROJ_PYPROJ,
+                             CONFIG)
+
 
 
 
@@ -64,18 +68,16 @@ def standardize_longitudes(ds) :
       
    return ds
 
-
-
-def add_lon_lat_bounds(ds):
-   ''' Irregular grid '''
-   ''' Generate boundaries coordonates from cells center for the consevative interpolation method '''
-
-   def generate_bounds(coord):
+def generate_bounds(coord):
       bounds = np.zeros(len(coord) + 1)
       bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
       bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
       bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
       return bounds.astype(np.int32)
+
+def add_lon_lat_bounds(ds):
+   ''' Irregular grid '''
+   ''' Generate boundaries coordonates from cells center for the consevative interpolation method '''
 
    x = ds['x'].values
    y = ds['y'].values
@@ -85,7 +87,7 @@ def add_lon_lat_bounds(ds):
 
    x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
 
-   projection  = TARGET_PROJ_PYPROJ
+   projection = SAFRAN_PROJ_PYPROJ
    lon_b, lat_b = projection(x_b_2d, y_b_2d, inverse=True)
 
    ds = ds.assign_coords(
@@ -99,9 +101,14 @@ def add_lon_lat_bounds(ds):
 
 
 
-def interpolation_target_grid(ds):
-   ds_target = xr.open_dataset(TARGET_GRID_FILE)
-   ds_target = add_lon_lat_bounds(ds_target)
+def interpolation_target_grid(ds, ds_target, method):
+
+   if 'x' in ds.coords :
+      if 'x_b' not in ds.coords:
+         ds = add_lon_lat_bounds(ds)
+   if 'x' in ds_target.coords :
+      if 'x_b' not in ds_target.coords:
+         ds_target = add_lon_lat_bounds(ds_target)
 
    for i, coord in enumerate(['lat','lon']):
       if len(ds[coord].dims) == 1:
@@ -111,47 +118,98 @@ def interpolation_target_grid(ds):
    for var in ds.data_vars:
       ds[var].values = np.asfortranarray(ds[var].values)
       ds[var].values = np.ascontiguousarray(ds[var].values)
-   
-   regridder = xe.Regridder(ds, ds_target, "conservative")
+   if method == 'bilinear':
+      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d")
+   else:
+      regridder = xe.Regridder(ds, ds_target, method)
    ds_out = regridder(ds)
    return ds_out
 
 
-def reformat_as_target(ds):
-    ''' Returns Input dataset interpolated at target target grid '''
-    ds = standardize_longitudes(ds)
-    ds = ds.sel(lon=slice(LONMIN,LONMAX), lat=slice(LATMIN, LATMAX))
-    ds = interpolation_target_grid(ds)
-    return ds
+def reformat_as_target(ds, target_file, method, domain, mask:bool=False, crop_target:bool=False):
+   ''' Returns Input dataset interpolated at target target grid '''
+   ds = crop_domain_from_ds(ds, domain)
+   ds_target = xr.open_dataset(target_file).isel(time=0)
+   ds_target = standardize_dims_and_coords(ds_target)
+   ds_target = standardize_longitudes(ds_target)
+   if crop_target:
+      ds_target = crop_domain_from_ds(ds_target, domain)
+   if mask :
+      if 'mask' not in list(ds_target.keys()):
+         ds_target["mask"] = xr.where(~np.isnan(ds_target["tas"]), 1, 0)
+   ds = interpolation_target_grid(ds, ds_target, method)
+   return ds
 
+def crop_domain_from_ds(ds, domain):
+   ds = ds.sel(lon=slice(domain[0], domain[1]), lat=slice(domain[2], domain[3]))
+   return ds
 
-if __name__=='__main__':
-   date_str = '2014-12-31'
-   date = pd.Timestamp(date_str).date()
-   
-   #ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/cmip6/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r10i1p1f2_gr_18500101-20141231.nc')
-   ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/cmip6/CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc')
-   ds = standardize_longitudes(ds)
-   ds = ds.sel(lon=slice(-6,12), lat=slice(40.,52.))
-   condition = ds['sftlf'].values < 5
-   mask_var_array = ma.masked_array(ds['sftlf'].values, condition)
-   plot_image(condition, f'LR Land/Sea mask (< 5 %)', '/scratch/globc/garcia/graph/mask_LR_5.png')
+def remove_countries(array):
+   # the array must have SAFRAN shape
+   ds = xr.open_dataset(COUNTRIES_MASK)
+   ds = ds.reindex(lat=ds.lat[::-1])
+   ds = crop_domain_from_ds(ds, CONFIG['safran']['domain']['france'])
+   ds = ds.drop_vars('spatial_ref')
+   index = ds['index'].values
+   pays = [41.0, 56., 105., 112., 28.] # Suisse, Allemagne, Autriche, Italie
+   mask = np.isin(index, pays)
+   index = np.where(mask, index, np.nan)
 
+   ds['index'].values = index
+   ds["mask"] = xr.where(~np.isnan(ds["index"]), 1, 0)
+   ds_saf = xr.open_dataset(TARGET_SAFRAN_FILE).isel(time=0)
+   ds_saf["mask"] = xr.where(~np.isnan(ds_saf["tas"]), 1, 0)
+   ds = interpolation_target_grid(ds, ds_saf, method='conservative_normed')
+   index = ds['index'].values
 
-   '''
-   ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/cmip6/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r10i1p1f2_gr_18500101-20141231.nc')
-   ds = standardize_longitudes(ds)
-   ds = ds.sel(time=ds.time.dt.date == date)
-   ds = ds.isel(time=0)
-   ds = ds.sel(lon=slice(-6,12), lat=slice(40.,52.))
-   #ds_out = interpolation_target_grid(ds)
-   plot_image(ds['tas'].values, date_str, '/scratch/globc/garcia/graph/cmip6LR_raw.png')
+   index = xr.where(~np.isnan(index), 1, 0)
+   array[index == 1] = np.nan
+   return array
 
-   ds_s = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/rawdata/safran/SAFRAN_2014080107_2015080106_reformat.nc')
-   ds_s = ds_s.sel(time=pd.date_range(start=date_str, periods = 23, freq='h').to_numpy())
-   print(np.shape(ds_s['tas'].values.mean(axis=0)))
-   plot_image(ds_s['tas'].values.mean(axis=0), date_str, '/scratch/globc/garcia/graph/safranHR.png')
+def landseamask_cmip6(ds):
+   tas = ds['tas'].values
+   mask = xr.open_dataset(LANDSEAMASK_CMIP6)
+   mask = standardize_longitudes(mask)
+   mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
+                   lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
+   condition = mask['sftlf'].values < 2 # 2
+   tas[condition] = np.nan
+   ds["mask"] = xr.where(~np.isnan(ds["tas"]), 1, 0)
+   ds['tas'].values = tas
+   return ds
 
-   
-   ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/utils/ETOPO_2022_v1_30s_N90W180_bed_regrid.nc')
-   plot_image(ds['z'].values, 'topography', '/scratch/globc/garcia/graph/topography.png')'''
+def landseamask_era5(ds):
+   tas = ds['tas'].values
+   mask = xr.open_dataset(LANDSEAMASK_ERA5).isel(time=0)
+   mask = standardize_dims_and_coords(mask)
+   mask = standardize_longitudes(mask)
+   mask = mask.reindex(lat=mask.lat[::-1])
+   mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
+                   lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
+   condition = mask['lsm'].values < 0.1
+   tas[condition] = np.nan
+   ds['tas'].values = tas
+   ds["mask"] = xr.where(~np.isnan(ds["tas"]), 1, 0)
+   return ds
+
+def landseamask_eobs(ds):
+   tas = ds['tas'].values
+   mask = xr.open_dataset(LANDSEAMASK_EOBS)
+   mask = standardize_dims_and_coords(mask)
+   mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
+                   lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
+   condition = mask['landseamask'].values == 1.
+   tas[condition] = np.nan
+   ds['tas'].values = tas
+   ds["mask"] = xr.where(~np.isnan(ds["tas"]), 1, 0)
+   return ds
+
+def crop_domain_from_array(array, sample_dir, domain):
+   coords_file = glob.glob(str(sample_dir/'coordinates.npz'))[0]
+   coordinates = dict(np.load(coords_file, allow_pickle=True))
+   lon = coordinates['lon']
+   lat = coordinates['lat']
+   lon_indices = np.where((lon >= domain[0]) & (lon <= domain[1]))[0]
+   lat_indices = np.where((lat >= domain[2]) & (lat <= domain[3]))[0]
+   array = array[np.ix_(lat_indices, lon_indices)]
+   return array

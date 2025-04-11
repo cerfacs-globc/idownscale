@@ -4,10 +4,13 @@ sys.path.append('.')
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import v2
 import numpy as np
+import torch
 import glob
+from pathlib import Path
 
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DeMinMaxNormalisation, DomainCrop
+from iriscc.plotutils import plot_test
 
 class IRISCC(Dataset):
     def __init__(self,
@@ -20,9 +23,16 @@ class IRISCC(Dataset):
         self.data_type = data_type
 
         list_data = np.sort(glob.glob(str(self.sample_dir/'sample*')))
-        nb = len(list_data)
-        train_end = int(0.6 * nb) 
-        val_end = train_end + int(0.2 * nb)
+        #train_end = np.where(list_data == str(self.sample_dir/'sample_20051231.npz'))[0][0]
+        #val_end = np.where(list_data == str(self.sample_dir/'sample_20091231.npz'))[0][0]
+        train_end = np.where(list_data == str(self.sample_dir/'sample_20091231.npz'))[0][0]
+        val_end = np.where(list_data == str(self.sample_dir/'sample_20141231.npz'))[0][0]
+
+
+
+        #nb = len(list_data)
+        #train_end = int(0.6 * nb) 
+        #val_end = train_end + int(0.2 * nb)
 
         if self.data_type == 'train':
             self.samples = list_data[:train_end]
@@ -46,11 +56,12 @@ def get_dataloaders(data_type):
 
     hparams = IRISCCHyperParameters()
     transforms = v2.Compose([
-            MinMaxNormalisation(), 
-            LandSeaMask(hparams.mask, hparams.fill_value, hparams.landseamask),
-            FillMissingValue(hparams.fill_value),
-            Pad(hparams.fill_value)
-            ])
+                MinMaxNormalisation(hparams.sample_dir, hparams.output_norm), 
+                LandSeaMask(hparams.mask, hparams.fill_value),
+                FillMissingValue(hparams.fill_value),
+                DomainCrop(hparams.sample_dir, hparams.domain_crop),
+                Pad(hparams.fill_value)
+                ])
     training_data = IRISCC(transform=transforms,
                         hparams=hparams,
                         data_type=data_type)
@@ -69,10 +80,19 @@ def get_dataloaders(data_type):
     dataloader = DataLoader(training_data, 
                             batch_size=batch_size, 
                             shuffle=shuffle,
-                            num_workers=4)
+                            num_workers=1)
     return dataloader   
 
 if __name__=='__main__':
     train_dataloader = get_dataloaders('train')
     for batch in train_dataloader:
-        print(batch[0].shape)
+        x = batch[0][0,:,:,:]
+        y = batch[1][0,:,:,:]
+        y[y == 0] = torch.nan
+        y[y == 0] = torch.nan
+        denorm = DeMinMaxNormalisation(Path('/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp3_30y'), True)
+        _, y = denorm((x,y))
+        plot_test(x[1].numpy(), 'x', '/gpfs-calypso/scratch/globc/garcia/graph/test.png')
+        plot_test(y[0].numpy(), 'y', '/gpfs-calypso/scratch/globc/garcia/graph/test1.png')
+        print(x.shape, y.shape)
+        break
