@@ -13,14 +13,14 @@ import json
 
 from iriscc.plotutils import plot_test
 from iriscc.datautils import reformat_as_target, standardize_longitudes
-from iriscc.settings import (SAFRAN_DIR, 
+from iriscc.settings import (SAFRAN_REFORMAT_DIR, 
                              CMIP6_RAW_DIR,
                              DATES,
                              INPUTS,
                              GCM,
                              OROG_FILE,
                              IMERG_MASK,
-                             TARGET_GRID_FILE,
+                             TARGET_SAFRAN_FILE,
                              TARGET,
                              DATASET_EXP1_30Y_DIR,
                              DATASET_EXP1_DIR, 
@@ -32,7 +32,7 @@ def mask_coverage_func(var_array, mask, model):
     ''' Create a mask on an input array to remove sea and/or continental values '''
 
     if mask == 'france':
-        ds = xr.open_dataset(TARGET_GRID_FILE)
+        ds = xr.open_dataset(TARGET_SAFRAN_FILE)
         ds = ds.isel(time=0)
         condition = np.isnan(ds['tas'].values)
     elif mask == 'continents':
@@ -75,7 +75,7 @@ def input_data(date):
                 plot_test(ds['tas'].values, 'tas (K) 20040101 CNRM-CM6-1', '/scratch/globc/garcia/graph/test.png', vmin = 262, vmax = 286)
                 ds[var] = ds[var].transpose()
                 print('coucou')
-                ds = reformat_as_target(ds, target_file=TARGET_GRID_FILE, method="conservative_normed")
+                ds = reformat_as_target(ds, target_file=TARGET_SAFRAN_FILE, method="conservative_normed")
                 plot_test(ds['tas'].values, 'tas (K) 20040101 CNRM-CM6-1 interpolated', '/scratch/globc/garcia/graph/test4.png', vmin = 262, vmax = 286)
                 #if mask == 'continents' or mask == 'france':
                     #ds[var].values = mask_coverage_func(ds[var].values, mask, None)
@@ -91,10 +91,10 @@ def target_data(date):
     year = date.year
     if date < threshold_date : 
         year = year-1
-    ds = xr.open_dataset(glob.glob(str(SAFRAN_DIR/f"SAFRAN_{year}080107_{year+1}080106_reformat.nc"))[0])
+    ds = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"SAFRAN_{year}080107_{year+1}080106_reformat.nc"))[0])
 
     if date == datetime(date.year, 8, 1):
-        ds_before = xr.open_dataset(glob.glob(str(SAFRAN_DIR/f"SAFRAN_{year-1}080107_{year}080106_reformat.nc"))[0])
+        ds_before = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"SAFRAN_{year-1}080107_{year}080106_reformat.nc"))[0])
         ds_before = ds_before.isel(time=slice (-7, None))
         ds = ds.isel(time = slice(None, 17))
         ds = ds.merge(ds_before)
