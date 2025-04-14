@@ -26,7 +26,7 @@ class IRISCC(Dataset):
         #train_end = np.where(list_data == str(self.sample_dir/'sample_20051231.npz'))[0][0]
         #val_end = np.where(list_data == str(self.sample_dir/'sample_20091231.npz'))[0][0]
         train_end = np.where(list_data == str(self.sample_dir/'sample_20091231.npz'))[0][0]
-        val_end = np.where(list_data == str(self.sample_dir/'sample_20141231.npz'))[0][0]
+        val_end = np.where(list_data == str(self.sample_dir/'sample_20131231.npz'))[0][0]
 
 
 

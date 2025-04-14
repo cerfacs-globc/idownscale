@@ -89,10 +89,8 @@ SAFRAN_PROJ = ccrs.LambertConformal(central_longitude=2.337229,
 
 
 # Experience settings
-## First experience
-#DATES = pd.date_range(start='2004-05-10', end='2014-12-31', freq='D')
-DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D') # exp3 exp4
-#DATES = pd.date_range(start='2004-01-01', end='2014-12-31', freq='D') # exp1 exp2
+#DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D') # exp3 exp4
+DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data
 GCM = ['CNRM-CM6-1']
 
 ### Preprocessing

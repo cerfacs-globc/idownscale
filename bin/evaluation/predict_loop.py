@@ -79,4 +79,4 @@ for i, date in enumerate(dates):
 
     ds.tas[i] = y_hat
 
-ds.to_netcdf(PREDICTION_DIR/f'tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101_21001231_{test_name}.nc')
+ds.to_netcdf(PREDICTION_DIR/f'tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101_21001231_{exp}_{test_name}.nc')

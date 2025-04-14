@@ -46,4 +46,4 @@ trainer = pl.Trainer(max_epochs=hparams.max_epoch,
                      callbacks=checkpoint_callback)
 
 trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
-#trainer.test(model, dataloaders=test_dataloader, ckpt_path='best')
+trainer.test(model, dataloaders=test_dataloader, ckpt_path='best')

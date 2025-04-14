@@ -2,8 +2,13 @@
 !.gitignore
 log
 name.e
+name2.e
+nameh.e
 name.o
-run_batch_prod.sh
+.gitignore
+run_batch_globc.sh
+run_batch_grace.sh
+run_batch_hybrid.sh
 PET0.ESMF_LogFile
 garcia.code-workspace
 __pycache__

@@ -13,7 +13,7 @@ exp = str(sys.argv[1])
 target = str(sys.argv[2]) # ex : safran, eobs
 test_name = str(sys.argv[3]) # ex : test1,test2,test3
 test_list = [str(x) for x in test_name.split(',')]
-scale = str(sys.argv[4]) # {scale}, {scale}
+scale = str(sys.argv[4]) # daily monthly
 
 startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
 enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')

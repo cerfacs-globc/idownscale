@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.plotutils import plot_test, plot_contour, plot_map_image
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_EXP1_30Y_DIR, CONFIG
+from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_BC_DIR, CONFIG
 
 
 
@@ -70,9 +70,9 @@ if __name__=='__main__':
                 ])
     
     sample_dir = hparams['sample_dir']
-    if cmip6_test == 'yes':
-        test_name = f'{test_name}_cmip6'
-        sample_dir = DATASET_EXP1_30Y_DIR
+    if cmip6_test == 'cmip6' or cmip6_test == 'cmip6_bc':
+        test_name = f'{test_name}_{cmip6_test}'
+        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{cmip6_test}' # bc or not
     device = 'cpu'
 
     sample = glob.glob(str(sample_dir/f'sample_{date}.npz'))[0]
@@ -92,12 +92,7 @@ if __name__=='__main__':
     x_init = x_init[1]
     x_init[condition] = np.nan
 
-    #plot_contour(y_hat, f'{date} y_hat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhat_{exp}_{test_name}.png', levels=levels)
-    #plot_contour(y[0], f'{date} y ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_y_{exp}_{test_name}.png', levels=levels)
-    #plot_test(y_hat-y[0], f'{date} y_hat-y ({arch} {test_name} config)', GRAPHS_DIR/'test.png')
-    #plot_contour(y_hat_reformat, f'{date} y_hat_reformat ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yhatreformat_{exp}_{test_name}.png', levels=levels)
-    #plot_contour(y_era5, f'{date} y_era5 ({arch} {test_name} config)', GRAPHS_DIR/f'pred/{date}_yera5_{exp}_{test_name}.png', levels=levels)
-
+   
     plot_map_image(y_hat,
                    domain = CONFIG['eobs']['domain']['france'],
                    title=f'{date} y_hat {test_name}',

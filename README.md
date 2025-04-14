@@ -57,38 +57,100 @@ scratch/globc/garcia/
 
 ## Commandes utiles
 
-### Create Dataset
+### Création des jeux de données
 
-#### Description
-Cette commande permet de créer un dataset en transformant les données brutes et en les sauvegardant dans le répertoire approprié.
+Cette commande permet de créer un jeu de données pour l'entraînement des réseaux de neurones avec des entrées x et des sorties y. Une interpolation conservative est appliquée aux entrées pour correspondre à la taille des données de sorties. Une liste d'exemple correspondant à un pas de temps (journalier) est stockée dans un répertoire `dataset` associé à l'expérience. La topographie de référence est ajoutée aux entrées. 
 
-#### Commande bash
+L'expérience 3 prend SAFRAN comme référence. Une interpolation bilinéaire est utilisée comme baseline.
 ```bash
-python src/preprocessing/create_dataset.py --input data/raw --output data/processed
+python3 bin/preprocessing/build_dataset_exp3.py
 ```
+```bash
+python3 bin/preprocessing/build_dataset_exp3_baseline.py
+```
+
+L'expérience 4 prend E-OBS comme référence. Le domain comprend une partie l'Europe. La selection du domaine est appliqué par lors de l'entrainement. Une interpolation bilinéaire est utilisée comme baseline.
+```bash
+python3 bin/preprocessing/build_dataset_exp4.py
+```
+```bash
+python3 bin/preprocessing/build_dataset_exp4_baseline.py
+```
+
+Afin de normaliser les données, le script `compute_statistics.py` calcule les statistiques de chaque canal et les sauvegarde sous le nom de `statistics.json` dans le répertoire de l'expérience
+
 
 ---
 
-### Train
+### Entraînement
 
-#### Description
-L'entraînement du modèle à partir des données préparées.
+La classe IRISCCHyperParameters() regroupe tous les hyper-paramètres nécessaires à l'entraînement des réseaux de neurones. La commande pour entrainer le réseau est : 
 
-#### Commande bash
 ```bash
-python src/training/train.py --config configs/train_config.yaml
+python bin/training/train.py
 ```
-
+Les résultats sont enregistrés dans le répertoire 'runs'. L'avancée des métriques peut être visualisée sur Tensorboard grace à la commande :
+```bash
+tensorboard --logdir='path-to-runs'
+```
+Le chemin vers les poids du modèle le mieux entrainé devra être renommé '{version_best}' pour le post-traitement.
 ---
+### Correction de biais
+Dans l'approche 'perfect prognosis' employée par [Soares et al. (2024)](https://gmd.copernicus.org/articles/17/229/2024/) et [Vrac et Vaittinada Ayar (2017)](https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml), le réseau de neurone apprend la relation de desente d'échelle entre les réanalyses et les observations avant d'appliquer les poids à des données simulées. Les données simulées sont corrigées par rapport aux réanalyses en pré-traitement afin de réduire le biais du modèle.
 
-### Test
-
-#### Description
-Tester un modèle déjà entraîné pour évaluer ses performances.
-
-#### Commande bash
+On utilise ici la méthode CDF-t [(P.-A. Michelangeli (2009))](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GL038401). Les données sont premièrement pré-traitée pour créer un jeu d'entraînement et deux jeux de données (historique et futur) à débaiser dont un servira pour l'évaluation de la méthode.
 ```bash
-python3 bin/evaluation/compute_era5_test_metrics_daily.py exp1 swinunet_6mb_30y yes
+python bin/preprocessing/build_dataset_bc.py
+```
+Le script `bin/preprocessing/bias_correction_ibicus.py` corrige, évalue et enregistre les données dans le même format que celle utilisée pour l'entraînement du réseau de neurone.
+
+
+### Prédiction
+Les réseaux de neurones pré-entraînés peuvent être utilisés pour prédire de nouvelles sorties à partir d'entrées jamais vues par le réseau. 
+Un jeu de test permet de comparer la prédiction à la référence pour une date donnée. Ce même jeu de test est utilisé lors de l'entrainement  pour calculer des métriques d'évaluation. La prédiction est obtenue par :
+
+```bash
+python bin/training/predict.py 20121018 exp3 unet no
+```
+La commande suivante crée un fichier netCDF pour prédire une longue période sans avoir à comparer avec la référence (pour le futur par exemple) : 
+```bash
+python bin/evaluation/predict_loop.py exp3 unet no
 ```
 
+Rq : L'option `cmip6_test` indique si les données en entrée sont des données ERA5 (no), CNRM-CM6-1 (cmip6) ou CNRM-CM6-1 corrigées par rapport à ERA5 (cmip6_bc). Les données sont ainsi récupérées dans les répertoires associés.
+
+### Evaluation
+
+Les prédictions du réseau de neurone sont comparées aux données de référence pour la période historique de test. 
+
+#### Calcul des métriques
+Pour les métriques journalières : 
+```bash
+python3 bin/evaluation/compute_test_metrics_daily.py exp3 safran unet no
+```
+```bash
+python3 bin/evaluation/compute_test_metrics_daily_baseline.py exp3 safran unet no
+```
+pour les métriques mensuelles :
+```bash
+python3 bin/evaluation/compute_test_metrics_monthly.py exp3 safran unet no
+```
+
+#### Visualisation des métriques
+```bash
+python3 bin/evaluation/compare_test_metrics.py exp3 safran unet_cmip6,unet_cmip6_bc monthly
+```
+
+#### Tendance future
+La commande suivante crée une figure des changements de température entre les période futures et la période de référence 1980-2014. 
+```bash
+python3 bin/evaluation/evaluate_future_trend.py exp3 unet ssp585
+```
+
+créer dataset
+entrainer modeèle era5
+evaluer modèle
+debaiser simus
+appliquer modèle aux simus
+evaluer méthode globale (hist+ futur)
 ---
