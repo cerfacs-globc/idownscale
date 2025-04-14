@@ -94,6 +94,7 @@ Les résultats sont enregistrés dans le répertoire 'runs'. L'avancée des mét
 tensorboard --logdir='path-to-runs'
 ```
 Le chemin vers les poids du modèle le mieux entrainé devra être renommé '{version_best}' pour le post-traitement.
+
 ---
 ### Correction de biais
 Dans l'approche 'perfect prognosis' employée par [Soares et al. (2024)](https://gmd.copernicus.org/articles/17/229/2024/) et [Vrac et Vaittinada Ayar (2017)](https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml), le réseau de neurone apprend la relation de desente d'échelle entre les réanalyses et les observations avant d'appliquer les poids à des données simulées. Les données simulées sont corrigées par rapport aux réanalyses en pré-traitement afin de réduire le biais du modèle.
@@ -153,4 +154,5 @@ evaluer modèle
 debaiser simus
 appliquer modèle aux simus
 evaluer méthode globale (hist+ futur)
+
 ---
