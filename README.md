@@ -69,7 +69,7 @@ python3 bin/preprocessing/build_dataset_exp3.py
 python3 bin/preprocessing/build_dataset_exp3_baseline.py
 ```
 
-L'expérience 4 prend E-OBS comme référence. Le domain comprend une partie l'Europe. La selection du domaine est appliqué par lors de l'entrainement. Une interpolation bilinéaire est utilisée comme baseline.
+L'expérience 4 prend E-OBS comme référence. Le domain comprend une partie de l'Europe. La selection du domaine est appliqué par lors de l'entrainement. Une interpolation bilinéaire est utilisée comme baseline.
 ```bash
 python3 bin/preprocessing/build_dataset_exp4.py
 ```
@@ -107,7 +107,7 @@ Le script `bin/preprocessing/bias_correction_ibicus.py` corrige, évalue et enre
 
 
 ### Prédiction
-Les réseaux de neurones pré-entraînés peuvent être utilisés pour prédire de nouvelles sorties à partir d'entrées jamais vues par le réseau. 
+Un réseau de neurone pré-entraîné peuvent être utilisé pour prédire de nouvelles sorties à partir d'entrées jamais vues par le réseau. 
 Un jeu de test permet de comparer la prédiction à la référence pour une date donnée. Ce même jeu de test est utilisé lors de l'entrainement  pour calculer des métriques d'évaluation. La prédiction est obtenue par :
 
 ```bash
@@ -122,7 +122,7 @@ Rq : L'option `cmip6_test` indique si les données en entrée sont des données 
 
 ### Evaluation
 
-Les prédictions du réseau de neurone sont comparées aux données de référence pour la période historique de test. 
+Les prédictions du réseau de neurone sont comparées aux données de référence pour la période de test historique. 
 
 #### Calcul des métriques
 Pour les métriques journalières : 

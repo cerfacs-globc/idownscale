@@ -6,66 +6,49 @@ import glob
 import torch
 import numpy as np
 import pandas as pd
+import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DomainCrop
-from iriscc.settings import (DATES_TEST, 
-                             DATES_BC_TEST_HIST,
-                             CONFIG, 
+from iriscc.settings import (DATES_BC_TEST_HIST, 
                              GRAPHS_DIR, 
-                             TARGET_SIZE, 
-                             RUNS_DIR, 
                              METRICS_DIR, 
-                             DATASET_BC_DIR,
                              DATASET_EXP3_30Y_DIR,
-                             DATASET_EXP4_30Y_DIR)
-from iriscc.transforms import UnPad
-from iriscc.plotutils import plot_map_contour
+                             DATASET_EXP4_30Y_DIR,
+                             DATASET_EXP3_BASELINE_DIR,
+                             CONFIG,
+                             DATASET_EXP4_BASELINE_DIR,
+                             DATASET_BC_DIR,
+                             CONFIG)
+from iriscc.transforms import DomainCrop
+
 
 exp = str(sys.argv[1]) # ex : exp 1
-target = str(sys.argv[2]) # ex : eobs or safran
-test_name = str(sys.argv[3]) # ex : mask_continents
-cmip6_test = str(sys.argv[4]) # Perfect prognosis, no or cmip6, cmip6_bc
+input = str(sys.argv[2]) # cmip6 raw, era5 raw
+target = str(sys.argv[3])
+crop = str(sys.argv[4])
+
+if input == 'cmip6_raw':
+    sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_cmip6'
+elif input == 'era5_raw':
+    if exp == 'exp3':
+        sample_dir = DATASET_EXP3_30Y_DIR
+    elif exp == 'exp4':
+        sample_dir = DATASET_EXP4_30Y_DIR
+
+domain = CONFIG[target]['domain'][crop]
+if target == 'eobs':
+    domaincrop = DomainCrop(sample_dir, domain)
 
 
-run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
-checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
-if cmip6_test == 'cmip6' or cmip6_test == 'cmip6_bc':
-    test_name = f'{test_name}_{cmip6_test}'
-graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
+graph_dir = GRAPHS_DIR/f'metrics/{exp}/{input}/'
 metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
 os.makedirs(graph_dir, exist_ok=True)
 os.makedirs(metric_dir, exist_ok=True)
 
 
-model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
-model.eval()
-hparams = model.hparams['hparams']
-arch = hparams['model']
-domain = hparams['domain']
-if target == 'safran':
-    domain = 'france_xy'
-transforms = v2.Compose([
-            MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
-            LandSeaMask(hparams['mask'], hparams['fill_value']),
-            FillMissingValue(hparams['fill_value']),
-            DomainCrop(hparams['sample_dir'], hparams['domain_crop']),
-            Pad(hparams['fill_value'])
-            ])
 device = 'cpu'
-sample_dir = hparams['sample_dir']
-pp = ''
-dates = DATES_TEST
-if cmip6_test == 'cmip6' or cmip6_test == 'cmip6_bc':
-    dates = DATES_BC_TEST_HIST
-    sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{cmip6_test}' # bc or not
-    pp = f'_{cmip6_test}'
-
-
 rmse = MeanSquaredError(squared=False).to(device)
 corr = PearsonCorrCoef().to(device)
 
@@ -84,56 +67,30 @@ y_hat_temporal = []
 i_summer = []
 i_winter = []
 
+dates = DATES_BC_TEST_HIST
 startdate = dates[0].date().strftime('%d/%m/%Y')
 enddate = dates[-1].date().strftime('%d/%m/%Y')
 period = f'{startdate} - {enddate}'
 
-df_dates = pd.DataFrame({'date': dates})
-df_dates['year'] = df_dates['date'].dt.year
-df_dates['month'] = df_dates['date'].dt.month
-df_dates['day'] = df_dates['date'].dt.day
-
-#boucle sur le duo mois années 
-## boucle interne sur les jours du mois en faisant la moyenne
-
-for i, ((year, month), group) in enumerate(df_dates.groupby(['year', 'month'])):
-    if month in [6,7,8]:
+for i, date in enumerate(dates):
+    print(date)
+    if date.month in [6,7,8]:
         i_summer.append(i)
-    if month in [1,2,12]:
+    if date.month in [1,2,12]:
         i_winter.append(i)
-        
-    daily_y = []
-    daily_y_hat = []
-    for day in group['day']:
-        date_str = f'{year}{month:02d}{day:02d}'
-        print(date_str)
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
-        data = dict(np.load(sample), allow_pickle=True)
-        x, y = data['x'], data['y']
-        condition_saf = np.isnan(y[0])
+    date_str = date.date().strftime('%Y%m%d')
+    sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+    data = dict(np.load(sample), allow_pickle=True)
+    x, y = data['x'], data['y']
+    y_hat = x[1] 
+    condition = np.isnan(y[0])
+    y_hat[condition] = np.nan
 
-        x, y = transforms((x, y))
-
-        x = torch.unsqueeze(x, dim=0).float()
-        y_hat = model(x.to(device)).to(device)
-        y_hat = y_hat.detach().cpu()
-
-        if target == 'safran':
-            unpad_func = UnPad(TARGET_SIZE)
-            y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
-            condition = condition_saf
-        else:
-            condition = y[0] == 0. # transformed
-            y = y[0,...].numpy()
-            y_hat = y_hat[0,0,...].numpy()
-            
-        y[condition] = np.nan
-        y_hat[condition] = np.nan
-        daily_y.append(y)
-        daily_y_hat.append(y_hat)
-
-    y = np.mean(np.stack(daily_y), axis=0)
-    y_hat = np.mean(np.stack(daily_y_hat), axis=0)
+    y = np.expand_dims(y, axis = 0)
+    y_hat = np.expand_dims(y_hat, axis = 0)
+    if target == 'eobs':
+        y_hat, y = domaincrop((y_hat, y))
+    y_hat, y = y_hat[0], y[0]
 
     # compute metrics
     ## spatial metrics
@@ -145,14 +102,14 @@ for i, ((year, month), group) in enumerate(df_dates.groupby(['year', 'month'])):
     else:
         rmse_spatial += error_squared
         bias_spatial += error
-    if month in [6,7,8]:
+    if date.month in [6,7,8]:
         if len(rmse_spatial_summer) == 0:
             rmse_spatial_summer = error_squared
             bias_spatial_summer = error
         else:
             rmse_spatial_summer += error_squared
             bias_spatial_summer += error
-    elif month in [1,2,12]:
+    elif date.month in [1,2,12]:
         if len(rmse_spatial_winter) == 0:
             rmse_spatial_winter = error_squared
             bias_spatial_winter = error
@@ -167,9 +124,9 @@ for i, ((year, month), group) in enumerate(df_dates.groupby(['year', 'month'])):
     corr_value = corr(y_hat_flat - torch.mean(y_hat_flat), y_flat - torch.mean(y_flat)).item()
     rmse_temporal.append(rmse_value)
     corr_spatial.append(corr_value)
-
     y_temporal.append(y_flat)
     y_hat_temporal.append(y_hat_flat)
+
 
 dT = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
 dT_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
@@ -213,7 +170,7 @@ d = {'rmse_temporal': rmse_temporal,
     'corr_temporal': corr_temporal,
     'corr_spatial': corr_spatial,
     'variability': var}
-np.savez(metric_dir/f'metrics_test_monthly_{exp}_{test_name}.npz', **d)
+np.savez(metric_dir/f'metrics_test_daily_{exp}_{input}.npz', **d)
 
 # Save mean values
 d_mean = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_summer), np.mean(rmse_temporal_winter)],
@@ -225,50 +182,6 @@ d_mean = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_
     'variability_mean' : [np.mean(var), np.mean(var_summer), np.mean(var_winter)]}
 
 df = pd.DataFrame(d_mean, index = ['all', 'summer', 'winter'])
-df.to_csv(metric_dir/f'metrics_test_mean_monthly_{exp}_{test_name}.csv')
+df.to_csv(metric_dir/f'metrics_test_mean_daily_{exp}_{input}.csv')
 print(df)
-
-# Spatial distribution
-## RMSE
-
-levels = np.arange(0, 3.25, 0.25) 
-colors = [
-    '#a1d99b', '#41ab5d', '#006d2c',  # Vert clair -> foncé
-    '#ffeda0', '#feb24c', '#d45f00',
-    '#fc9272', '#de2d26', '#a50f15',   # Rouge clair -> foncé
-    '#9ecae1', '#3182bd', '#08519c'
-]
-fig, ax = plot_map_contour(rmse_spatial,
-                    domain = CONFIG[target]['domain'][domain],
-                    data_projection = CONFIG[target]['data_projection'],
-                    fig_projection = CONFIG[target]['fig_projection'][domain],
-                    title = f'{test_name} ({target} Evalutaion)',
-                    cmap=mcolors.ListedColormap(colors[:len(levels) - 1]),
-                    levels=levels ,
-                    var_desc='RMSE (K)')
-ax.text(0.03, 0.07, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", 
-        transform=ax.transAxes, fontsize=10, verticalalignment='top', zorder=10, 
-        horizontalalignment='left', color = 'red', 
-        bbox={'facecolor': 'white', 'pad': 5, 'edgecolor' : 'white'})
-plt.savefig(f"{graph_dir}/monthly_spatial_rmse_distribution{pp}.png")
-
-## Bias
-fig, ax = plot_map_contour(bias_spatial,
-                    domain = CONFIG[target]['domain'][domain],
-                    data_projection = CONFIG[target]['data_projection'],
-                    fig_projection = CONFIG[target]['fig_projection'][domain],
-                    title = f'{test_name} ({target} Evalutaion)',
-                    cmap='BrBG',
-                    levels= np.linspace(-2,2,9),
-                    var_desc='Bias (K)')
-ax.text(0.03, 0.07, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", 
-        transform=ax.transAxes, fontsize=10, verticalalignment='top', zorder=10, 
-        horizontalalignment='left', color = 'red', 
-        bbox={'facecolor': 'white', 'pad': 5, 'edgecolor' : 'white'})
-plt.savefig(f"{graph_dir}/monthly_spatial_bias_distribution{pp}.png")
-
-
-
-
-
 

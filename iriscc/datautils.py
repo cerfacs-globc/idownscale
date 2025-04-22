@@ -3,11 +3,10 @@ sys.path.append('.')
 
 import xarray as xr
 import numpy as np
-import pandas as pd
+from pathlib import Path
 import xesmf as xe
 import glob
 
-from iriscc.plotutils import plot_test
 from iriscc.settings import (TARGET_SAFRAN_FILE,
                              TARGET_EOBS_FILE,
                              CMIP6_RAW_DIR,
@@ -68,16 +67,23 @@ def standardize_longitudes(ds) :
       
    return ds
 
-def generate_bounds(coord):
-      bounds = np.zeros(len(coord) + 1)
-      bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
-      bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
-      bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
-      return bounds.astype(np.int32)
 
-def add_lon_lat_bounds(ds):
-   ''' Irregular grid '''
-   ''' Generate boundaries coordonates from cells center for the consevative interpolation method '''
+def generate_bounds(coord:np.ndarray) -> np.ndarray:
+   """
+   Generates bounds for a given coordinate array.
+   """
+   bounds = np.zeros(len(coord) + 1)
+   bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
+   bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
+   bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
+   return bounds.astype(np.int32)
+
+
+def add_lon_lat_bounds(ds:xr.Dataset) -> xr.Dataset:
+   """
+   Adds longitude and latitude bounds to the dataset based on the coordinates of the cells.
+   Useful for SAFRAN-like datasets.
+   """
 
    x = ds['x'].values
    y = ds['y'].values
@@ -100,8 +106,10 @@ def add_lon_lat_bounds(ds):
    return ds
 
 
-
-def interpolation_target_grid(ds, ds_target, method):
+def interpolation_target_grid(ds:xr.Dataset, ds_target:xr.Dataset, method:str) -> xr.Dataset:
+   """
+   Interpolates the input dataset to match the target grid and domain.
+   """
 
    if 'x' in ds.coords :
       if 'x_b' not in ds.coords:
@@ -109,6 +117,7 @@ def interpolation_target_grid(ds, ds_target, method):
    if 'x' in ds_target.coords :
       if 'x_b' not in ds_target.coords:
          ds_target = add_lon_lat_bounds(ds_target)
+
 
    for i, coord in enumerate(['lat','lon']):
       if len(ds[coord].dims) == 1:
@@ -126,8 +135,11 @@ def interpolation_target_grid(ds, ds_target, method):
    return ds_out
 
 
-def reformat_as_target(ds, target_file, method, domain, mask:bool=False, crop_target:bool=False):
-   ''' Returns Input dataset interpolated at target target grid '''
+def reformat_as_target(ds:xr.Dataset, target_file, method:str, domain:tuple, 
+                       mask:bool=False, crop_target:bool=False) -> xr.Dataset:
+   """
+   Reformats the input dataset to match the target grid and domain.
+   """
    ds = crop_domain_from_ds(ds, domain)
    ds_target = xr.open_dataset(target_file).isel(time=0)
    ds_target = standardize_dims_and_coords(ds_target)
@@ -140,71 +152,102 @@ def reformat_as_target(ds, target_file, method, domain, mask:bool=False, crop_ta
    ds = interpolation_target_grid(ds, ds_target, method)
    return ds
 
-def crop_domain_from_ds(ds, domain):
+
+def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
+   """
+   Crops the input dataset to a specified geographical domain based on latitude and longitude coordinates.
+   """
    ds = ds.sel(lon=slice(domain[0], domain[1]), lat=slice(domain[2], domain[3]))
    return ds
 
-def remove_countries(array):
-   # the array must have SAFRAN shape
+
+def remove_countries(array:np.ndarray) -> np.ndarray:
+   """
+   Removes specific countries from the input SAFRAN-like array.
+
+   Args:
+      array (np.ndarray): The input 2D array to be modified.
+
+   Returns:
+      np.ndarray: The modified array with specific countries removed.
+   """
+   # Load the countries mask dataset
    ds = xr.open_dataset(COUNTRIES_MASK)
-   ds = ds.reindex(lat=ds.lat[::-1])
-   ds = crop_domain_from_ds(ds, CONFIG['safran']['domain']['france'])
-   ds = ds.drop_vars('spatial_ref')
+   ds = ds.reindex(lat=ds.lat[::-1])  # Reverse latitude order if necessary
+   ds = crop_domain_from_ds(ds, CONFIG['safran']['domain']['france'])  # Crop to France domain
+   ds = ds.drop_vars('spatial_ref')  # Drop unnecessary variable
    index = ds['index'].values
-   pays = [41.0, 56., 105., 112., 28.] # Suisse, Allemagne, Autriche, Italie
-   mask = np.isin(index, pays)
+
+   # Define country codes to remove (e.g., Switzerland, Germany, Austria, Italy)
+   countries_to_remove = [41.0, 56.0, 105.0, 112.0, 28.0]
+   mask = np.isin(index, countries_to_remove)
    index = np.where(mask, index, np.nan)
 
+   # Update the dataset with the modified index
    ds['index'].values = index
    ds["mask"] = xr.where(~np.isnan(ds["index"]), 1, 0)
+
+   # Interpolate the mask to match the SAFRAN grid
    ds_saf = xr.open_dataset(TARGET_SAFRAN_FILE).isel(time=0)
    ds_saf["mask"] = xr.where(~np.isnan(ds_saf["tas"]), 1, 0)
    ds = interpolation_target_grid(ds, ds_saf, method='conservative_normed')
    index = ds['index'].values
 
+   # Apply the mask to the input array
    index = xr.where(~np.isnan(index), 1, 0)
    array[index == 1] = np.nan
    return array
 
-def landseamask_cmip6(ds):
+
+def apply_landseamask(ds:xr.Dataset, mask_type:str) -> xr.Dataset:
+   """
+   Apply a land-sea mask to the dataset based on the specified mask type.
+
+   Returns:
+   xarray.Dataset: The dataset with the land-sea mask applied.
+   """
    tas = ds['tas'].values
-   mask = xr.open_dataset(LANDSEAMASK_CMIP6)
-   mask = standardize_longitudes(mask)
+
+   if mask_type == 'cmip6':
+      mask = xr.open_dataset(LANDSEAMASK_CMIP6)
+      mask = standardize_longitudes(mask)
+      condition = mask['sftlf'].values < 2  # Land fraction less than 2%
+   elif mask_type == 'era5':
+      mask = xr.open_dataset(LANDSEAMASK_ERA5).isel(time=0)
+      mask = standardize_dims_and_coords(mask)
+      mask = standardize_longitudes(mask)
+      mask = mask.reindex(lat=mask.lat[::-1])
+      condition = mask['lsm'].values < 0.1  # Land-sea mask threshold
+   elif mask_type == 'eobs':
+      mask = xr.open_dataset(LANDSEAMASK_EOBS)
+      mask = standardize_dims_and_coords(mask)
+      condition = mask['landseamask'].values == 1.  # Land-sea mask value
+   else:
+      raise ValueError("Invalid mask_type. Choose from 'cmip6', 'era5', or 'eobs'.")
+
+   # Align mask with the dataset's spatial domain
    mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
                    lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
-   condition = mask['sftlf'].values < 2 # 2
-   tas[condition] = np.nan
-   ds["mask"] = xr.where(~np.isnan(ds["tas"]), 1, 0)
-   ds['tas'].values = tas
-   return ds
 
-def landseamask_era5(ds):
-   tas = ds['tas'].values
-   mask = xr.open_dataset(LANDSEAMASK_ERA5).isel(time=0)
-   mask = standardize_dims_and_coords(mask)
-   mask = standardize_longitudes(mask)
-   mask = mask.reindex(lat=mask.lat[::-1])
-   mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
-                   lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
-   condition = mask['lsm'].values < 0.1
+   # Apply the mask
    tas[condition] = np.nan
    ds['tas'].values = tas
    ds["mask"] = xr.where(~np.isnan(ds["tas"]), 1, 0)
    return ds
 
-def landseamask_eobs(ds):
-   tas = ds['tas'].values
-   mask = xr.open_dataset(LANDSEAMASK_EOBS)
-   mask = standardize_dims_and_coords(mask)
-   mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
-                   lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
-   condition = mask['landseamask'].values == 1.
-   tas[condition] = np.nan
-   ds['tas'].values = tas
-   ds["mask"] = xr.where(~np.isnan(ds["tas"]), 1, 0)
-   return ds
 
-def crop_domain_from_array(array, sample_dir, domain):
+def crop_domain_from_array(array: np.ndarray, sample_dir: Path, domain: tuple) -> np.ndarray:
+   """
+   Crops a 2D array to a specified geographical domain based on latitude and longitude coordinates.
+
+   Args:
+      array (np.ndarray): The input 2D array to be cropped.
+      sample_dir (Path): The directory containing the 'coordinates.npz' file with latitude and longitude data.
+      domain (tuple): A tuple specifying the cropping domain in the format (min_lon, max_lon, min_lat, max_lat).
+
+   Returns:
+      np.ndarray: The cropped 2D array restricted to the specified domain.
+   """
    coords_file = glob.glob(str(sample_dir/'coordinates.npz'))[0]
    coordinates = dict(np.load(coords_file, allow_pickle=True))
    lon = coordinates['lon']

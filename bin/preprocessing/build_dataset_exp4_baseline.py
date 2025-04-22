@@ -15,9 +15,7 @@ from iriscc.datautils import (standardize_dims_and_coords,
                               interpolation_target_grid, 
                               reformat_as_target,
                               crop_domain_from_ds,
-                              landseamask_eobs,
-                              landseamask_cmip6,
-                              landseamask_era5)
+                              apply_landseamask)
 from iriscc.settings import (DATES_TEST,
                              ERA5_DIR,
                              DATASET_EXP4_BASELINE_DIR,
@@ -71,7 +69,7 @@ def target_data(date, domain):
     ds = xr.open_dataset(file)
     ds = ds.sel(time=ds.time.dt.date == date.date()).isel(time=0)
     ds = standardize_dims_and_coords(ds)
-    ds = landseamask_eobs(ds)
+    ds = apply_landseamask(ds, 'eobs')
     ds = crop_domain_from_ds(ds, domain)
     lon = ds['lon'].values
     lat = ds['lat'].values

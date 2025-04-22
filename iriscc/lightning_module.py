@@ -15,7 +15,6 @@ from monai.networks.nets import SwinUNETR
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.unet import UNet
 from iriscc.models.miniunet import MiniUNet
-from iriscc.models.swin2sr import Swin2SR
 from iriscc.models.miniswinunetr import MiniSwinUNETR
 from iriscc.loss import MaskedMSELoss
 
@@ -29,7 +28,6 @@ class IRISCCLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
  
-        #self.loss = nn.MSELoss()  
         self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
                     "rmse": MaskedRMSE(ignore_value = hparams['fill_value']),
@@ -48,9 +46,6 @@ class IRISCCLightningModule(pl.LightningModule):
             self.model = UNet(in_channels=self.in_channels, out_channels=1, init_features=32).float()
         elif hparams['model'] == 'miniunet':
             self.model = MiniUNet(in_channels=self.in_channels, out_channels=1, init_features=32).float()
-        elif hparams['model'] == 'swin2sr':
-            self.model = Swin2SR(upscale=1, img_size=self.img_size, out_chans=1, in_chans=self.in_channels,
-                   embed_dim=32, depths=[2, 2, 2, 2], num_heads=[2 ,2 ,2 ,2],window_size=8, upsampler='pixelshuffle')
         elif hparams['model'] == 'swinunetr':
             self.model = SwinUNETR(img_size=self.img_size, in_channels=self.in_channels, out_channels=1,spatial_dims=2)
         elif hparams['model'] == 'miniswinunetr':

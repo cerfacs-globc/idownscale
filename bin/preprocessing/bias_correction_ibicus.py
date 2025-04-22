@@ -106,15 +106,14 @@ def monthly_mean(y, x, z, dates):
 
 if __name__=='__main__':
     
-    #debiaser = CDFt.from_variable(variable="tas",
-    #                              apply_by_month=True)
+    debiaser = CDFt.from_variable(variable="tas",
+                                  apply_by_month=True)
     #debiaser = CDFt.from_variable(variable = 'tas', 
     #                   running_window_length=91, 
     #                   running_window_step_length=31, 
     #                   running_window_over_years_of_cm_future_length=31, 
     #                   running_window_over_years_of_cm_future_step_length=10)
 
-    debiaser = ISIMIP.from_variable('tas')
     ssp = 'ssp585'
 
     train_hist = dict(np.load(DATASET_BC_DIR/'bc_train_hist.npz', allow_pickle=True))
@@ -155,7 +154,7 @@ if __name__=='__main__':
     print(tas_marginal_bias_data)
     plot = marginal.plot_marginal_bias(variable = 'tas',
                                        bias_df = tas_marginal_bias_data)
-    plot.savefig(GRAPHS_DIR /'test/ibicus_bias_boxplot.png')
+    plot.savefig(GRAPHS_DIR /'biascorrection/ibicus_bias_boxplot.png')
     
     tas_trend_bias_data = trend.calculate_future_trend_bias(statistics = ["mean", 0.05, 0.95], 
                                                         trend_type = 'additive',
@@ -164,7 +163,7 @@ if __name__=='__main__':
                                                         CDFt = [test_hist_bc, test_future_bc])
 
     plot = trend.plot_future_trend_bias_boxplot(variable ='tas', bias_df = tas_trend_bias_data,remove_outliers = True)
-    plot.savefig(GRAPHS_DIR / f'test/ibicus_bias_futur_trend_{ssp}.png')
+    plot.savefig(GRAPHS_DIR / f'biascorrection/ibicus_bias_futur_trend_{ssp}.png')
 
     Y0 = np.mean(train_hist['era5'], axis=(1,2))
     X0 = np.mean(train_hist['cmip6'], axis=(1,2))
@@ -182,13 +181,13 @@ if __name__=='__main__':
     ########## TEMPORAL PROFILES
     plot_tprofiles_short_range(Y0, X0, Z0, 
                                title = 'Daily temperature over the historical Train period (1980-1999)',
-                               savedir=GRAPHS_DIR / 'test/ibicus_train_hist_tprofiles.png')
+                               savedir=GRAPHS_DIR / 'biascorrection/ibicus_train_hist_tprofiles.png')
     plot_tprofiles_short_range(Y1, X1, Z1, 
                                title = 'Daily temperature over the historical Test period (2000-2014)',
-                               savedir=GRAPHS_DIR / 'test/ibicus_test_hist_tprofiles.png')
+                               savedir=GRAPHS_DIR / 'biascorrection/ibicus_test_hist_tprofiles.png')
     plot_tprofiles_short_range(None, X2, Z2, 
                                title = f'Daily temperature over the future Test period (2015-2100 {ssp})',
-                               savedir=GRAPHS_DIR / f'test/ibicus_test_future_tprofiles_{ssp}.png')
+                               savedir=GRAPHS_DIR / f'biascorrection/ibicus_test_future_tprofiles_{ssp}.png')
 
 
     
@@ -204,7 +203,7 @@ if __name__=='__main__':
     plt.xlabel('Temperature CNRM-CM6-1 (K)')
     plt.ylabel('Temperature CNRM-CM6-1 bc (K)')
     plt.title('Daily mean temperature over the historical and future test period')
-    plt.savefig(GRAPHS_DIR /f'test/ibicus_test_hist_linear_{ssp}.png')
+    plt.savefig(GRAPHS_DIR /f'biascorrection/ibicus_test_hist_linear_{ssp}.png')
 
 
     df_cmip6 = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
@@ -252,21 +251,21 @@ if __name__=='__main__':
     plt.title(f'Annual mean temperature ({ssp})')
     plt.ylabel('Temperature (K)')
     plt.legend()
-    plt.savefig(f'/gpfs-calypso/scratch/globc/garcia/graph/test/bc_datasets_temporal_profiles_ibicus_{ssp}.png')
+    plt.savefig(GRAPHS_DIR/f'biascorrection/bc_datasets_temporal_profiles_ibicus_{ssp}.png')
 
     ######### HISTOGRAM PROFILES
     Y0, X0, Z0, dates = monthly_mean(Y0, X0, Z0, train_hist['dates'])
     plot_seasonal_hist(Y0, X0, Z0, dates,
                        title ='Monthly mean temperature over the historical Train period (1980-1999)',
-                       savedir=GRAPHS_DIR/'test/ibicus_train_hist_histo.png')
+                       savedir=GRAPHS_DIR/'biascorrection/ibicus_train_hist_histo.png')
     Y1, X1, Z1, dates = monthly_mean(Y1, X1, Z1, test_hist['dates'])
     plot_seasonal_hist(Y1, X1, Z1, dates,
                        title ='Monthly mean temperature over the historical Test period (2000-2014)',
-                       savedir=GRAPHS_DIR /'test/ibicus_test_hist_histo.png')
+                       savedir=GRAPHS_DIR /'biascorrection/ibicus_test_hist_histo.png')
     _, X2, Z2, dates = monthly_mean(None, X2, Z2, test_future['dates'])
     plot_seasonal_hist(None, X2, Z2, dates,
                        title =f'Monthly mean temperature over the future Test period (2015-2100 {ssp})',
-                       savedir=GRAPHS_DIR/f'test/ibicus_test_future_histo_{ssp}.png')
+                       savedir=GRAPHS_DIR/f'biascorrection/ibicus_test_future_histo_{ssp}.png')
 
     '''                   
     ds_test_hist_bc = xr.Dataset(data_vars=dict(

@@ -3,6 +3,13 @@ from torch import nn
 from torchmetrics import Metric
 
 class MaskedRMSE(Metric):
+    """
+    A PyTorch Metric class to compute the Masked Root Mean Squared Error (RMSE).
+
+    Attributes:
+        ignore_value (float, optional): A value in the target tensor to ignore during computation. 
+                                        If None, no values are ignored.
+    """
     def __init__(self, ignore_value=None, **kwargs):
         super().__init__(**kwargs)
         self.ignore_value = ignore_value
@@ -29,6 +36,12 @@ class MaskedRMSE(Metric):
 
 
 class MaskedMAE(Metric):
+    """
+    A PyTorch Metric class to compute the Masked Mean Absolute Error (MAE).
+
+    Attributes:
+        ignore_value (float, optional): A value in the target tensor to ignore during computation. 
+    """
     def __init__(self, ignore_value=None, **kwargs):
         super().__init__(**kwargs)
         self.ignore_value = ignore_value

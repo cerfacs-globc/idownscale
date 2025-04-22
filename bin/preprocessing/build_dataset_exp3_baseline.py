@@ -14,7 +14,7 @@ from iriscc.datautils import (standardize_dims_and_coords,
                               interpolation_target_grid, 
                               reformat_as_target,
                               remove_countries,
-                              landseamask_cmip6)
+                              apply_landseamask)
 from iriscc.settings import (
                              DATES_TEST,
                              ERA5_DIR,
@@ -41,7 +41,7 @@ def get_cmip6_dataset():
     file = glob.glob(str(CMIP6_RAW_DIR/f'CNRM-CM6-1/tas*'))[0]
     ds = xr.open_dataset(file)
     ds = standardize_longitudes(ds)
-    ds = landseamask_cmip6(ds)
+    ds = apply_landseamask(ds, 'cmip6')
     ds = ds.sel(lon=slice(-6,12), lat=slice(40.,52.))
     ds = ds.isel(time=0)
     return ds

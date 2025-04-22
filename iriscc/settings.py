@@ -75,10 +75,14 @@ CONFIG = {
              'tchequie' : ccrs.LambertConformal(central_latitude=45.75, central_longitude=11.5)}
         }
           }
-LONMIN = -6.
-LONMAX = 12.
-LATMIN = 40.
-LATMAX = 52.
+
+COLORS = {'SAFRAN 8km': 'purple',
+          'E-OBS 25km' : 'blue',
+          'ERA5 8km' : 'cyan',
+          'ERA5 0.25°' : 'green',
+          'GCM 1°' : 'orange',
+          'UNet' : 'r',
+          'SwinUNETR' : 'hotpink'}
 
 SAFRAN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
 SAFRAN_PROJ = ccrs.LambertConformal(central_longitude=2.337229,

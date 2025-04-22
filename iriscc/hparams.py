@@ -11,9 +11,9 @@ class IRISCCHyperParameters():
         self.mask = 'target'
         self.learning_rate = 0.001
         self.batch_size = 32
-        self.max_epoch = 80
-        self.model ='unet'
-        self.exp = 'exp3/unet_all'
+        self.max_epoch = 60
+        self.model ='swinunetr'
+        self.exp = 'exp3/swinunet_all'
         self.runs_dir = RUNS_DIR / self.exp
         self.sample_dir = DATASET_EXP3_30Y_DIR
         self.fill_value = 0.
