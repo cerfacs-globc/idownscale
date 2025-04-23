@@ -77,7 +77,7 @@ python3 bin/preprocessing/build_dataset_exp4.py
 python3 bin/preprocessing/build_dataset_exp4_baseline.py
 ```
 
-Afin de normaliser les données, le script `compute_statistics.py` calcule les statistiques de chaque canal et les sauvegarde sous le nom de `statistics.json` dans le répertoire de l'expérience
+Afin de normaliser les données, le script `compute_statistics.py --dataset_path` calcule les statistiques de chaque canal et les sauvegarde sous le nom de `statistics.json` dans le répertoire de l'expérience
 
 
 ---
@@ -111,11 +111,11 @@ Un réseau de neurone pré-entraîné peuvent être utilisé pour prédire de no
 Un jeu de test permet de comparer la prédiction à la référence pour une date donnée. Ce même jeu de test est utilisé lors de l'entrainement  pour calculer des métriques d'évaluation. La prédiction est obtenue par :
 
 ```bash
-python bin/training/predict.py 20121018 exp3 unet no
+python bin/training/predict.py --date 20121018 --exp exp3 --test-name unet --cmip6-test no
 ```
 La commande suivante crée un fichier netCDF pour prédire une longue période sans avoir à comparer avec la référence (pour le futur par exemple) : 
 ```bash
-python bin/evaluation/predict_loop.py exp3 unet no
+python bin/evaluation/predict_loop.py --exp exp3 --test-name unet --cmip6-test no
 ```
 
 Rq : L'option `cmip6_test` indique si les données en entrée sont des données ERA5 (no), CNRM-CM6-1 (cmip6) ou CNRM-CM6-1 corrigées par rapport à ERA5 (cmip6_bc). Les données sont ainsi récupérées dans les répertoires associés.
@@ -139,13 +139,13 @@ python3 bin/evaluation/compute_test_metrics_monthly.py exp3 safran unet no
 
 #### Visualisation des métriques
 ```bash
-python3 bin/evaluation/compare_test_metrics.py exp3 safran unet_cmip6,unet_cmip6_bc monthly
+python3 bin/evaluation/compare_test_metrics.py --exp exp3 --target safran --test-name unet_cmip6,unet_cmip6_bc --scale monthly --pp yes
 ```
 
 #### Tendance future
-La commande suivante crée une figure des changements de température entre les période futures et la période de référence 1980-2014. 
+La commande suivante crée une figure des changements de température entre les périodes futures et la période de référence 1980-2014. 
 ```bash
-python3 bin/evaluation/evaluate_future_trend.py exp3 unet ssp585
+python3 bin/evaluation/evaluate_future_trend.py --exp exp3 --ssp ssp585
 ```
 
 créer dataset
