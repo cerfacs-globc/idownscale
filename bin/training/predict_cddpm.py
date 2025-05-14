@@ -3,15 +3,13 @@ sys.path.append('.')
 
 import glob
 import torch
-import xarray as xr
 import numpy as np
+import argparse
 from torchvision.transforms import v2
-from datetime import datetime
 import matplotlib.pyplot as plt
 
 from iriscc.diffusionutils import generate
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
-from iriscc.plotutils import plot_test, plot_contour
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_EXP1_30Y_DIR
 
@@ -53,12 +51,14 @@ def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
 
 
 if __name__=='__main__':
-    date = str(sys.argv[1])
-    exp = str(sys.argv[2]) # ex : exp 1
-    test_name = str(sys.argv[3]) # ex : mask_continents
-    cmip6_test = str(sys.argv[4]) # CMIP6, yes or no
+    parser = argparse.ArgumentParser(description="Predict and plot results")
+    parser.add_argument('--date', type=str, help='Date of the sample to predict (format: YYYYMMDD)')
+    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
+    parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
+    parser.add_argument('--cmip6-test', type=str, help='CMIP6 test (yes or no)')
+    args = parser.parse_args()
 
-    run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
+    run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
     checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
 
     model = IRISCCCDDPMLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
@@ -73,12 +73,14 @@ if __name__=='__main__':
                 ])
     
     sample_dir = hparams['sample_dir']
-    if cmip6_test == 'yes':
-        test_name = f'{test_name}_cmip6'
+    if args.cmip6_test == 'yes':
+        test_name = f'{args.test_name}_cmip6'
         sample_dir = DATASET_EXP1_30Y_DIR
+    else:
+        test_name = args.test_name
     device = 'cpu'
 
-    sample = glob.glob(str(sample_dir/f'sample_{date}.npz'))[0]
+    sample = glob.glob(str(sample_dir/f'sample_{args.date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     conditioning_image_init, y = data['x'], data['y']
 
@@ -110,14 +112,14 @@ if __name__=='__main__':
                         y[0], 
                         y_hat, 
                         False,
-                        f'{date} {test_name}', 
-                        GRAPHS_DIR/f'pred/{date}_subplot_{exp}_{test_name}.png')
+                        f'{args.date} {test_name}', 
+                        GRAPHS_DIR/f'pred/{args.date}_subplot_{args.exp}_{test_name}.png')
     
     
     compare_4_subplots(conditioning_image_init[10:40,50:80],
                         y[0][10:40,50:80], 
                         y_hat[10:40,50:80], 
                         True,
-                        f'{date} {test_name}', 
-                        GRAPHS_DIR/f'pred/{date}_subplot_{exp}_{test_name}_local.png')
+                        f'{args.date} {test_name}', 
+                        GRAPHS_DIR/f'pred/{args.date}_subplot_{args.exp}_{test_name}_local.png')
                         

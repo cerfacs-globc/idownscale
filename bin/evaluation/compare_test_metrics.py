@@ -1,53 +1,62 @@
 import sys
 sys.path.append('.')
 
-import glob
+import argparse
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from iriscc.settings import METRICS_DIR, DATES_TEST, GRAPHS_DIR, COLORS
+from iriscc.settings import METRICS_DIR, DATES_TEST, GRAPHS_DIR, COLORS, DATES_BC_TEST_HIST
 
-exp = str(sys.argv[1])
-target = str(sys.argv[2]) # ex : safran, eobs
-test_name = str(sys.argv[3]) # ex : test1,test2,test3
-test_list = [str(x) for x in test_name.split(',')]
-scale = str(sys.argv[4]) # daily monthly
-pp = str(sys.argv[5])
 
-startdate = DATES_TEST[0].date().strftime('%d/%m/%Y')
-enddate = DATES_TEST[-1].date().strftime('%d/%m/%Y')
-period = f'{startdate} - {enddate}'
+parser = argparse.ArgumentParser(description="Compare test metrics")
+parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
+parser.add_argument('--target', type=str, help='Target data (e.g., safran, eobs)')
+parser.add_argument('--test-list', type=lambda s: s.split(','), help='Test names (e.g., test1,test2,test3)')
+parser.add_argument('--scale', type=str, help='Scale (e.g., daily, monthly)')
+parser.add_argument('--pp', type=str, help='Perfect Prognosis (yes or no)')
+args = parser.parse_args()
+
 
 list_data_mean = []
 list_data = []
 
-if pp == 'no':
+if args.pp == 'no':
     test_names = ['Baseline', 'UNet', 'SwinUNETR']
     metrics = ['rmse_temporal', 'bias_spatial', 'corr_temporal', 'corr_spatial']
     palette = None
     color = color=".8"
+    dates = DATES_TEST
 
 else : 
-    test_names = ['UNet', 'UNet bc', 'SwinUNETR', 'SwinUNETR bc']
-    metrics = ['rmse_temporal', 'bias_spatial', 'corr_temporal', 'variability']
-    palette = ['r', 'r', 'hotpink', 'hotpink']
-    color = None
-
-    '''
-    test_names = ['ERA5 0.25°', 'GCM 1°', 'GCM 8km', 'GCM bc 8km']
-    metrics = ['rmse_temporal', 'bias_spatial', 'corr_temporal', 'variability']
+    
+    test_names = ['ERA5 0.25°', 'GCM 1°', 'UNet', 'SwinUNETR']
+    metrics = ['rmse_temporal', 'bias_spatial', 'corr_spatial', 'variability']
     palette = [COLORS[i] for i in test_names]
     color = None
+    dates = DATES_BC_TEST_HIST
+    
     '''
+    test_names = ['UNet', 'UNet bc', 'SwinUNETR', 'SwinUNETR bc']
+    metrics = ['rmse_temporal', 'bias_spatial', 'corr_spatial', 'variability']
+    palette = ['orangered', 'orangered', 'hotpink', 'hotpink']
+    color = None
+    dates = DATES_BC_TEST_HIST
+    '''
+
+    
+
+startdate = dates[0].date().strftime('%d/%m/%Y')
+enddate = dates[-1].date().strftime('%d/%m/%Y')
+period = f'{startdate} - {enddate}'
 
 df_names = test_names
 
-for test in test_list:
+for test in args.test_list:
     print(test)
-    file_mean = METRICS_DIR / f'{exp}/mean_metrics/metrics_test_mean_{scale}_{exp}_{test}.csv'
-    file = METRICS_DIR / f'{exp}/mean_metrics/metrics_test_{scale}_{exp}_{test}.npz'
+    file_mean = METRICS_DIR / f'{args.exp}/mean_metrics/metrics_test_mean_{args.scale}_{args.exp}_{test}.csv'
+    file = METRICS_DIR / f'{args.exp}/mean_metrics/metrics_test_{args.scale}_{args.exp}_{test}.npz'
     data = dict(np.load(file, allow_pickle=True))
     list_data.append(data)
  
@@ -78,13 +87,11 @@ for key, df in metrics_dict_mean.items():
     plt.legend(loc='lower right')
     if key.startswith(('rmse', 'bias')):
         plt.ylabel('K')
-    #if key.startswith('corr'):
-    #    plt.ylim(0,1)
-    plt.savefig(f"{GRAPHS_DIR}/metrics/{exp}/{key}_barplot_{scale}_{target}.png") 
+    plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/{key}_barplot_{args.scale}_{args.target}.png") 
 
 
-fig, axes = plt.subplots(2, 2, figsize=(8, 6))  
-fig.suptitle(f'{scale}-{period} {target} test dataset')
+fig, axes = plt.subplots(2, 2, figsize=(9, 6))  
+fig.suptitle(f'{args.scale}-{period} {args.target} test dataset')
 axes = axes.flatten() 
 #lim = np.array([[0, 7], [-3,3], [0, 1], [0.4, 1]])
 for i, (key, df) in enumerate(metrics_dict.items()):
@@ -96,5 +103,5 @@ for i, (key, df) in enumerate(metrics_dict.items()):
         axes[i].set_ylabel("K")
         
 
-plt.tight_layout(h_pad=3, w_pad=3)
-plt.savefig(f"{GRAPHS_DIR}/metrics/{exp}/boxplot_{scale}_{target}.png") 
+plt.tight_layout(h_pad=2, w_pad=2)
+plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/boxplot_{args.scale}_{args.target}.png") 

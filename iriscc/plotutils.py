@@ -6,6 +6,7 @@ sys.path.append('.')
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
+import pandas as pd
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
@@ -54,7 +55,6 @@ def plot_map_image(var,
         vmin=vmin,
         vmax=vmax
     )
-
     ax.set_extent(domain, crs=data_projection)
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
@@ -94,7 +94,7 @@ def plot_map_contour(var,
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
     fig, ax = plt.subplots(
-        figsize=(6, 7),
+        figsize=(6, 5),
         subplot_kw={"projection": fig_projection}
     )
     
@@ -104,16 +104,16 @@ def plot_map_contour(var,
                      extent=domain,
                      transform=data_projection
                     )
-    
-    ax.set_extent(domain, crs=data_projection)
+    ax.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
+    #ax.set_extent(domain, crs=data_projection)
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
 
-    cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.75)
-    cbar.set_label(label=var_desc, size=12)
+    cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.8)
+    cbar.set_label(label=var_desc, size=12, labelpad=10)
     cbar.ax.tick_params(labelsize=12)
     plt.tight_layout()
-    plt.title(title, fontsize=14)
+    plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
         return fig, ax  
     else:
@@ -124,17 +124,15 @@ def plot_test(var, title: str, save_dir: str, vmin: float = None, vmax: float = 
     ''' 
     Simple test plot function.
 
-    Parameters:
-    var : array-like
-        2D array of data to be plotted.
-    title : str
-        Title of the plot.
-    save_dir : str
-        Path to save the generated plot.
-    vmin : float, optional
-        Minimum value for colormap scaling. Defaults to None.
-    vmax : float, optional
-        Maximum value for colormap scaling. Defaults to None.
+    Args:
+        var (array-like): 2D array of data to be plotted.
+        title (str): Title of the plot.
+        save_dir (str): Path to save the generated plot.
+        vmin (float, optional): Minimum value for colormap scaling. Defaults to None.
+        vmax (float, optional): Maximum value for colormap scaling. Defaults to None.
+    
+    Returns:
+        None
     '''
 
     var = np.flip(var, axis=0)
@@ -150,6 +148,60 @@ def plot_contour(var, title, save_dir, levels=None):
     plt.colorbar(cs, ax=ax, pad=0.05)
     plt.title(title)
     plt.savefig(save_dir)
+
+def plot_monthly_var_seasonal_cycle(
+        var_temporal: np.ndarray, 
+        dates: np.ndarray, 
+        title: str, 
+        var_desc: str, 
+        save_dir: str
+    ) -> None:
+    """
+    Plots the seasonal cycle of a monthly variable, showing the mean monthly values 
+    and individual yearly trends, and saves the plot to a specified directory.
+
+    Args:
+        var_temporal (np.ndarray): Array of temporal variable values.
+        dates (np.ndarray): Array of corresponding dates for the variable values.
+        title (str): Title of the plot.
+        var_desc (str): Description of the variable (e.g., temperature).
+        save_dir (str): File path to save the generated plot.
+
+    Returns:
+        None
+    """
+    df_var = pd.DataFrame({'date': dates, 'var_temporal': var_temporal})
+    df_var['month'] = pd.to_datetime(df_var['date']).dt.month
+    df_var['year'] = pd.to_datetime(df_var['date']).dt.year
+    var_monthly_mean = df_var.groupby('month')['var_temporal'].mean()
+    var_per_year = df_var.pivot_table(index='month', columns='year', values='var_temporal')
+    plt.figure(figsize=(10, 6))
+    plt.suptitle(title, fontsize=16)
+    ax = plt.gca()
+    plt.plot(var_monthly_mean.index, var_monthly_mean.values, label='Mean', color='red', linewidth=2)
+    for year in var_per_year.columns:
+        plt.plot(var_per_year.index, var_per_year[year], label=str(year), alpha=0.3, linestyle='--')
+    plt.xticks(ticks=np.arange(1, 13), labels=[
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], fontsize=12)
+    plt.ylabel(f'{var_desc}')
+    plt.xlabel('Month')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend(loc='upper right', fontsize=12, ncol=2)
+    ax.text(0.02, 0.10, f"Mean temporal {var_desc}: {np.mean(var_temporal):.2f}", transform=ax.transAxes, fontsize=12, 
+            verticalalignment='top', horizontalalignment='left', color='red')
+    plt.tight_layout()
+    plt.savefig(save_dir)
+
+
+def plot_histogram(data, ax, labels, colors, xlabel):
+    for i in range(len(data)):
+        ax.hist(data[i], histtype='step', color=colors[i], 
+                label=labels[i], density=True, range=(260,310), bins=1000, linewidth=2)
+        ax.axvline(np.nanmean(data[i]), color=colors[i], linestyle='--', linewidth=2)
+    ax.set_ylim(0, 0.07)
+    ax.set_xlabel(xlabel)
+    ax.legend()
 
 if __name__=='__main__':
 

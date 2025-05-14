@@ -75,21 +75,10 @@ def input_data(date, domain):
 
 def target_data(date):
     ''' Returns target data as an array of shape (H, W) '''
-
-    threshold_date = datetime(date.year, 8, 1)
-    year = date.year
-    if date < threshold_date : 
-        year = year-1
-    ds = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"SAFRAN_{year}080107_{year+1}080106_reformat.nc"))[0])
-
-    if date == datetime(date.year, 8, 1):
-        ds_before = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"SAFRAN_{year-1}080107_{year}080106_reformat.nc"))[0])
-        ds_before = ds_before.isel(time=slice (-7, None))
-        ds = ds.isel(time = slice(None, 17))
-        ds = ds.merge(ds_before)
-    else : 
-        ds = ds.sel(time=pd.date_range(start=date.strftime("%Y-%m-%d"), periods = 24, freq='h').to_numpy())
-    y = ds[TARGET].values.mean(axis=0)
+    ds = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"tas*{date.year}_reformat.nc"))[0])
+    ds.sel(time=ds.time.dt.date == date.date())
+    ds = ds.isel(time=0)
+    y = ds[TARGET].values
     y = remove_countries(y)
     y = np.expand_dims(y, axis=0)
     return y

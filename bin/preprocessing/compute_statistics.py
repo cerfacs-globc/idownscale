@@ -3,20 +3,26 @@ sys.path.append('.')
 
 import numpy as np
 import glob
+from pathlib import Path
 import json
+import argparse
 import matplotlib.pyplot as plt
 
 from iriscc.settings import DATASET_EXP1_DIR, CHANELS, DATASET_EXP3_30Y_DIR, DATASET_EXP4_30Y_DIR
+from typing import Tuple
 
-def update_statistics(sum, square_sum, n_total, min, max, x):
-    ''' Compute and update samples statistics '''
-    x = x[~np.isnan(x)]
-    sum += np.sum(x)
-    square_sum += np.sum(x**2)
-    n_total += x.size
-    if np.min(x) < min:
+def update_statistics(sum: float, square_sum: float, n_total: int, min: float, max: float, x: np.ndarray) -> Tuple[float, float, int, float, float]:
+    ''' 
+    Compute and update sample statistics including sum, squared sum, total count, 
+    minimum, and maximum values for a given array, ignoring NaN values.
+    '''
+    x = x[~np.isnan(x)]  # Remove NaN values
+    sum += np.sum(x)  # Update sum
+    square_sum += np.sum(x**2)  # Update squared sum
+    n_total += x.size  # Update total count
+    if np.min(x) < min:  # Update minimum value
          min = np.min(x)
-    if np.max(x) > max:
+    if np.max(x) > max:  # Update maximum value
          max = np.max(x)
     return sum, square_sum, n_total, min, max
 
@@ -43,7 +49,11 @@ def plot_histogram(data, min, max, mean, std, variable:str, title:str, save_dir:
 
 
 if __name__=='__main__':
-    dataset_dir = DATASET_EXP3_30Y_DIR
+    parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
+    parser.add_argument('--dataset-path', type=str, help='Dataset path')   
+    args = parser.parse_args()
+
+    dataset_dir = Path(args.dataset_path)
     dataset = np.sort(glob.glob(str(dataset_dir/'sample*')))
     ch = len(CHANELS)
     sum = np.zeros(ch)
@@ -53,8 +63,9 @@ if __name__=='__main__':
     #nb = len(dataset)
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
-    train_end = np.where(dataset == str(dataset_dir/'sample_20051231.npz'))[0][0]
-    val_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
+    
+    train_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
+    val_end = np.where(dataset == str(dataset_dir/'sample_20131231.npz'))[0][0]
 
     
     x_data = {'train' : [],
@@ -66,40 +77,43 @@ if __name__=='__main__':
 
     for nb, sample in enumerate(dataset):
         print(sample)
+
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
         for c in range(len(x)):
             x[c][condition] = np.nan
 
-        if nb == 0:
-            min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
-            min = np.concatenate((min, np.nanmin(y, axis=(1, 2))))
-            max = np.concatenate((max, np.nanmax(y, axis=(1, 2))))
-        
-        for i in range(ch):
-            if i == ch-1:
-                sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
-                                                                    square_sum[i], 
-                                                                    n_total[i],
-                                                                    min[i],
-                                                                    max[i],
-                                                                    y[0])
-            else:
-                sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
-                                                                    square_sum[i], 
-                                                                    n_total[i],
-                                                                    min[i],
-                                                                    max[i],
-                                                                    x[i])
-            
-        if max[-1] > 350:
-            print(max[-1])
-        
-
+        # Only training statistics are used for normalization
         if nb < train_end :
             x_data['train'].append(x[1:,:,:].flatten())
             y_data['train'].append(y.flatten())
+            if nb == 0:
+                min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
+                min = np.concatenate((min, np.nanmin(y, axis=(1, 2))))
+                max = np.concatenate((max, np.nanmax(y, axis=(1, 2))))
+            
+            for i in range(ch):
+                if i == ch-1:
+                    sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                                                                        square_sum[i], 
+                                                                        n_total[i],
+                                                                        min[i],
+                                                                        max[i],
+                                                                        y[0])
+                else:
+                    sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                                                                        square_sum[i], 
+                                                                        n_total[i],
+                                                                        min[i],
+                                                                        max[i],
+                                                                        x[i])
+                
+            if max[-1] > 350:
+                print(max[-1])
+        
+
+        # Validation and test data histograms 
         elif nb in range(train_end, val_end):
             x_data['val'].append(x[1:,:,:].flatten())
             y_data['val'].append(y.flatten())

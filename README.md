@@ -77,7 +77,8 @@ python3 bin/preprocessing/build_dataset_exp4.py
 python3 bin/preprocessing/build_dataset_exp4_baseline.py
 ```
 
-Afin de normaliser les données, le script `compute_statistics.py --dataset_path` calcule les statistiques de chaque canal et les sauvegarde sous le nom de `statistics.json` dans le répertoire de l'expérience
+Afin de normaliser les données, le script `compute_statistics.py --dataset_path` calcule les statistiques de chaque canal et les sauvegarde sous le nom de `statistics.json` dans le répertoire de l'expérience. 
+ATTENTION : Si vous souhaitez appliquer un masque aux entrées, pensez à faire cette étape avant la normalisation.
 
 
 ---
@@ -139,7 +140,7 @@ python3 bin/evaluation/compute_test_metrics_monthly.py exp3 safran unet no
 
 #### Visualisation des métriques
 ```bash
-python3 bin/evaluation/compare_test_metrics.py --exp exp3 --target safran --test-name unet_cmip6,unet_cmip6_bc --scale monthly --pp yes
+python3 bin/evaluation/compare_test_metrics.py --exp exp3 --target safran --test-list unet_cmip6,unet_cmip6_bc --scale monthly --pp yes
 ```
 
 #### Tendance future

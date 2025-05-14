@@ -1,4 +1,4 @@
-''' Experience 2 : ERA5 and topography as input and SAFRAN as target'''
+''' Data preprocessing for bias correction'''
 
 import sys
 sys.path.append('.')
@@ -7,9 +7,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import glob
-from datetime import datetime
 
-from iriscc.plotutils import plot_test
 from iriscc.datautils import (standardize_dims_and_coords, 
                               standardize_longitudes, 
                               interpolation_target_grid, 
@@ -39,7 +37,6 @@ def get_cmip6_dataset(date):
         file = glob.glob(str(CMIP6_RAW_DIR/f'CNRM-CM6-1/tas*historical*r1i1p1f2*'))[0]
     else:
         file = np.sort(glob.glob(str(CMIP6_RAW_DIR/f'CNRM-CM6-1/tas*ssp585*r1i1p1f2*')))[0]
-        print(file)
     ds = xr.open_dataset(file)
     ds = ds.sel(time=ds.time.dt.date == date).isel(time=0)
     ds = standardize_longitudes(ds)

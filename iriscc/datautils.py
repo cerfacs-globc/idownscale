@@ -6,6 +6,8 @@ import numpy as np
 from pathlib import Path
 import xesmf as xe
 import glob
+from datetime import datetime
+import pandas as pd
 
 from iriscc.settings import (TARGET_SAFRAN_FILE,
                              TARGET_EOBS_FILE,
@@ -256,3 +258,29 @@ def crop_domain_from_array(array: np.ndarray, sample_dir: Path, domain: tuple) -
    lat_indices = np.where((lat >= domain[2]) & (lat <= domain[3]))[0]
    array = array[np.ix_(lat_indices, lon_indices)]
    return array
+
+def datetime_period_to_string(dates):
+   """
+   Converts a list of dates to a string representation of the period.
+
+   Args:
+      dates (list): A list of dates in various formats (e.g., np.datetime64, pandas.Timestamp, datetime.datetime, or string).
+
+   Returns:
+      str: A string representing the period in the format 'DD/MM/YYYY - DD/MM/YYYY'.
+   """
+
+   def to_datetime(date):
+      if isinstance(date, (np.datetime64, pd.Timestamp)):
+         return pd.to_datetime(date).to_pydatetime()
+      elif isinstance(date, str):
+         return datetime.strptime(date, '%Y-%m-%d')
+      elif isinstance(date, datetime):
+         return date
+      else:
+         raise ValueError(f"Unsupported date format: {type(date)}")
+
+   startdate = to_datetime(dates[0]).strftime('%d/%m/%Y')
+   enddate = to_datetime(dates[-1]).strftime('%d/%m/%Y')
+   period = f'{startdate}-{enddate}'
+   return period

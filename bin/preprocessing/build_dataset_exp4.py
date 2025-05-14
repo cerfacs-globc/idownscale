@@ -13,7 +13,7 @@ from iriscc.datautils import (standardize_dims_and_coords,
                               interpolation_target_grid, 
                               reformat_as_target,
                               crop_domain_from_ds,
-                              landseamask_eobs)
+                              apply_landseamask)
 from iriscc.settings import (DATES,
                              DATES_TEST,
                              ERA5_DIR,
@@ -24,7 +24,8 @@ from iriscc.settings import (DATES,
                              OROG_FILE,
                              CMIP6_RAW_DIR,
                              TARGET_EOBS_FILE,
-                             INPUTS)
+                             INPUTS,
+                             GRAPHS_DIR)
 
 def get_era5_dataset(date, domain):
     file = glob.glob(str(ERA5_DIR/f'tas*_{date.year}_*'))[0]
@@ -64,7 +65,9 @@ def input_data(date, domain):
                                 target_file=TARGET_EOBS_FILE, 
                                 method='conservative_normed',
                                 domain=domain,
-                                crop_target=True)
+                                crop_target=True,
+                                mask=True)
+
         x.append(ds[var].values)
     x = np.concatenate([x[0][np.newaxis, :, :]] + [x[1][np.newaxis, :, :]] * 1, axis=0)
 

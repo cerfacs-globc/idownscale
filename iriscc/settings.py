@@ -8,14 +8,14 @@ import pyproj
 RAW_DIR = Path('/scratch/globc/garcia/rawdata/')
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
-SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat'
+SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
 CMIP6_RAW_DIR = RAW_DIR / 'cmip6'
 ERA5_DIR = RAW_DIR / "era5"
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
-TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'SAFRAN_1958080107_1959080106_reformat.nc'
+TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'tas_day_SAFRAN_1959_reformat.nc'
 TARGET_EOBS_FILE = EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc'
-#OROG_FILE = EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e.nc'
-OROG_FILE = RAW_DIR / 'topography/topography_safran.nc'
+OROG_FILE = EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e.nc'
+#OROG_FILE = RAW_DIR / 'topography/topography_safran.nc'
 IMERG_MASK = RAW_DIR / 'landseamask/IMERG_land_sea_mask_regrid.nc' # only continents
 LANDSEAMASK_CMIP6 = CMIP6_RAW_DIR / 'CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
 LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
@@ -61,19 +61,25 @@ CONFIG = {
                                  false_northing=2200000,
                                  standard_parallels=(45.89892, 47.69601)),
         'fig_projection' : 
-        {'france_xy' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.)}},
+            {'france_xy' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.)},
+        'shape' : 
+            {'france_xy' : (134,143)}
+        },
 
     'eobs':
         {'domain': 
-            {'france': [-6., 10., 38, 54],  # 64*64 crop
-             'europe' : [-12.5, 27.5, 31., 71.], # 160*160 crop 
-             'tchequie' : [11.5, 19.5, 45.75, 53.75]}, # 32*32 crop
+            {'france': [-6., 10., 38, 54],
+             'europe' : [-12.5, 27.5, 31., 71.],
+             'tchequie' : [11.5, 19.5, 45.75, 53.75]},
         'data_projection' : ccrs.PlateCarree(),
         'fig_projection' : 
             {'france' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
              'europe' : ccrs.LambertConformal(central_latitude=51., central_longitude=7.5),
-             'tchequie' : ccrs.LambertConformal(central_latitude=45.75, central_longitude=11.5)}
-        }
+             'tchequie' : ccrs.LambertConformal(central_latitude=45.75, central_longitude=11.5)},
+        'shape': 
+                {'france': (64,64),
+                'europe' : (160,160),
+                'tchequie' : (32,32)}}
           }
 
 COLORS = {'SAFRAN 8km': 'purple',
@@ -81,7 +87,7 @@ COLORS = {'SAFRAN 8km': 'purple',
           'ERA5 8km' : 'cyan',
           'ERA5 0.25°' : 'green',
           'GCM 1°' : 'orange',
-          'UNet' : 'r',
+          'UNet' : 'orangered',
           'SwinUNETR' : 'hotpink'}
 
 SAFRAN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
@@ -95,6 +101,7 @@ SAFRAN_PROJ = ccrs.LambertConformal(central_longitude=2.337229,
 # Experience settings
 #DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D') # exp3 exp4
 DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data
+
 GCM = ['CNRM-CM6-1']
 
 ### Preprocessing

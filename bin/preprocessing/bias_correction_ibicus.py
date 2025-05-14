@@ -1,4 +1,4 @@
-''' Experience 2 : CMIP6 BC and topography as input and SAFRAN as target'''
+''' Data correction, evaluation and saving of the bias corrected dataset using IBICUS '''
 
 import sys
 sys.path.append('.')
@@ -8,14 +8,13 @@ import numpy as np
 import glob
 from datetime import datetime
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 import pandas as pd
-import seaborn as sns
+from typing import Optional, List, Tuple
 from ibicus.evaluate import marginal, metrics, trend
-from ibicus.debias import CDFt, LinearScaling, ISIMIP
+from ibicus.debias import CDFt
 
-from iriscc.plotutils import plot_test
-from iriscc.datautils import reformat_as_target, standardize_dims_and_coords, standardize_longitudes, remove_countries
+
+from iriscc.datautils import remove_countries, reformat_as_target
 from iriscc.settings import (SAFRAN_REFORMAT_DIR, 
                              GRAPHS_DIR,
                              DATASET_BC_CMIP6_ERA5,
@@ -26,6 +25,7 @@ from iriscc.settings import (SAFRAN_REFORMAT_DIR,
                              TARGET_SAFRAN_FILE,
                              DATES_BC_TEST_FUTURE,
                              DATES_BC_TEST_HIST,
+                             DATES_BC_TRAIN_HIST,
                              DATASET_BC_DIR,
                              TARGET)
 
@@ -50,7 +50,26 @@ def target_data(date):
     y = np.expand_dims(y, axis=0)
     return y
 
-def plot_tprofiles_short_range(y, x, z, title, savedir):
+def plot_tprofiles_short_range(
+        y: Optional[np.ndarray], 
+        x: np.ndarray, 
+        z: np.ndarray, 
+        title: str, 
+        savedir: str
+    ) -> None:
+    """
+    Plots temperature profiles for a short range of days and saves the plot to a file.
+
+    Args:
+        y (Optional[np.ndarray]): Temperature data for ERA5 (can be None).
+        x (np.ndarray): Temperature data for CNRM-CM6-1.
+        z (np.ndarray): Bias-corrected temperature data for CNRM-CM6-1.
+        title (str): Title of the plot.
+        savedir (str): Path to save the generated plot.
+
+    Returns:
+        None
+    """
     plt.figure(figsize=(15, 5))
     if y is not None:
         plt.plot(y[1000:2000],label='ERA5', color='red')
@@ -62,7 +81,29 @@ def plot_tprofiles_short_range(y, x, z, title, savedir):
     plt.legend()
     plt.savefig(savedir)
 
-def plot_seasonal_hist(y, x, z, dates, title, savedir):
+def plot_seasonal_hist(
+        y: list | None, 
+        x: list, 
+        z: list, 
+        dates: list, 
+        title: str, 
+        savedir: str
+    ) -> None:
+    """
+    Plots seasonal histograms (winter and summer) for temperature data.
+
+    Args:
+        y (list | None): Optional temperature data for comparison (e.g., ERA5). 
+                            If None, only `x` and `z` are plotted.
+        x (list): Temperature data for the first dataset (e.g., CNRM-CM6-1).
+        z (list): Temperature data for the second dataset (e.g., bias-corrected CNRM-CM6-1).
+        dates (list): List of dates corresponding to the temperature data.
+        title (str): Title for the plot.
+        savedir (str): File path to save the generated plot.
+
+    Returns:
+        None: The function saves the plot to the specified directory.
+    """
     i_summer = []
     i_winter = []
     for index, date in enumerate(pd.DatetimeIndex(dates)):
@@ -87,7 +128,23 @@ def plot_seasonal_hist(y, x, z, dates, title, savedir):
     plt.tight_layout()
     plt.savefig(savedir)
     
-def monthly_mean(y, x, z, dates):
+def monthly_mean(y: Optional[np.ndarray], 
+                 x: np.ndarray, 
+                 z: np.ndarray, 
+                 dates: List[str]
+        ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Calculate the monthly mean of input arrays grouped by year and month.
+
+    Args:
+        y (Optional[np.ndarray]): An optional array of values. If None, it will be set to `x`.
+        x (np.ndarray): An array of values to calculate the monthly mean for.
+        z (np.ndarray): Another array of values to calculate the monthly mean for.
+        dates (List[str]): A list of date strings corresponding to the input arrays.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
+    """
     if y is None:
         y = x
     df = pd.DataFrame({'dates' : dates,
@@ -108,12 +165,6 @@ if __name__=='__main__':
     
     debiaser = CDFt.from_variable(variable="tas",
                                   apply_by_month=True)
-    #debiaser = CDFt.from_variable(variable = 'tas', 
-    #                   running_window_length=91, 
-    #                   running_window_step_length=31, 
-    #                   running_window_over_years_of_cm_future_length=31, 
-    #                   running_window_over_years_of_cm_future_step_length=10)
-
     ssp = 'ssp585'
 
     train_hist = dict(np.load(DATASET_BC_DIR/'bc_train_hist.npz', allow_pickle=True))
@@ -151,7 +202,6 @@ if __name__=='__main__':
                                                             obs = test_hist['era5'],
                                                             raw = test_hist['cmip6'],
                                                             CDFt = test_hist_bc)
-    print(tas_marginal_bias_data)
     plot = marginal.plot_marginal_bias(variable = 'tas',
                                        bias_df = tas_marginal_bias_data)
     plot.savefig(GRAPHS_DIR /'biascorrection/ibicus_bias_boxplot.png')
@@ -267,7 +317,14 @@ if __name__=='__main__':
                        title =f'Monthly mean temperature over the future Test period (2015-2100 {ssp})',
                        savedir=GRAPHS_DIR/f'biascorrection/ibicus_test_future_histo_{ssp}.png')
 
-    '''                   
+    ds_train_hist_bc = xr.Dataset(data_vars=dict(
+                            tas=(['time', 'lat', 'lon'], train_hist_bc)),
+                            coords=dict(
+                            lat=('lat', coordinates['lat']),
+                            lon=('lon', coordinates['lon']),
+                            time=('time', train_hist['dates'])
+                            ))
+
     ds_test_hist_bc = xr.Dataset(data_vars=dict(
                             tas=(['time', 'lat', 'lon'], test_hist_bc)),
                             coords=dict(
@@ -283,7 +340,32 @@ if __name__=='__main__':
                             lon=('lon', coordinates['lon']),
                             time=('time', test_future['dates'])
                             ))
+    for date in DATES_BC_TRAIN_HIST:
+        print(date)
+        x = []
+
+        # Commune variables
+        ds = xr.open_dataset(OROG_FILE)
+        x.append(ds['Altitude'].values)
+        ds_train_hist_bc_i = ds_train_hist_bc.sel(time=ds_train_hist_bc.time.dt.date == date.date())
+        ds_train_hist_bc_i = ds_train_hist_bc_i.isel(time=0, drop=True)
+
+        ds_train_hist_bc_i = reformat_as_target(ds_train_hist_bc_i, 
+                                         target_file=TARGET_SAFRAN_FILE,
+                                         domain=CONFIG['safran']['domain']['france'], 
+                                         method="conservative_normed")
     
+        x.append(ds_train_hist_bc_i.tas.values)
+        x = np.stack(x, axis = 0)
+        y = target_data(date)
+        
+        sample = {'x' : x,
+                    'y' : y}
+        date_str = date.date().strftime('%Y%m%d')
+        np.savez(DATASET_BC_DIR/f'dataset_exp3_test_cmip6_bc/sample_{date_str}.npz', **sample)
+
+
+    '''
     for date in DATES_BC_TEST_HIST:
         print(date)
         x = []
@@ -291,7 +373,6 @@ if __name__=='__main__':
         # Commune variables
         ds = xr.open_dataset(OROG_FILE)
         x.append(ds['Altitude'].values)
-        ### run en mode interactif et mettre des print partout
         ds_test_hist_bc_i = ds_test_hist_bc.sel(time=ds_test_hist_bc.time.dt.date == date.date())
         ds_test_hist_bc_i = ds_test_hist_bc_i.isel(time=0, drop=True)
 
@@ -308,6 +389,8 @@ if __name__=='__main__':
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
         np.savez(DATASET_BC_DIR/f'dataset_exp3_test_cmip6_bc/sample_{date_str}.npz', **sample)
+
+    
 
     for date in DATES_BC_TEST_FUTURE:
         print(date)
@@ -330,4 +413,4 @@ if __name__=='__main__':
         sample = {'x' : x}
         date_str = date.date().strftime('%Y%m%d')
         np.savez(DATASET_BC_DIR/f'dataset_exp3_test_cmip6_bc/sample_{date_str}.npz', **sample)
-        '''
+    '''
