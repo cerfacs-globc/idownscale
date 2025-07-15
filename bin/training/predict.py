@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.plotutils import plot_test, plot_contour, plot_map_image
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_BC_DIR, CONFIG
+from iriscc.settings import GRAPHS_DIR, RUNS_DIR, DATASET_BC_DIR, CONFIG
 
 
 
@@ -55,7 +55,7 @@ if __name__=='__main__':
     parser.add_argument('--date', type=str, help='Date of the sample to predict (format: YYYYMMDD)')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
-    parser.add_argument('--cmip6-test', type=str, help='CMIP6 test (yes or no)')
+    parser.add_argument('--simu-test', type=str, help='gcm, gcm_bc, rcm, rcm_bc', default=None)
     args = parser.parse_args()
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
@@ -74,9 +74,9 @@ if __name__=='__main__':
                 ])
     
     sample_dir = hparams['sample_dir']
-    if args.cmip6_test == 'cmip6' or args.cmip6_test == 'cmip6_bc':
-        test_name = f'{args.test_name}_{args.cmip6_test}'
-        sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.cmip6_test}' # bc or not
+    if args.simu_test is not None:
+        test_name = f'{args.test_name}_{args.simu_test}'
+        sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}' # bc or not
     else : 
         test_name = args.test_name
     device = 'cpu'
@@ -92,17 +92,13 @@ if __name__=='__main__':
     y_hat = model(x.to(device)).to(device)
     y_hat = y_hat.detach().cpu()
 
-    unpad_func = UnPad(TARGET_SIZE)
+    unpad_func = UnPad(CONFIG[args.exp]['shape'], hparams['fill_value'])
     y_hat = unpad_func(y_hat[0])[0].numpy()
     y_hat[condition] = np.nan
     x_init = x_init[1]
     x_init[condition] = np.nan
 
-   
-    plot_map_image(y_hat,
-                   domain = CONFIG['eobs']['domain']['france'],
-                   title=f'{args.date} y_hat {test_name}',
-                   save_dir=GRAPHS_DIR/f'pred/{args.date}_yhat_{args.exp}_{test_name}.png')
+
 
     compare_4_subplots(x_init,
                         y[0], 

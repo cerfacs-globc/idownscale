@@ -19,15 +19,12 @@ train_dataloader = get_dataloaders('train')
 val_dataloader = get_dataloaders('val')
 test_dataloader = get_dataloaders('test')
 
-
 if hparams.model == 'cddpm':
     model = IRISCCCDDPMLightningModule(hparams.__dict__)
 else :
     model = IRISCCLightningModule(hparams.__dict__)
     
 logger = TensorBoardLogger(save_dir=hparams.runs_dir, name='lightning_logs')
-
-
 checkpoint_callback = ModelCheckpoint(
     monitor="val_loss", 
     filename='best-checkpoint-{epoch:02d}-{val_loss:.2f}',

@@ -29,14 +29,14 @@ from iriscc.settings import (CONFIG,
                              DATASET_DIR)
 
 
-def get_config(exp: str, test_name: str, cmip6_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
+def get_config(exp: str, test_name: str, simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
     """
     Configure the model, transforms, and sample directory based on the experiment and test parameters.
     Args:
         exp (str): Experiment name.
-        test_name (str): Test name (e.g., unet, baseline, cmip6_raw).
+        test_name (str): Test name (e.g., unet, baseline, gcm_raw).
         predict (bool): Whether to use a pretrained model.
-        cmip6_test (Optional[str]): CMIP6 test type (e.g., cmip6 or cmip6_bc).
+        simu_test (Optional[str]): GCM test type (e.g., gcm or gcm_bc).
     Returns:
         Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]
     """
@@ -44,8 +44,10 @@ def get_config(exp: str, test_name: str, cmip6_test: Optional[str]) -> Tuple[Opt
 
     if test_name.startswith('baseline'):
         sample_dir = DATASET_DIR / f'dataset_{exp}_baseline'
-    elif test_name == 'cmip6_raw':
-        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_cmip6'
+    elif test_name == 'gcm_raw':
+        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_gcm'
+    elif test_name == 'rcm_raw':
+        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_rcm'
     elif test_name == 'era5_raw':
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
     else:
@@ -59,12 +61,11 @@ def get_config(exp: str, test_name: str, cmip6_test: Optional[str]) -> Tuple[Opt
             MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
-            DomainCrop(hparams['sample_dir'], hparams['domain_crop']),
             Pad(hparams['fill_value'])
         ])
         
-        if cmip6_test:
-            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{cmip6_test}'  # bc or not
+        if simu_test:
+            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
         else:
             sample_dir = hparams['sample_dir']
     return model, transforms, sample_dir
@@ -94,19 +95,15 @@ def preprocess(year:int,
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
 
-        if model: # unet, unet_cmip6, unet_cmip6_bc
+        if model: # unet, unet_gcm, unet_gcm_bc
             x, y = transforms((x, y))
             x = torch.unsqueeze(x, dim=0).float()
             y_hat = model(x.to(device)).to(device)
             y_hat = y_hat.detach().cpu()
-
-            if exp == 'exp3':
-                unpad_func = UnPad(list(CONFIG['safran']['shape']['france_xy']))
-                y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
-            else:
-                y, y_hat = y[0,...].numpy(), y_hat[0,0,...].numpy()
-
-        else: # baseline, era5_raw, cmip6_raw
+            unpad_func = UnPad(list(CONFIG[exp]['shape']))
+            y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
+          
+        else: # baseline, era5_raw, gcm_raw
             y = y[0]
             y_hat = x[-1] # all .npz datasets are {'x': x, 'y': y}-like
             
@@ -127,20 +124,20 @@ if __name__=='__main__':
     parser.add_argument('--start-date', type=str, help='Start date (e.g., 2023-01-01)', default='2000-01-01')
     parser.add_argument('--end-date', type=str, help='End date (e.g., 2023-01-01)', default='2014-12-31')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
-    parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, cmip6_raw ...)')
-    parser.add_argument('--cmip6-test', type=str, help='if predict (e.g., cmip6 or cmip6_bc)', default=None)
+    parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
+    parser.add_argument('--simu-test', type=str, help='if predict (e.g., gcm or gcm_bc, rcm, rcm_bc)', default=None)
     args = parser.parse_args()
 
     exp = args.exp
     test_name = args.test_name
-    cmip6_test = args.cmip6_test
+    simu_test = args.simu_test
     dates = pd.date_range(start=args.start_date, end=args.end_date, freq='D')
 
     transforms = None
-    model, transforms, sample_dir = get_config(exp, test_name, cmip6_test)
+    model, transforms, sample_dir = get_config(exp, test_name, simu_test)
 
-    if cmip6_test:
-        test_name = f'{test_name}_{cmip6_test}'
+    if simu_test:
+        test_name = f'{test_name}_{simu_test}'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
     os.makedirs(graph_dir, exist_ok=True)
@@ -165,6 +162,8 @@ if __name__=='__main__':
     i_summer = []
     i_winter = []
 
+    dates_month = dates.to_period('M').astype(str).unique()
+  
     df_dates = pd.DataFrame({'date': dates})
     df_dates['year'] = df_dates['date'].dt.year
     df_dates['month'] = df_dates['date'].dt.month
@@ -258,7 +257,8 @@ if __name__=='__main__':
         'bias_spatial': bias_spatial.flatten(),
         'corr_temporal': corr_temporal,
         'corr_spatial': corr_spatial,
-        'variability': var}
+        'variability': var,
+        'dates' : dates_month}
     np.savez(metric_dir/f'metrics_test_monthly_{exp}_{test_name}.npz', **d)
 
     # Save mean values

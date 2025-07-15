@@ -106,20 +106,24 @@ python bin/preprocessing/build_dataset_bc.py
 ```
 Le script `bin/preprocessing/bias_correction_ibicus.py` corrige, évalue et enregistre les données dans le même format que celle utilisée pour l'entraînement du réseau de neurone.
 
+```bash
+python bin/preprocessing/bias_correction_ibicus.py --exp exp3 --ssp ssp585 --simu rcm --var tas
+```
+
 
 ### Prédiction
 Un réseau de neurone pré-entraîné peuvent être utilisé pour prédire de nouvelles sorties à partir d'entrées jamais vues par le réseau. 
 Un jeu de test permet de comparer la prédiction à la référence pour une date donnée. Ce même jeu de test est utilisé lors de l'entrainement  pour calculer des métriques d'évaluation. La prédiction est obtenue par :
 
 ```bash
-python bin/training/predict.py --date 20121018 --exp exp3 --test-name unet --cmip6-test no
+python bin/training/predict.py --date 20121018 --exp exp3 --test-name unet
 ```
 La commande suivante crée un fichier netCDF pour prédire une longue période sans avoir à comparer avec la référence (pour le futur par exemple) : 
 ```bash
-python bin/evaluation/predict_loop.py --exp exp3 --test-name unet --cmip6-test no
+python bin/training/predict_loop.py --exp exp3 --test-name unet 
 ```
 
-Rq : L'option `cmip6_test` indique si les données en entrée sont des données ERA5 (no), CNRM-CM6-1 (cmip6) ou CNRM-CM6-1 corrigées par rapport à ERA5 (cmip6_bc). Les données sont ainsi récupérées dans les répertoires associés.
+Rq : L'option `--simu-test gcm` indique si les données en entrée sont des données ERA5 (no), CNRM-CM6-1 (gcm) ou CNRM-CM6-1 corrigées par rapport à ERA5 (gcm_bc), de même pour le RCM ALADIN. Les données sont ainsi récupérées dans les répertoires associés.
 
 ### Evaluation
 
@@ -128,19 +132,20 @@ Les prédictions du réseau de neurone sont comparées aux données de référen
 #### Calcul des métriques
 Pour les métriques journalières : 
 ```bash
-python3 bin/evaluation/compute_test_metrics_daily.py exp3 safran unet no
+python3 bin/evaluation/compute_test_metrics_day.py --exp exp3 --test-name unet 
 ```
 ```bash
-python3 bin/evaluation/compute_test_metrics_daily_baseline.py exp3 safran unet no
+python3 bin/evaluation/compute_test_metrics_day.py --exp exp3 --test-name baseline 
 ```
 pour les métriques mensuelles :
 ```bash
-python3 bin/evaluation/compute_test_metrics_monthly.py exp3 safran unet no
+python3 bin/evaluation/compute_test_metrics_month.py --exp exp3 --test-name unet 
 ```
+Pour calculer les métriques avec les simulations débiaisées ou non, il faut également ajouter l'argument `--simu-test gcm`
 
 #### Visualisation des métriques
 ```bash
-python3 bin/evaluation/compare_test_metrics.py --exp exp3 --target safran --test-list unet_cmip6,unet_cmip6_bc --scale monthly --pp yes
+python3 bin/evaluation/compare_test_metrics.py --exp exp3 --test-list unet_gcm,unet_gcm_bc --scale monthly --pp yes
 ```
 
 #### Tendance future
@@ -148,12 +153,5 @@ La commande suivante crée une figure des changements de température entre les 
 ```bash
 python3 bin/evaluation/evaluate_future_trend.py --exp exp3 --ssp ssp585
 ```
-
-créer dataset
-entrainer modeèle era5
-evaluer modèle
-debaiser simus
-appliquer modèle aux simus
-evaluer méthode globale (hist+ futur)
 
 ---

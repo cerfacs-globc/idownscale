@@ -12,7 +12,7 @@ from typing import Tuple, Union, List, Optional
 from pathlib import Path
 
 
-from iriscc.settings import (IMERG_MASK, CONFIG, DATASET_EXP4_30Y_DIR)
+from iriscc.settings import (IMERG_MASK, GRAPHS_DIR)
 from iriscc.plotutils import plot_test
 
 
@@ -92,7 +92,7 @@ class DeMinMaxNormalisation:
         
 class LandSeaMask():
     """
-    Applies a Nan mask to the data
+    Applies a Nan mask to the data to match target land-sea mask.
     """
     def __init__(self, mask: str, fill_value: float) -> None:
         self.mask = mask
@@ -227,12 +227,16 @@ class DomainCrop:
 
     
 if __name__=='__main__':
-    file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp4_30y/sample_19850102.npz'
-    coordinate = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp4_30y/coordinates.npz'
-    data = dict(np.load(file, allow_pickle=True))
-    x, y  = data['x'], data['y']
-    domain = CONFIG['eobs']['domain']['france']
-    crop = DomainCrop(sample_dir=DATASET_EXP4_30Y_DIR,
-                      domain_crop=domain)
-    x, y = crop((x,y))
-    plot_test(y[0], 'y', '/gpfs-calypso/scratch/globc/garcia/graph/test.png')
+    file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_19850102.npz'
+    data = dict(np.load(file), allow_pickle=True)
+    x, y = data['x'], data['y']
+    pad = Pad(0)
+    unpad = UnPad((134, 143))
+    x, y = torch.tensor(x), torch.tensor(y)
+
+    x,y = pad((x,y))
+    print(y.shape)
+    plot_test(y.numpy()[0], 'ujhih', GRAPHS_DIR / 'test.png')
+    y = unpad(y)
+    print(y.shape)
+    plot_test(y.numpy()[0], 'ujhih', GRAPHS_DIR / 'test2.png')

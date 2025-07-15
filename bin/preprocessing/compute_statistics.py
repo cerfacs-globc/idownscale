@@ -8,7 +8,7 @@ import json
 import argparse
 import matplotlib.pyplot as plt
 
-from iriscc.settings import DATASET_EXP1_DIR, CHANELS, DATASET_EXP3_30Y_DIR, DATASET_EXP4_30Y_DIR
+from iriscc.settings import CONFIG
 from typing import Tuple
 
 def update_statistics(sum: float, square_sum: float, n_total: int, min: float, max: float, x: np.ndarray) -> Tuple[float, float, int, float, float]:
@@ -50,12 +50,13 @@ def plot_histogram(data, min, max, mean, std, variable:str, title:str, save_dir:
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
-    parser.add_argument('--dataset-path', type=str, help='Dataset path')   
+    parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
     args = parser.parse_args()
 
-    dataset_dir = Path(args.dataset_path)
+    dataset_dir = CONFIG[args.exp]['dataset']
     dataset = np.sort(glob.glob(str(dataset_dir/'sample*')))
-    ch = len(CHANELS)
+    channels = CONFIG[args.exp]['channels']
+    ch = len(channels)
     sum = np.zeros(ch)
     square_sum = np.zeros(ch)
     n_total = np.zeros(ch)
@@ -81,8 +82,13 @@ if __name__=='__main__':
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
-        for c in range(len(x)):
+        for c, channel in enumerate(channels[:-1]):  # Exclude the last channel (target)
             x[c][condition] = np.nan
+            if channel == 'pr input':
+                x[c][np.isnan(x[c])] = 0.
+                x[c] = np.log10(1 + x[c])  # Apply log transformation to precipitation input
+                x[c][condition] = np.nan
+                print(np.nanmax(x[c]))
 
         # Only training statistics are used for normalization
         if nb < train_end :
@@ -126,7 +132,7 @@ if __name__=='__main__':
     print(mean, std, min, max)
 
     stats = {}
-    for i, chanel in enumerate(CHANELS):
+    for i, chanel in enumerate(channels):
         stats[chanel] = {'mean': mean[i],
                          'std': std[i],
                          'min': min[i].astype(np.float64),
@@ -144,7 +150,7 @@ if __name__=='__main__':
                         max[1:].max(), 
                         np.nanmean(data), 
                         np.nanstd(data), 
-                        'tas (K)', 
+                        CONFIG[args.exp]['target_vars'][0], 
                         f'{name} {type} dataset histogram', 
                         dataset_dir/f'hist_{name}_{type}.png')
  

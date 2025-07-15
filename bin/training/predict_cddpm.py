@@ -55,7 +55,7 @@ if __name__=='__main__':
     parser.add_argument('--date', type=str, help='Date of the sample to predict (format: YYYYMMDD)')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
-    parser.add_argument('--cmip6-test', type=str, help='CMIP6 test (yes or no)')
+    parser.add_argument('--gcm-test', type=str, help='GCM test (yes or no)')
     args = parser.parse_args()
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
@@ -73,8 +73,8 @@ if __name__=='__main__':
                 ])
     
     sample_dir = hparams['sample_dir']
-    if args.cmip6_test == 'yes':
-        test_name = f'{args.test_name}_cmip6'
+    if args.gcm_test == 'yes':
+        test_name = f'{args.test_name}_gcm'
         sample_dir = DATASET_EXP1_30Y_DIR
     else:
         test_name = args.test_name

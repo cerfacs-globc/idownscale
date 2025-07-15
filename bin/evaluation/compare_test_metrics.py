@@ -7,43 +7,52 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from iriscc.settings import METRICS_DIR, DATES_TEST, GRAPHS_DIR, COLORS, DATES_BC_TEST_HIST
+from iriscc.settings import METRICS_DIR, DATES_TEST, GRAPHS_DIR, COLORS, DATES_BC_TEST_HIST, CONFIG
 
 
 parser = argparse.ArgumentParser(description="Compare test metrics")
 parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
-parser.add_argument('--target', type=str, help='Target data (e.g., safran, eobs)')
 parser.add_argument('--test-list', type=lambda s: s.split(','), help='Test names (e.g., test1,test2,test3)')
 parser.add_argument('--scale', type=str, help='Scale (e.g., daily, monthly)')
 parser.add_argument('--pp', type=str, help='Perfect Prognosis (yes or no)')
+parser.add_argument('--simu', type=str, help='Simulation type (e.g., gcm, rcm)', default=None)
 args = parser.parse_args()
 
+target = CONFIG[args.exp]['target']
 
 list_data_mean = []
 list_data = []
 
-if args.pp == 'no':
+if args.simu =='gcm':
+    simu_name = 'GCM 1°'
+elif args.simu == 'rcm':
+    simu_name = 'RCM 12km'
+
+if args.pp == 'no': # Phase 1 : ERA5 to SAFRAN training
     test_names = ['Baseline', 'UNet', 'SwinUNETR']
     metrics = ['rmse_temporal', 'bias_spatial', 'corr_temporal', 'corr_spatial']
     palette = None
     color = color=".8"
     dates = DATES_TEST
+    term = ''
 
-else : 
-    
-    test_names = ['ERA5 0.25°', 'GCM 1°', 'UNet', 'SwinUNETR']
+elif args.pp == 'pp': # Phase 2 : Perfect Prognosis, Comparison with low resolution data
+    test_names = ['ERA5 0.25°', simu_name, 'UNet', 'SwinUNETR']
     metrics = ['rmse_temporal', 'bias_spatial', 'corr_spatial', 'variability']
     palette = [COLORS[i] for i in test_names]
+    if args.simu == 'rcm':
+        test_names[1] = 'RCM 1°'
     color = None
     dates = DATES_BC_TEST_HIST
-    
-    '''
+    term = f'_{args.simu}'
+
+elif args.pp == 'bc': # Phase 2 : Bias Correction or not, does it reduce bias ? 
     test_names = ['UNet', 'UNet bc', 'SwinUNETR', 'SwinUNETR bc']
     metrics = ['rmse_temporal', 'bias_spatial', 'corr_spatial', 'variability']
     palette = ['orangered', 'orangered', 'hotpink', 'hotpink']
     color = None
     dates = DATES_BC_TEST_HIST
-    '''
+    term = '_bc'
 
     
 
@@ -83,15 +92,15 @@ for col in metrics:
 for key, df in metrics_dict_mean.items():
     ax = df.plot.bar(rot=0, figsize=(6,4))
     plt.axhline(y=0)
-    plt.title(f'{key} ({period})')
+    plt.title(f'{key} ({period}) {target}')
     plt.legend(loc='lower right')
     if key.startswith(('rmse', 'bias')):
         plt.ylabel('K')
-    plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/{key}_barplot_{args.scale}_{args.target}.png") 
+    plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/{key}_barplot_{args.scale}_{target}{term}.png") 
 
 
 fig, axes = plt.subplots(2, 2, figsize=(9, 6))  
-fig.suptitle(f'{args.scale}-{period} {args.target} test dataset')
+fig.suptitle(f'{args.scale}-{period} {target} test dataset')
 axes = axes.flatten() 
 #lim = np.array([[0, 7], [-3,3], [0, 1], [0.4, 1]])
 for i, (key, df) in enumerate(metrics_dict.items()):
@@ -104,4 +113,4 @@ for i, (key, df) in enumerate(metrics_dict.items()):
         
 
 plt.tight_layout(h_pad=2, w_pad=2)
-plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/boxplot_{args.scale}_{args.target}.png") 
+plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/{args.exp}_boxplot_{args.scale}_{term}.png") 

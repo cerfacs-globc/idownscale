@@ -6,13 +6,14 @@ import pandas as pd
 import xarray as xr
 import argparse
 import numpy as np
+import matplotlib.colors as mcolors
 import seaborn as sns
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 
-from iriscc.settings import CMIP6_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, COLORS, TARGET_SAFRAN_FILE
+from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, COLORS, RCM_RAW_DIR
 from iriscc.plotutils import plot_test, plot_histogram
 from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, reformat_as_target
 
@@ -46,8 +47,8 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors):
                     label=label,
                     color=colors[i],
                     linewidth=2.5)
-    axes[1].set_title("Temperature variability annual mean")
-    axes[1].set_ylabel("Variability")
+    axes[1].set_title("Variability annual mean")
+    axes[1].set_ylabel("Variability (K)")
     return fig, axes
 
 
@@ -58,21 +59,36 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Predict and plot results")
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--ssp', type=str, help='Scenario name (e.g., ssp126, ssp585)')
+    parser.add_argument('--simu', type=str, help='Simulation type (e.g., gcm, rcm)', default='gcm') 
     args = parser.parse_args()
     exp = args.exp
     ssp = args.ssp
+    simu = args.simu
 
     periods = ['2015', '2040', '2070', '2100']   
 
-    output_projection = CONFIG['safran']['fig_projection']['france_xy']
+    output_projection = CONFIG[exp]['fig_projection']
     inputs_projections = [ccrs.PlateCarree(), 
-                        CONFIG['safran']['data_projection'], 
-                        CONFIG['safran']['data_projection']]
-    domain = [CONFIG['safran']['domain']['france'],
-                CONFIG['safran']['domain']['france_xy'],
-                CONFIG['safran']['domain']['france_xy']]
-    labels = ['GCM 1°', 'UNet', 'SwinUNETR']
+                        CONFIG[exp]['data_projection'], 
+                        CONFIG[exp]['data_projection']]
+    if CONFIG[exp]['target']=='safran':
+        domain = [CONFIG[exp]['domain'],
+                    CONFIG[exp]['domain_xy'],
+                    CONFIG[exp]['domain_xy']]
+    else:
+        domain = [CONFIG[exp]['domain'],
+                    CONFIG[exp]['domain'],
+                    CONFIG[exp]['domain']]
+    if simu == 'rcm':
+        simu_name = 'RCM 12km'
+        dir = RCM_RAW_DIR / 'ALADIN_reformat'
+    else:
+        simu_name = 'GCM 1°'
+        dir = GCM_RAW_DIR / 'CNRM-CM6-1'
+    labels = [simu_name, 'UNet', 'SwinUNETR']
     colors = [COLORS[i] for i in labels]
+    colors_map = ['white', 'yellow', 'orange', 'red', 'black']
+    custom_cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', colors_map, N=12)
 
     var_spatial = []
     var_temporal = []
@@ -92,51 +108,45 @@ if __name__=='__main__':
         figsize=(15,5)
     )
 
-    ## Réference 1980-2014
-    gcm_ref = xr.open_dataset(glob.glob(str(CMIP6_RAW_DIR/f'CNRM-CM6-1/tas*historical_r1i1p1f2*.nc'))[0]).sel(time=slice('1980', '2010'))
-    gcm_ref = standardize_longitudes(gcm_ref)
-    gcm_ref = crop_domain_from_ds(gcm_ref, CONFIG['safran']['domain']['france'])
-    gcm_ref = gcm_ref.mean(dim='time')
-    tas_ref = gcm_ref.tas.values # mean spatial reference tas
-    gcm_ref.close()
+    ## Réference 1980-2010
+    data_ref = xr.open_mfdataset(glob.glob(str(dir/f'tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    data_ref = standardize_longitudes(data_ref)
+    data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
+    data_ref = data_ref.mean(dim='time')
+    tas_ref = data_ref.tas.values # mean spatial reference tas
+    data_ref.close()
 
-    gcm_unet_ref = xr.open_dataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_unet_all_cmip6_bc.nc'))[0]).sel(time=slice('1980', '2010'))
-    gcm_unet_ref = gcm_unet_ref.mean(dim='time')
-    tas_unet_ref = gcm_unet_ref.tas.values
-    gcm_unet_ref.close()
+    unet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    unet_ref = unet_ref.mean(dim='time')
+    tas_unet_ref = unet_ref.tas.values
+    unet_ref.close()
 
-    gcm_swinunet_ref = xr.open_dataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_swinunet_all_cmip6_bc.nc'))[0]).sel(time=slice('1980', '2010'))
-    gcm_swinunet_ref = gcm_swinunet_ref.mean(dim='time')
-    tas_swinunet_ref = gcm_swinunet_ref.tas.values
-    gcm_swinunet_ref.close()
+    swinunet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    swinunet_ref = swinunet_ref.mean(dim='time')
+    tas_swinunet_ref = swinunet_ref.tas.values
+    swinunet_ref.close()
 
     for i in range(len(periods)-1):
 
         # GET DATA
-        file = glob.glob(str(CMIP6_RAW_DIR/f'CNRM-CM6-1/tas*{ssp}_r1i1p1f2*.nc'))[0]
-        gcm = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        gcm = standardize_longitudes(gcm)
-        gcm = crop_domain_from_ds(gcm, CONFIG['safran']['domain']['france'])
-        tas_gcm = gcm.tas.values
-        #gcm = gcm.mean(dim=['lat', 'lon'])
-        #tas_gcm_mean = gcm.resample(time='1ME', skipna=True).mean().tas.values
-        gcm.close()
+        file = glob.glob(str(dir/f'tas*{ssp}_r1i1p1f2*.nc'))[0]
+        data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+        data = standardize_longitudes(data)
+        data = crop_domain_from_ds(data, CONFIG[exp]['domain'])
+        tas_data = data.tas.values
+        data.close()
         
-        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_cmip6_bc.nc'))[0]
+        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))[0]
         unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         tas_unet = unet.tas.values
-        #unet = unet.mean(dim=['x', 'y'])
-        #tas_unet_mean = unet.resample(time='1ME', skipna=True).mean().tas.values
         unet.close()
 
-        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_cmip6_bc.nc'))[0]
+        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))[0]
         swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         tas_swinunet = swinunet.tas.values
-        #swinunet = swinunet.mean(dim=['x', 'y'])
-        #tas_swinunet_mean = swinunet.resample(time='1ME', skipna=True).mean().tas.values
         swinunet.close()
 
-        l = [tas_gcm, tas_unet, tas_swinunet]
+        l = [tas_data, tas_unet, tas_swinunet]
         tref = [tas_ref, tas_unet_ref, tas_swinunet_ref]
 
         ## PLOT CHANGES MAPS
@@ -147,15 +157,17 @@ if __name__=='__main__':
                 np.nanmean(l[col], axis=0) - tref[col],
                 extent=domain[col],
                 transform=data_proj,
-                cmap='Reds',
-                levels=np.linspace(0, 6, 13)
+                cmap=custom_cmap,
+                levels=np.linspace(0, 6, 13),
             )
-
+            
             ax1.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
             ax1.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
             ax1.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
             cbar = plt.colorbar(cs, ax=ax1, pad=0.05, shrink=0.8)
-            cbar.set_label(label='K', size=12, labelpad=2.5)
+            cbar.set_ticks([0, 1, 2, 3, 4, 5, 6])
+            cbar.ax.tick_params(labelsize=14)
+            cbar.set_label(label='K', size=14, labelpad=5)
             if col == 0:
                 ax1.text(-0.07, 0.55, f'{periods[i]} - {periods[i+1]}', va='bottom', ha='center',
                 rotation='vertical', rotation_mode='anchor',
@@ -171,12 +183,12 @@ if __name__=='__main__':
             
         
         ## PLOT HISTOGRAMS 
-        plot_histogram([tas_gcm.flatten(), tas_unet.flatten()], 
+        plot_histogram([tas_data.flatten(), tas_unet.flatten()], 
                        axes2[i], 
                        [labels[0], labels[1]], 
                        [colors[0], colors[1]], 
                        f'{periods[i]} - {periods[i+1]}')
-        plot_histogram([tas_gcm.flatten(), tas_swinunet.flatten()], 
+        plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], 
                        axes3[i], 
                        [labels[0], labels[2]], 
                        [colors[0], colors[2]], 
@@ -185,15 +197,16 @@ if __name__=='__main__':
     for ax, col in zip(axes1[0], labels):
         ax.set_title(col, fontsize=14)
 
+    
     fig1.suptitle(f'Temperature changes for {ssp} (Reference : 1980-2010)', fontsize=16)
     fig1.tight_layout(rect=[0.05, 0, 1, 1], pad = 2)
-    fig1.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_spatial_futur_trend_{ssp}.png')
+    fig1.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_spatial_futur_trend_{ssp}_{simu}.png')
 
     fig2.suptitle(f'Daily temperature ditribution for {ssp} {periods[0]} - {periods[-1]} [UNet]', fontsize=16)
-    fig2.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_hist_futur_trend_{ssp}_unet.png')
+    fig2.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_hist_futur_trend_{ssp}_unet_{simu}.png')
 
     fig3.suptitle(f'Daily temperature ditribution for {ssp} {periods[0]} - {periods[-1]} [SwinUNETR]', fontsize=16)
-    fig3.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_hist_futur_trend_{ssp}_swinunet.png')
+    fig3.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_hist_futur_trend_{ssp}_swinunet_{simu}.png')
 
     df_var_temporal = pd.DataFrame(var_temporal)
 
@@ -201,6 +214,6 @@ if __name__=='__main__':
     fig4, axes4 =  plot_variability(fig4, axes4, df_var_temporal, periods, labels, colors)
     fig4.suptitle(f'Daily temperature variability for {ssp}', fontsize=16)
     fig4.tight_layout()
-    fig4.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_variability_futur_trend_{ssp}.png')
+    fig4.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_variability_futur_trend_{ssp}_{simu}.png')
 
 

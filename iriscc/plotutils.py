@@ -105,13 +105,14 @@ def plot_map_contour(var,
                      transform=data_projection
                     )
     ax.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
-    #ax.set_extent(domain, crs=data_projection)
+    #ax.set_extent(domain, crs=fig_projection)
+    ax.add_feature(cfeature.OCEAN, facecolor='white', zorder=100, edgecolor='black')
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
 
     cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.8)
-    cbar.set_label(label=var_desc, size=12, labelpad=10)
-    cbar.ax.tick_params(labelsize=12)
+    cbar.set_label(label=var_desc, size=14, labelpad=10)
+    cbar.ax.tick_params(labelsize=14)
     plt.tight_layout()
     plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
@@ -119,7 +120,7 @@ def plot_map_contour(var,
     else:
         plt.savefig(save_dir)
 
-def plot_test(var, title: str, save_dir: str, vmin: float = None, vmax: float = None):
+def plot_test(var,  save_dir: str, title: str = None,vmin: float = None, vmax: float = None):
 
     ''' 
     Simple test plot function.
@@ -150,31 +151,42 @@ def plot_contour(var, title, save_dir, levels=None):
     plt.savefig(save_dir)
 
 def plot_monthly_var_seasonal_cycle(
-        var_temporal: np.ndarray, 
-        dates: np.ndarray, 
-        title: str, 
-        var_desc: str, 
-        save_dir: str
+    var_temporal: np.ndarray, 
+    dates: np.ndarray, 
+    title: str, 
+    var_desc: str, 
+    save_dir: str
     ) -> None:
     """
-    Plots the seasonal cycle of a monthly variable, showing the mean monthly values 
+    Plots the seasonal cycle of a variable, showing the mean monthly values 
     and individual yearly trends, and saves the plot to a specified directory.
+    The function accepts either daily or monthly data as input.
 
     Args:
-        var_temporal (np.ndarray): Array of temporal variable values.
-        dates (np.ndarray): Array of corresponding dates for the variable values.
-        title (str): Title of the plot.
-        var_desc (str): Description of the variable (e.g., temperature).
-        save_dir (str): File path to save the generated plot.
+    var_temporal (np.ndarray): Array of temporal variable values.
+    dates (np.ndarray): Array of corresponding dates for the variable values.
+    title (str): Title of the plot.
+    var_desc (str): Description of the variable (e.g., temperature).
+    save_dir (str): File path to save the generated plot.
 
     Returns:
-        None
+    None
     """
     df_var = pd.DataFrame({'date': dates, 'var_temporal': var_temporal})
-    df_var['month'] = pd.to_datetime(df_var['date']).dt.month
-    df_var['year'] = pd.to_datetime(df_var['date']).dt.year
-    var_monthly_mean = df_var.groupby('month')['var_temporal'].mean()
-    var_per_year = df_var.pivot_table(index='month', columns='year', values='var_temporal')
+    df_var['date'] = pd.to_datetime(df_var['date'])
+    
+    # Determine if the data is daily or monthly
+    if len(df_var['date'].dt.day.unique()) > 1:  # Data is daily
+        df_var['month'] = df_var['date'].dt.month
+        df_var['year'] = df_var['date'].dt.year
+        var_monthly_mean = df_var.groupby('month')['var_temporal'].mean()
+        var_per_year = df_var.pivot_table(index='month', columns='year', values='var_temporal')
+    else:  # Data is already monthly
+        df_var['month'] = df_var['date'].dt.month
+        df_var['year'] = df_var['date'].dt.year
+        var_monthly_mean = df_var.groupby('month')['var_temporal'].mean()
+        var_per_year = df_var.pivot_table(index='month', columns='year', values='var_temporal')
+
     plt.figure(figsize=(10, 6))
     plt.suptitle(title, fontsize=16)
     ax = plt.gca()
@@ -182,14 +194,14 @@ def plot_monthly_var_seasonal_cycle(
     for year in var_per_year.columns:
         plt.plot(var_per_year.index, var_per_year[year], label=str(year), alpha=0.3, linestyle='--')
     plt.xticks(ticks=np.arange(1, 13), labels=[
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], fontsize=12)
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], fontsize=12)
     plt.ylabel(f'{var_desc}')
     plt.xlabel('Month')
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.legend(loc='upper right', fontsize=12, ncol=2)
     ax.text(0.02, 0.10, f"Mean temporal {var_desc}: {np.mean(var_temporal):.2f}", transform=ax.transAxes, fontsize=12, 
-            verticalalignment='top', horizontalalignment='left', color='red')
+        verticalalignment='top', horizontalalignment='left', color='red')
     plt.tight_layout()
     plt.savefig(save_dir)
 
@@ -197,7 +209,7 @@ def plot_monthly_var_seasonal_cycle(
 def plot_histogram(data, ax, labels, colors, xlabel):
     for i in range(len(data)):
         ax.hist(data[i], histtype='step', color=colors[i], 
-                label=labels[i], density=True, range=(260,310), bins=1000, linewidth=2)
+                label=labels[i], density=True, range=(260,310), bins=100, linewidth=2)
         ax.axvline(np.nanmean(data[i]), color=colors[i], linestyle='--', linewidth=2)
     ax.set_ylim(0, 0.07)
     ax.set_xlabel(xlabel)
@@ -205,7 +217,7 @@ def plot_histogram(data, ax, labels, colors, xlabel):
 
 if __name__=='__main__':
 
-    ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/prediction/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101_21001231_unet_cmip6_bc.nc')
+    ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/prediction/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101_21001231_unet_gcm_bc.nc')
     tas = ds.tas.values[-1,:,:]
     fig, ax = plot_map_contour(tas,
                    domain = CONFIG['safran']['domain']['france_xy'],

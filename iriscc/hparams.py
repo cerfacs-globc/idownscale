@@ -1,22 +1,37 @@
 import sys
 sys.path.append('.')
 
-from iriscc.settings import RUNS_DIR, DATASET_EXP3_30Y_DIR, DATASET_EXP4_30Y_DIR, CONFIG
+import numpy as np
+import torch
+
+from iriscc.settings import RUNS_DIR, CONFIG
+from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
+
+def get_gamma_params(sample_dir):
+    data = dict(np.load(sample_dir/'gamma_params.npz', allow_pickle=True))
+    alpha = data['alpha']
+    beta = data['beta']
+    return torch.Tensor(alpha), torch.Tensor(beta)
+
 
 class IRISCCHyperParameters():
     def __init__(self):
-        
-        self.img_size = (160, 160)
+        exp = 'exp6'
+        self.img_size = CONFIG[exp]['shape']
         self.in_channels = 2
         self.mask = 'target'
         self.learning_rate = 0.001
         self.batch_size = 32
-        self.max_epoch = 60
-        self.model ='swinunetr'
-        self.exp = 'exp3/swinunet_all'
+        self.max_epoch = 30
+        self.model ='unet'
+        self.exp = f'{exp}/unet_all'
         self.runs_dir = RUNS_DIR / self.exp
-        self.sample_dir = DATASET_EXP3_30Y_DIR
-        self.fill_value = 0.
+        self.sample_dir = CONFIG[exp]['dataset']
+        self.fill_value = -1.
+        #alpha, beta = get_gamma_params(self.sample_dir)
+        #self.loss = MaskedGammaMAELoss(ignore_value = self.fill_value,
+        #                               alpha = alpha,
+        #                               beta = beta) ### modifier loss dans hparams.yaml
         self.domain = 'france'
         self.domain_crop = None
         # Diffusion hparams

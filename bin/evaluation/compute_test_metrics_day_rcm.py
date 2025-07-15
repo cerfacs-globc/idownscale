@@ -1,5 +1,5 @@
 """ 
-Evaluate input data x against target data y for raw, prediction and baseline data
+Evaluate input data x against high resolution rcm data y for rcm prediction data
 """
 
 import sys
@@ -7,111 +7,37 @@ sys.path.append('.')
 
 import os
 import glob
+import argparse
+import xarray as xr
 import torch
 import numpy as np
-import argparse
-from pathlib import Path
-from typing import Tuple, Optional
-from torch import nn
-from torchvision.transforms import Compose
 import pandas as pd
-from typing import Optional
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DomainCrop, UnPad
-from iriscc.settings import (CONFIG, 
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DomainCrop
+from iriscc.settings import (DATES_BC_TEST_HIST,
+                             CONFIG, 
                              GRAPHS_DIR, 
+                             TARGET_SIZE, 
                              RUNS_DIR, 
                              METRICS_DIR, 
                              DATASET_BC_DIR,
-                             DATASET_DIR)
+                             DATASET_EXP3_30Y_DIR,
+                             DATASET_EXP4_30Y_DIR,
+                             ALADIN_PROJ_PYPROJ,
+                             RCM_RAW_DIR)
+from iriscc.transforms import UnPad
+from iriscc.datautils import Data, interpolation_target_grid
+from iriscc.plotutils import plot_test
 
 
-def get_config(exp: str, test_name: str, simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
-    """
-    Configure the model, transforms, and sample directory based on the experiment and test parameters.
-    Args:
-        exp (str): Experiment name.
-        test_name (str): Test name (e.g., unet, baseline, gcm_raw).
-        predict (bool): Whether to use a pretrained model.
-        simu_test (Optional[str]): GCM test type (e.g., gcm or gcm_bc).
-    Returns:
-        Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]
-    """
-    model, transforms = None, None
-
-    if test_name.startswith('baseline'):
-        sample_dir = DATASET_DIR / f'dataset_{exp}_baseline'
-    elif test_name == 'gcm_raw':
-        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_gcm'
-    elif test_name == 'rcm_raw':
-        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_rcm'
-    elif test_name == 'era5_raw':
-        sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
-    else:
-        run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
-        checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
-        model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
-        model.eval()
-        hparams = model.hparams['hparams']
-        
-        transforms = v2.Compose([
-            MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
-            LandSeaMask(hparams['mask'], hparams['fill_value']),
-            FillMissingValue(hparams['fill_value']),
-            Pad(hparams['fill_value'])
-        ])
-        
-        if simu_test:
-            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
-        else:
-            sample_dir = hparams['sample_dir']
-    return model, transforms, sample_dir
-
-def preprocess(date,
-                sample_dir: Path,
-                model: Optional[nn.Module],
-                transforms: Optional[Compose]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Preprocesses input data and generates predictions using a given model.
-    Args:
-        date (datetime.date): The date corresponding to the sample to process.
-        sample_dir (Path): Directory containing the sample `.npz` files.
-        model (Optional[nn.Module]): PyTorch model used for predictions or None.
-        transforms (Optional[Compose]): Transformations to apply to the input data (x, y).
-    Returns:
-        Tuple[np.ndarray, np.ndarray]
-    """
-    
-    date_str = date.date().strftime('%Y%m%d')
-    sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
-    data = dict(np.load(sample), allow_pickle=True)
-    x, y = data['x'], data['y']
-    condition = np.isnan(y[0])
-    print(x.shape, y.shape)
-    if model: # unet, unet_gcm, unet_gcm_bc
-        x, y = transforms((x, y))
-        x = torch.unsqueeze(x, dim=0).float()
-        y_hat = model(x.to(device)).to(device)
-        y_hat = y_hat.detach().cpu()
-        unpad_func = UnPad(list(CONFIG[exp]['shape']))
-        y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
 
 
-    else: # baseline, era5_raw, gcm_raw
-        y = y[0]
-        y_hat = x[-1] # all .npz datasets are {'x': x, 'y': y}-like
-
-    y[condition] = np.nan
-    y_hat[condition] = np.nan
-
-    return y, y_hat
-
-
-if __name__=='__main__':
-
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
     parser.add_argument('--start-date', type=str, help='Start date (e.g., 2023-01-01)', default='2000-01-01')
     parser.add_argument('--end-date', type=str, help='End date (e.g., 2023-01-01)', default='2014-12-31')
@@ -124,17 +50,34 @@ if __name__=='__main__':
     test_name = args.test_name
     simu_test = args.simu_test
     dates = pd.date_range(start=args.start_date, end=args.end_date, freq='D')
+    get_data = Data(CONFIG[exp]['domain'])
 
-    transforms = None
-    model, transforms, sample_dir = get_config(exp, test_name, simu_test)
-
-    if simu_test:
-        test_name = f'{test_name}_{simu_test}'
+    run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
+    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    test_name = f'{test_name}_{simu_test}_pp'
+    graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
+    os.makedirs(graph_dir, exist_ok=True)
     os.makedirs(metric_dir, exist_ok=True)
 
-    
+
+    model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
+    model.eval()
+    hparams = model.hparams['hparams']
+    arch = hparams['model']
+    domain = hparams['domain']
+    if CONFIG[exp]['target'] == 'safran':
+        domain = 'france_xy'
+    transforms = v2.Compose([
+                MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
+                LandSeaMask(hparams['mask'], hparams['fill_value']),
+                FillMissingValue(hparams['fill_value']),
+                Pad(hparams['fill_value'])
+                ])
     device = 'cpu'
+    sample_dir = hparams['sample_dir']
+
+
     rmse = MeanSquaredError(squared=False).to(device)
     corr = PearsonCorrCoef().to(device)
 
@@ -160,12 +103,36 @@ if __name__=='__main__':
         if date.month in [1,2,12]:
             i_winter.append(i)
         date_str = date.date().strftime('%Y%m%d')
-        
-        y, y_hat = preprocess(date, 
-                              sample_dir, 
-                              model, 
-                              transforms)
+        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        data = dict(np.load(sample), allow_pickle=True)
+        x = data['x']
 
+        # Get high resoluion rcm data interpolated to target grid
+        y = []
+        for var in CONFIG[exp]['target_vars']:
+            file = glob.glob(str(RCM_RAW_DIR/f'ALADIN_reformat/{var}*nc'))[0]
+            ds = xr.open_dataset(file)
+            ds = ds.sel(time=ds.time.dt.date == date.date())
+            ds = ds.isel(time=0)
+            y.append(ds[var].values)
+
+        y = np.stack(y, axis=0)
+        condition = np.isnan(y[0])
+
+        x, y = transforms((x, y))
+        x = torch.unsqueeze(x, dim=0).float()
+        y_hat = model(x.to(device)).to(device)
+        y_hat = y_hat.detach().cpu()
+        unpad_func = UnPad(list(CONFIG[exp]['shape']))
+        y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
+        
+
+        y_hat[condition] = np.nan
+        y[condition] = np.nan
+
+        h, w = y.shape
+
+        # compute metrics
         ## spatial metrics
         error = (y_hat - y)
         error_squared = error ** 2
@@ -209,9 +176,9 @@ if __name__=='__main__':
     dT_hat_summer = np.stack([dT_hat[i-1,:] for i in i_summer])
     dT_winter = np.stack([dT[i-1,:] for i in i_winter])
     dT_hat_winter = np.stack([dT_hat[i-1,:] for i in i_winter])
-    var = np.mean(np.abs(dT_hat), axis=0) - np.mean(np.abs(dT), axis=0)
-    var_summer = np.mean(np.abs(dT_hat_summer), axis=0) - np.mean(np.abs(dT_summer), axis=0)
-    var_winter = np.mean(np.abs(dT_hat_winter), axis=0) - np.mean(np.abs(dT_winter), axis=0)
+    var = np.mean(dT_hat, axis=0) - np.mean(dT, axis=0)
+    var_summer = np.mean(dT_hat_summer, axis=0) - np.mean(dT_summer, axis=0)
+    var_winter = np.mean(dT_hat_winter, axis=0) - np.mean(dT_winter, axis=0)
 
     y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
     corr_temporal = [corr(y_hat_temporal[:,j], y_temporal[:,j]).cpu() for j in range(y_temporal.size(dim=1))]
@@ -239,12 +206,12 @@ if __name__=='__main__':
 
     # Save temporal and spatial values only for all period
     d = {'rmse_temporal': rmse_temporal,
-        'rmse_spatial': rmse_spatial.flatten(),
-        'bias_spatial': bias_spatial.flatten(),
-        'corr_temporal': corr_temporal,
-        'corr_spatial': corr_spatial,
-        'variability': var,
-        'dates' : dates}
+            'rmse_spatial': rmse_spatial.flatten(),
+            'bias_spatial': bias_spatial.flatten(),
+            'corr_temporal': corr_temporal,
+            'corr_spatial': corr_spatial,
+            'variability': var,
+            'dates' : dates}
     np.savez(metric_dir/f'metrics_test_daily_{exp}_{test_name}.npz', **d)
 
     # Save mean values
@@ -259,4 +226,3 @@ if __name__=='__main__':
     df = pd.DataFrame(d_mean, index = ['all', 'summer', 'winter'])
     df.to_csv(metric_dir/f'metrics_test_mean_daily_{exp}_{test_name}.csv')
     print(df)
-

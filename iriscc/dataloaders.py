@@ -82,7 +82,6 @@ def get_dataloaders(data_type: str) -> DataLoader:
                 MinMaxNormalisation(hparams.sample_dir, hparams.output_norm), 
                 LandSeaMask(hparams.mask, hparams.fill_value),
                 FillMissingValue(hparams.fill_value),
-                DomainCrop(hparams.sample_dir, hparams.domain_crop),
                 Pad(hparams.fill_value)
                 ])
     training_data = IRISCC(transform=transforms,

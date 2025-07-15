@@ -28,7 +28,8 @@ class IRISCCLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
  
-        self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
+        #self.loss = hparams['loss']
+        self.loss = MaskedMSELoss(ignore_value=hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
                     "rmse": MaskedRMSE(ignore_value = hparams['fill_value']),
                     "mae": MaskedMAE(ignore_value = hparams['fill_value'])
