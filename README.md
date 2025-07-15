@@ -16,41 +16,65 @@ Le projet est organisé comme suit :
 
 ```
 iriscc/
-├── bin/               # Dossier contenant les datasets
-│   ├── preprocessing/           # Données brutes
-│   │   ├── safran_reformat.py    # Scripts pour l'évaluation
-│   │   ├── build_dataset.py    # Scripts pour l'évaluation
-│   │   ├── compute_statistics.py    # Scripts pour l'évaluation
-│   ├── training/     # Données transformées et prêtes à l'utilisation
-│   │   ├── train.py    # Scripts pour l'évaluation
-│   │   ├── predict.py    # Scripts pour l'évaluation
-│   ├── evaluation/     # Données transformées et prêtes à l'utilisation
+├── bin/                                        # Dossier contenant les datasets
+│   ├── preprocessing/                          # Données brutes
+│   │   ├── safran_reformat.py                  # Scripts pour l'évaluation
+│   │   ├── aladin_reformat_target.py           # Scripts pour l'évaluation
+│   │   ├── build_dataset.py                    # Scripts pour l'évaluation
+│   │   ├── build_dataset_bc.py                 # Scripts pour l'évaluation
+│   │   ├── compute_statistics.py               # Scripts pour l'évaluation
+│   │   ├── compute_statistics_gamma.py         # Scripts pour l'évaluation
+│   │   ├── bias_correction_ibicus.py           # Scripts pour l'évaluation
+│   ├── training/                               # Données transformées et prêtes à l'utilisation
+│   │   ├── train.py                            # Scripts pour l'évaluation
+│   │   ├── predict.py                          # Scripts pour l'évaluation
+│   │   ├── predict_loop.py                     # Scripts pour l'évaluation
+│   │   ├── predict_cddpm.py                    # Scripts pour l'évaluation
+│   ├── evaluation/                             # Données transformées et prêtes à l'utilisation
+│   │   ├── compute_test_metrics_day.py          # Scripts pour l'évaluation
+│   │   ├── compute_test_metrics_day_rcm.py      # Scripts pour l'évaluation
+│   │   ├── compute_test_metrics_month.py        # Scripts pour l'évaluation
+│   │   ├── compute_test_metrics_month_rcm.py    # Scripts pour l'évaluation
+│   │   ├── compare_test_metrics.py              # Scripts pour l'évaluation
+│   │   ├── plot_test_metrics.py                 # Scripts pour l'évaluation
+│   │   ├── plot_histograms.py                   # Scripts pour l'évaluation
+│   │   ├── evaluate_futur_trend.py              # Scripts pour l'évaluation
 │   │
-├── iriscc/                # Code source principal
-│   ├── dataloaders.py # Scripts de pré-traitement des données
-│   ├── hparams.py        # Définition des modèles
-│   ├── settings.py    # Scripts pour l'évaluation
-│   ├── lightning_module.py     # Scripts pour l'entraînement
-│   ├── loss.py    # Scripts pour l'évaluation
-│   ├── metrics.py    # Scripts pour l'évaluation
-│   ├── plotutils.py    # Scripts pour l'évaluation
-│   ├── datautils.py    # Scripts pour l'évaluation
-│   ├── transforms.py    # Scripts pour l'évaluation
-│   ├── unet.py    # Scripts pour l'évaluation
-│   ├── swin2sr.py    # Scripts pour l'évaluation
+├── iriscc/                         # Code source principal
+│   ├── models                      # Scripts de pré-traitement des données
+│   │   ├── cddpm.py 
+│   │   ├── denoising_unet.py
+│   │   ├── miniswinunetr.py
+│   │   ├── miniunet.py 
+│   │   ├── swin2sr.py
+│   │   ├── unet.py
+│   ├── dataloaders.py              # Scripts de pré-traitement des données
+│   ├── hparams.py                  # Définition des modèles
+│   ├── settings.py                 # Scripts pour l'évaluation
+│   ├── lightning_module.py         # Scripts pour l'entraînement
+│   ├── lightning_module_ddpm.py    # Scripts pour l'entraînement
+│   ├── diffusionutils.py           # Scripts pour l'entraînement
+│   ├── loss.py                     # Scripts pour l'évaluation
+│   ├── metrics.py                  # Scripts pour l'évaluation
+│   ├── plotutils.py                # Scripts pour l'évaluation
+│   ├── datautils.py                # Scripts pour l'évaluation
+│   ├── transforms.py               # Scripts pour l'évaluation
+│   │
+├── requirements.txt    # Dépendances Python
+├── README.md           # Documentation du projet (vous y êtes !)
 
 scratch/globc/garcia/
-├── datasets/               # Dossier contenant les datasets
-├── graphs/                # Code source principal
-├── rawdata/                # Code source principal
+├── datasets/            # Dossier contenant les datasets
+├── graphs/              # Code source principal
+├── rawdata/             # Code source principal
 ├── runs/                # Code source principal
+├── prediction/          # Code source principal
 
 ├── notebooks/          # Jupyter Notebooks pour exploration et prototypage
 ├── scripts/            # Scripts utilitaires pour automatisation
 ├── logs/               # Logs générés pendant l'entraînement ou les tests
 ├── outputs/            # Résultats finaux (modèles entraînés, prédictions, etc.)
-├── requirements.txt    # Dépendances Python
-├── README.md           # Documentation du projet (vous y êtes !) 
+ 
 ```
 
 ---
