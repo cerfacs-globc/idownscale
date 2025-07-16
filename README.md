@@ -10,8 +10,6 @@ This document provides an overview of the code structure, useful commands for ma
 
 ## Code structure
 
-The project is organized as follow :
-
 ```
 iriscc/
 ├── bin/                                        # Scripts folder
@@ -132,13 +130,13 @@ The following command creates a netCDF file to predict a long period without hav
 python bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc
 ```
 
-Rq: The `--simu-test gcm` option indicates whether the input data is ERA5 (`None`), CNRM-CM6-1 (`gcm`) or CNRM-CM6-1 corrected for ERA5 (`gcm_bc`), as well as for RCM ALADIN (`rcm` and `rcm_bc`). Data are then retrieved from the associated directories.
+Rq: The `--simu-test gcm` option indicates whether the input data is ERA5 (`None`), CNRM-CM6-1 (`gcm`) or corrected CNRM-CM6-1 (`gcm_bc`), as well as for RCM ALADIN (`rcm` and `rcm_bc`). Data are then retrieved from the associated directories.
 
 ### Evaluation
 
 The neural network predictions are compared with the reference data for the historical test period.
 
-#### Metrucs computing
+#### Metrics computing
 Daily metrics : 
 ```bash
 python3 bin/evaluation/compute_test_metrics_day.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet
@@ -162,7 +160,7 @@ python3 bin/evaluation/compute_test_metrics_month_rcm.py --startdate 20150101 --
 
 #### Score visualization
 ```bash
-python3 bin/evaluation/compare_test_metrics.py --exp exp3 --test-list unet_gcm,unet_gcm_bc --scale monthly --pp yes
+python3 bin/evaluation/compare_test_metrics.py --exp exp5 --test-list unet_gcm,unet_gcm_bc --scale monthly --pp pp --simu gcm
 ```
 
 #### Future trend
