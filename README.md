@@ -38,35 +38,35 @@ iriscc/
 │   │   ├── plot_histograms.py                  # Plot histograms
 │   │   ├── evaluate_futur_trend.py             # Plot maps, histograms and graph 
 │   │
-├── iriscc/                         # Usefull functions and class folder
-│   ├── models                      # Neural networks folder
+├── iriscc/                                     # Usefull functions and class folder
+│   ├── models                                  # Neural networks folder
 │   │   ├── cddpm.py 
 │   │   ├── denoising_unet.py
 │   │   ├── miniswinunetr.py
 │   │   ├── miniunet.py 
 │   │   ├── swin2sr.py
 │   │   ├── unet.py
-│   ├── dataloaders.py              # Load rain, valid and test batches
-│   ├── hparams.py                  # Training configuration
-│   ├── settings.py                 # Experience configuration
-│   ├── lightning_module.py         # Training workflow
-│   ├── lightning_module_ddpm.py    # Training workflow for CDDPM
-│   ├── loss.py                     # Modified loss class
-│   ├── metrics.py                  # Modified metrics class
-│   ├── transforms.py               # Data transformation class
-│   ├── plotutils.py                # Usefull plot functions
-│   ├── datautils.py                # Usefull data functions
-│   ├── diffusionutils.py           # Usefull functions for CDDPM
+│   ├── dataloaders.py                          # Load rain, valid and test batches
+│   ├── hparams.py                              # Training configuration
+│   ├── settings.py                             # Experience configuration
+│   ├── lightning_module.py                     # Training workflow
+│   ├── lightning_module_ddpm.py                # Training workflow for CDDPM
+│   ├── loss.py                                 # Modified loss class
+│   ├── metrics.py                              # Modified metrics class
+│   ├── transforms.py                           # Data transformation class
+│   ├── plotutils.py                            # Usefull plot functions
+│   ├── datautils.py                            # Usefull data functions
+│   ├── diffusionutils.py                       # Usefull functions for CDDPM
 │   │
 ├── requirements.txt 
 ├── README.md 
 
 scratch/globc/garcia/
-├── datasets/            # Dossier contenant les datasets
-├── graphs/              # Code source principal
-├── rawdata/             # Code source principal
-├── runs/                # Code source principal
-├── prediction/          # Code source principal
+├── datasets/             
+├── graphs/              
+├── rawdata/             
+├── runs/               
+├── prediction/          
 
 ```
 
