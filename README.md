@@ -1,67 +1,65 @@
 # IRISCC
 
-## Contexte du projet
+## Project context
 
-Le projet **IRISCC** (nom complet à définir si nécessaire) a pour objectif de [description générale du projet, son but, et les problématiques qu'il adresse].
+The **IRISCC** project is part of a consortium of European research infrastructures of which CERFACS is a member. Its aim is to study the impacts of risks linked to climate change, by offering services, data and opportunities to the various players involved. The CERFACS mission is to provide high-quality, fine-resolution (around 10 km) climate projection data based on daily data from global climate model (GCM) simulations (around 150 km resolution) for the needs of the project's demonstrators. The variables of interest are surface temperature (K), precipitation (mm) and humidity.
 
-Il est conçu pour [type d'application ou d'utilisation, comme la classification d'images, le traitement du langage naturel, etc.]. 
-
-Ce document fournit un aperçu de la structure du code, des commandes utiles pour manipuler le projet, et des informations nécessaires pour démarrer rapidement.
+This document provides an overview of the code structure, useful commands for manipulating the project, and the information you need to get started quickly
 
 ---
 
-## Structure du code
+## Code structure
 
-Le projet est organisé comme suit :
+The project is organized as follow :
 
 ```
 iriscc/
-├── bin/                                        # Dossier contenant les datasets
-│   ├── preprocessing/                          # Données brutes
-│   │   ├── safran_reformat.py                  # Scripts pour l'évaluation
-│   │   ├── aladin_reformat_target.py           # Scripts pour l'évaluation
-│   │   ├── build_dataset.py                    # Scripts pour l'évaluation
-│   │   ├── build_dataset_bc.py                 # Scripts pour l'évaluation
-│   │   ├── compute_statistics.py               # Scripts pour l'évaluation
-│   │   ├── compute_statistics_gamma.py         # Scripts pour l'évaluation
-│   │   ├── bias_correction_ibicus.py           # Scripts pour l'évaluation
-│   ├── training/                               # Données transformées et prêtes à l'utilisation
-│   │   ├── train.py                            # Scripts pour l'évaluation
-│   │   ├── predict.py                          # Scripts pour l'évaluation
-│   │   ├── predict_loop.py                     # Scripts pour l'évaluation
-│   │   ├── predict_cddpm.py                    # Scripts pour l'évaluation
-│   ├── evaluation/                             # Données transformées et prêtes à l'utilisation
-│   │   ├── compute_test_metrics_day.py          # Scripts pour l'évaluation
-│   │   ├── compute_test_metrics_day_rcm.py      # Scripts pour l'évaluation
-│   │   ├── compute_test_metrics_month.py        # Scripts pour l'évaluation
-│   │   ├── compute_test_metrics_month_rcm.py    # Scripts pour l'évaluation
-│   │   ├── compare_test_metrics.py              # Scripts pour l'évaluation
-│   │   ├── plot_test_metrics.py                 # Scripts pour l'évaluation
-│   │   ├── plot_histograms.py                   # Scripts pour l'évaluation
-│   │   ├── evaluate_futur_trend.py              # Scripts pour l'évaluation
+├── bin/                                        # Scripts folder
+│   ├── preprocessing/                          # Pre-processing folder
+│   │   ├── safran_reformat.py                  # Transform 1D to 2D SAFRAN data 
+│   │   ├── aladin_reformat_target.py           # Interpolate ALADIN data to target grid 
+│   │   ├── build_dataset.py                    # Build training samples dataset
+│   │   ├── build_dataset_bc.py                 # Build bias correction samples dataset
+│   │   ├── bias_correction_ibicus.py           # Build corrected training samples dataset
+│   │   ├── compute_statistics.py               # Compute min, max, mean and std
+│   │   ├── compute_statistics_gamma.py         # Compute alpha and beta
+│   ├── training/                               # Training and prediction folder
+│   │   ├── train.py                            # Train the network
+│   │   ├── predict.py                          # Predict for a date
+│   │   ├── predict_loop.py                     # Predict for a time period
+│   │   ├── predict_cddpm.py                    # Predict for a date using CDDPM
+│   ├── evaluation/                             # Evaluation folder
+│   │   ├── compute_test_metrics_day.py         # Compute daily metrics against target
+│   │   ├── compute_test_metrics_day_rcm.py     # Compute daily metrics against HR RCM
+│   │   ├── compute_test_metrics_month.py       # Compute monthly metrics against target
+│   │   ├── compute_test_metrics_month_rcm.py   # Compute monthly metrics against HR RCM
+│   │   ├── compare_test_metrics.py             # Plot comparison boxplots
+│   │   ├── plot_test_metrics.py                # Plot sptial scores
+│   │   ├── plot_histograms.py                  # Plot histograms
+│   │   ├── evaluate_futur_trend.py             # Plot maps, histograms and graph 
 │   │
-├── iriscc/                         # Code source principal
-│   ├── models                      # Scripts de pré-traitement des données
+├── iriscc/                         # Usefull functions and class folder
+│   ├── models                      # Neural networks folder
 │   │   ├── cddpm.py 
 │   │   ├── denoising_unet.py
 │   │   ├── miniswinunetr.py
 │   │   ├── miniunet.py 
 │   │   ├── swin2sr.py
 │   │   ├── unet.py
-│   ├── dataloaders.py              # Scripts de pré-traitement des données
-│   ├── hparams.py                  # Définition des modèles
-│   ├── settings.py                 # Scripts pour l'évaluation
-│   ├── lightning_module.py         # Scripts pour l'entraînement
-│   ├── lightning_module_ddpm.py    # Scripts pour l'entraînement
-│   ├── diffusionutils.py           # Scripts pour l'entraînement
-│   ├── loss.py                     # Scripts pour l'évaluation
-│   ├── metrics.py                  # Scripts pour l'évaluation
-│   ├── plotutils.py                # Scripts pour l'évaluation
-│   ├── datautils.py                # Scripts pour l'évaluation
-│   ├── transforms.py               # Scripts pour l'évaluation
+│   ├── dataloaders.py              # Load rain, valid and test batches
+│   ├── hparams.py                  # Training configuration
+│   ├── settings.py                 # Experience configuration
+│   ├── lightning_module.py         # Training workflow
+│   ├── lightning_module_ddpm.py    # Training workflow for CDDPM
+│   ├── loss.py                     # Modified loss class
+│   ├── metrics.py                  # Modified metrics class
+│   ├── transforms.py               # Data transformation class
+│   ├── plotutils.py                # Usefull plot functions
+│   ├── datautils.py                # Usefull data functions
+│   ├── diffusionutils.py           # Usefull functions for CDDPM
 │   │
-├── requirements.txt    # Dépendances Python
-├── README.md           # Documentation du projet (vous y êtes !)
+├── requirements.txt 
+├── README.md 
 
 scratch/globc/garcia/
 ├── datasets/            # Dossier contenant les datasets
@@ -70,112 +68,107 @@ scratch/globc/garcia/
 ├── runs/                # Code source principal
 ├── prediction/          # Code source principal
 
-├── notebooks/          # Jupyter Notebooks pour exploration et prototypage
-├── scripts/            # Scripts utilitaires pour automatisation
-├── logs/               # Logs générés pendant l'entraînement ou les tests
-├── outputs/            # Résultats finaux (modèles entraînés, prédictions, etc.)
- 
 ```
 
 ---
 
-## Commandes utiles
+## Usefull commands
 
-### Création des jeux de données
+### Data pre-processing
 
-Cette commande permet de créer un jeu de données pour l'entraînement des réseaux de neurones avec des entrées x et des sorties y. Une interpolation conservative est appliquée aux entrées pour correspondre à la taille des données de sorties. Une liste d'exemple correspondant à un pas de temps (journalier) est stockée dans un répertoire `dataset` associé à l'expérience. La topographie de référence est ajoutée aux entrées. 
+This command creates training/validation/test samples in the format `sample_{date}.npz`. Conservative interpolation is applied to the inputs to match the size of the output data. Daily samples are stored in a `dataset` directory associated with the experiment. Reference topography is added to the inputs always as first channel.
 
-L'expérience 3 prend SAFRAN comme référence. Une interpolation bilinéaire est utilisée comme baseline.
+Experiment 5 takes E-OBS as reference. A bilinear interpolation is used as baseline.
+
 ```bash
-python3 bin/preprocessing/build_dataset_exp3.py
+python3 bin/preprocessing/build_dataset.py --exp exp5
 ```
 ```bash
-python3 bin/preprocessing/build_dataset_exp3_baseline.py
+python3 bin/preprocessing/build_dataset.py --exp exp5 --baseline True
 ```
 
-L'expérience 4 prend E-OBS comme référence. Le domain comprend une partie de l'Europe. La selection du domaine est appliqué par lors de l'entrainement. Une interpolation bilinéaire est utilisée comme baseline.
-```bash
-python3 bin/preprocessing/build_dataset_exp4.py
-```
-```bash
-python3 bin/preprocessing/build_dataset_exp4_baseline.py
-```
-
-Afin de normaliser les données, le script `compute_statistics.py --dataset_path` calcule les statistiques de chaque canal et les sauvegarde sous le nom de `statistics.json` dans le répertoire de l'expérience. 
-ATTENTION : Si vous souhaitez appliquer un masque aux entrées, pensez à faire cette étape avant la normalisation.
-
+To normalize the data, the `compute_statistics.py --exp` script computes statistics for each channel and saves them in a `statistics.json` file in the experiment directory. 
+WARNING: If you wish to apply a mask to the inputs, remember to do this step before normalizing.
 
 ---
 
-### Entraînement
+### Training
 
-La classe IRISCCHyperParameters() regroupe tous les hyper-paramètres nécessaires à l'entraînement des réseaux de neurones. La commande pour entrainer le réseau est : 
+The IRISCCHyperParameters() class contains all the hyper-parameters required to train neural networks that need to be specified. The command for training the network is :
 
 ```bash
 python bin/training/train.py
 ```
-Les résultats sont enregistrés dans le répertoire 'runs'. L'avancée des métriques peut être visualisée sur Tensorboard grace à la commande :
+The results are saved in the ‘runs’ directory. The progress of metrics can be viewed on Tensorboard with the command :
 ```bash
 tensorboard --logdir='path-to-runs'
 ```
-Le chemin vers les poids du modèle le mieux entrainé devra être renommé '{version_best}' pour le post-traitement.
+The path to the best-trained model weights should be renamed ‘{version_best}’ for post-processing.
 
 ---
-### Correction de biais
-Dans l'approche 'perfect prognosis' employée par [Soares et al. (2024)](https://gmd.copernicus.org/articles/17/229/2024/) et [Vrac et Vaittinada Ayar (2017)](https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml), le réseau de neurone apprend la relation de desente d'échelle entre les réanalyses et les observations avant d'appliquer les poids à des données simulées. Les données simulées sont corrigées par rapport aux réanalyses en pré-traitement afin de réduire le biais du modèle.
+### Bias correction
+In the ‘perfect prognosis’ approach employed by [Soares et al. (2024)](https://gmd.copernicus.org/articles/17/229/2024/) and [Vrac and Vaittinada Ayar (2017)](https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml), the neural network learns the scaling relationship between reanalyses and observations before applying the weights to simulation data. The simulated data are corrected against the reanalyses in pre-processing to reduce model bias.
 
-On utilise ici la méthode CDF-t [(P.-A. Michelangeli (2009))](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GL038401). Les données sont premièrement pré-traitée pour créer un jeu d'entraînement et deux jeux de données (historique et futur) à débaiser dont un servira pour l'évaluation de la méthode.
+The CDF-t method [(P.-A. Michelangeli (2009))](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GL038401) is used here. The data are first pre-processed to create a training set and two data sets (historical and future) to be cleared, one of which will be used to evaluate the method.
 ```bash
-python bin/preprocessing/build_dataset_bc.py
+python bin/preprocessing/build_dataset_bc.py --simu gcm --spp ssp585 --var tas
 ```
-Le script `bin/preprocessing/bias_correction_ibicus.py` corrige, évalue et enregistre les données dans le même format que celle utilisée pour l'entraînement du réseau de neurone.
-
-```bash
-python bin/preprocessing/bias_correction_ibicus.py --exp exp3 --ssp ssp585 --simu rcm --var tas
-```
-
-
-### Prédiction
-Un réseau de neurone pré-entraîné peuvent être utilisé pour prédire de nouvelles sorties à partir d'entrées jamais vues par le réseau. 
-Un jeu de test permet de comparer la prédiction à la référence pour une date donnée. Ce même jeu de test est utilisé lors de l'entrainement  pour calculer des métriques d'évaluation. La prédiction est obtenue par :
+The `bin/preprocessing/bias_correction_ibicus.py` script corrects, evaluates and saves the data in the same format used for training the neural network.
 
 ```bash
-python bin/training/predict.py --date 20121018 --exp exp3 --test-name unet
-```
-La commande suivante crée un fichier netCDF pour prédire une longue période sans avoir à comparer avec la référence (pour le futur par exemple) : 
-```bash
-python bin/training/predict_loop.py --exp exp3 --test-name unet 
+python bin/preprocessing/bias_correction_ibicus.py --exp exp5 --ssp ssp585 --simu gcm --var tas
 ```
 
-Rq : L'option `--simu-test gcm` indique si les données en entrée sont des données ERA5 (no), CNRM-CM6-1 (gcm) ou CNRM-CM6-1 corrigées par rapport à ERA5 (gcm_bc), de même pour le RCM ALADIN. Les données sont ainsi récupérées dans les répertoires associés.
+
+### Prediction
+A pre-trained neural network can be used to predict new outputs from inputs it has never seen before. 
+A test set is used to compare the prediction with the reference target for a given date. This same test set is used during training to calculate evaluation metrics loaded in Tensorboard. The prediction is obtained by :
+
+```bash
+python bin/training/predict.py --date 20121018 --exp exp5 --test-name unet_all --simu-test gcm_bc
+```
+The following command creates a netCDF file to predict a long period without having to compare with the reference (for the future, for example): 
+```bash
+python bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc
+```
+
+Rq: The `--simu-test gcm` option indicates whether the input data is ERA5 (`None`), CNRM-CM6-1 (`gcm`) or CNRM-CM6-1 corrected for ERA5 (`gcm_bc`), as well as for RCM ALADIN (`rcm` and `rcm_bc`). Data are then retrieved from the associated directories.
 
 ### Evaluation
 
-Les prédictions du réseau de neurone sont comparées aux données de référence pour la période de test historique. 
+The neural network predictions are compared with the reference data for the historical test period.
 
-#### Calcul des métriques
-Pour les métriques journalières : 
+#### Metrucs computing
+Daily metrics : 
 ```bash
-python3 bin/evaluation/compute_test_metrics_day.py --exp exp3 --test-name unet 
+python3 bin/evaluation/compute_test_metrics_day.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet
 ```
+Monthly metrics :
 ```bash
-python3 bin/evaluation/compute_test_metrics_day.py --exp exp3 --test-name baseline 
+python3 bin/evaluation/compute_test_metrics_month.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet 
 ```
-pour les métriques mensuelles :
-```bash
-python3 bin/evaluation/compute_test_metrics_month.py --exp exp3 --test-name unet 
-```
-Pour calculer les métriques avec les simulations débiaisées ou non, il faut également ajouter l'argument `--simu-test gcm`
+To calculate metrics in the ‘perfect prognosis’ framework, we need to add the argument `--simu-test gcm_bc`.
 
-#### Visualisation des métriques
+To calculate metrics under perfect condition framework (RCM as reference) we use different scripts :
+
+Daily metrics : 
+```bash
+python3 bin/evaluation/compute_test_metrics_day_rcm.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet
+```
+Monthly metrics :
+```bash
+python3 bin/evaluation/compute_test_metrics_month_rcm.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet 
+```
+
+#### Score visualization
 ```bash
 python3 bin/evaluation/compare_test_metrics.py --exp exp3 --test-list unet_gcm,unet_gcm_bc --scale monthly --pp yes
 ```
 
-#### Tendance future
-La commande suivante crée une figure des changements de température entre les périodes futures et la période de référence 1980-2014. 
+#### Future trend
+The following command creates several figures that compare prediction and GCM (or RCM) future trend.
 ```bash
-python3 bin/evaluation/evaluate_future_trend.py --exp exp3 --ssp ssp585
+python3 bin/evaluation/evaluate_future_trend.py --exp exp5 --ssp ssp585 --simu gcm
 ```
 
 ---
