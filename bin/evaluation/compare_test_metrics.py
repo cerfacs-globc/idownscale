@@ -1,3 +1,11 @@
+"""
+Plot bar and boxplots of test metrics (against target) for different data soures
+The script is personalized my different purposes
+
+date: 16/07/2025
+author: Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -7,7 +15,13 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from iriscc.settings import METRICS_DIR, DATES_TEST, GRAPHS_DIR, COLORS, DATES_BC_TEST_HIST, CONFIG
+from iriscc.datautils import return_unit
+from iriscc.settings import (METRICS_DIR, 
+                             DATES_TEST, 
+                             GRAPHS_DIR, 
+                             COLORS, 
+                             DATES_BC_TEST_HIST, 
+                             CONFIG)
 
 
 parser = argparse.ArgumentParser(description="Compare test metrics")
@@ -19,6 +33,7 @@ parser.add_argument('--simu', type=str, help='Simulation type (e.g., gcm, rcm)',
 args = parser.parse_args()
 
 target = CONFIG[args.exp]['target']
+unit = return_unit(CONFIG[args.exp]['target_vars'][0])
 
 list_data_mean = []
 list_data = []
@@ -46,7 +61,7 @@ elif args.pp == 'pp': # Phase 2 : Perfect Prognosis, Comparison with low resolut
     dates = DATES_BC_TEST_HIST
     term = f'_{args.simu}'
 
-elif args.pp == 'bc': # Phase 2 : Bias Correction or not, does it reduce bias ? 
+elif args.pp == 'bc': # Phase 2 : corrected and not corrected data scores, does it improve perforance ? 
     test_names = ['UNet', 'UNet bc', 'SwinUNETR', 'SwinUNETR bc']
     metrics = ['rmse_temporal', 'bias_spatial', 'corr_spatial', 'variability']
     palette = ['orangered', 'orangered', 'hotpink', 'hotpink']
@@ -95,7 +110,7 @@ for key, df in metrics_dict_mean.items():
     plt.title(f'{key} ({period}) {target}')
     plt.legend(loc='lower right')
     if key.startswith(('rmse', 'bias')):
-        plt.ylabel('K')
+        plt.ylabel(unit)
     plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/{key}_barplot_{args.scale}_{target}{term}.png") 
 
 
@@ -109,8 +124,6 @@ for i, (key, df) in enumerate(metrics_dict.items()):
     axes[i].tick_params(axis='both', labelsize=9)
     #axes[i].set_ylim(lim[i,0], lim[i,1])
     if key.startswith(('rmse', 'bias')):
-        axes[i].set_ylabel("K")
-        
-
+        axes[i].set_ylabel(unit)
 plt.tight_layout(h_pad=2, w_pad=2)
 plt.savefig(f"{GRAPHS_DIR}/metrics/{args.exp}/{args.exp}_boxplot_{args.scale}_{term}.png") 

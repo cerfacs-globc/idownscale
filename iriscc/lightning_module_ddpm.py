@@ -1,3 +1,10 @@
+"""
+Lightning module for the IRISCC CDDPM model.
+
+date : 16/07/2025
+Rachid Elmontassir script modified by Zoé Garcia
+"""
+
 import sys
 sys.path.append('.')
 

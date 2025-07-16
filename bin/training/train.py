@@ -1,3 +1,10 @@
+"""
+Train the model using PyTorch Lightning
+
+date: 16/07/2025
+author: Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -5,7 +12,6 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
-
 
 from iriscc.dataloaders import get_dataloaders
 from iriscc.hparams import IRISCCHyperParameters
@@ -31,7 +37,7 @@ checkpoint_callback = ModelCheckpoint(
     save_top_k=1,
     mode='min'
 )
-torch.set_float32_matmul_precision('high')
+torch.set_float32_matmul_precision('high') # For hybrid partition
 
 trainer = pl.Trainer(max_epochs=hparams.max_epoch, 
                      default_root_dir=hparams.runs_dir,

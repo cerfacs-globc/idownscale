@@ -1,16 +1,18 @@
-''' Useful plot functions '''
+''' 
+Useful plot functions
+
+date : 16/07/2025
+author : Zoé GARCIA
+'''
 
 import sys
 sys.path.append('.')
 
 import matplotlib.pyplot as plt
 import numpy as np
-import xarray as xr
 import pandas as pd
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-
-from iriscc.settings import (CONFIG)
 
 def plot_map_image(var,
                     var_desc: str = None,
@@ -215,16 +217,3 @@ def plot_histogram(data, ax, labels, colors, xlabel):
     ax.set_xlabel(xlabel)
     ax.legend()
 
-if __name__=='__main__':
-
-    ds = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/prediction/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101_21001231_unet_gcm_bc.nc')
-    tas = ds.tas.values[-1,:,:]
-    fig, ax = plot_map_contour(tas,
-                   domain = CONFIG['safran']['domain']['france_xy'],
-                    title = f'safran {ds.time.values[-1]}',
-                    fig_projection=CONFIG['safran']['fig_projection']['france_xy'],
-                    data_projection=CONFIG['safran']['data_projection'],
-                    cmap='OrRd',
-                    var_desc='T (K)')
-    plt.savefig('/gpfs-calypso/scratch/globc/garcia/graph/test1.png')
-    

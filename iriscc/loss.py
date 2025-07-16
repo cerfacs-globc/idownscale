@@ -1,3 +1,10 @@
+"""
+Loss functions for training models.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -39,9 +46,20 @@ class MaskedMSELoss(nn.Module):
 
 
 class MaskedGammaMAELoss(nn.Module):
-    '''
+    """
+    MaskedGammaMAELoss is a PyTorch loss function that computes the masked mean absolute error 
+    between predicted values and target values, incorporating a Gamma distribution for modeling.
+    Attributes:
+        ignore_value (float): The value to ignore in the loss computation.
+        alpha (torch.Tensor): Concentration parameter for the Gamma distribution.
+        beta (torch.Tensor): Rate parameter for the Gamma distribution.
+    Methods:
+        forward(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            Computes the loss between the predicted values (y_hat) and the target values (y).
+            Applies a mask to ignore specified values during loss calculation.
+    
     Following Antoine Doury's code : https://github.com/antoinedoury/RCM-Emulator 
-    '''
+    """
     def __init__(self, ignore_value:float, alpha:torch.Tensor, beta:torch.Tensor):
         super(MaskedGammaMAELoss, self).__init__()
         alpha[torch.isnan(alpha)] = 1.0  # Replace NaN with 1.0 or random value to match Gamma distribution requirements
@@ -64,7 +82,6 @@ class MaskedGammaMAELoss(nn.Module):
         return loss
 
 if __name__ == '__main__':
-    # Example usage
     alpha = torch.nan * torch.ones(64,64)
     beta = torch.nan * torch.ones(64,64)
     loss_fn = MaskedGammaMAELoss(ignore_value=-1.0, alpha=alpha, beta=beta)

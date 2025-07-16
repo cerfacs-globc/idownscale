@@ -1,9 +1,16 @@
+"""
+Compute statistics for a dataset and plot histograms for the inpus and target channels.
+Save the statistics in a JSON file and the histograms as PNG files.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
 import numpy as np
 import glob
-from pathlib import Path
 import json
 import argparse
 import matplotlib.pyplot as plt
@@ -11,7 +18,12 @@ import matplotlib.pyplot as plt
 from iriscc.settings import CONFIG
 from typing import Tuple
 
-def update_statistics(sum: float, square_sum: float, n_total: int, min: float, max: float, x: np.ndarray) -> Tuple[float, float, int, float, float]:
+def update_statistics(sum: float, 
+                      square_sum: float, 
+                      n_total: int, 
+                      min: float, 
+                      max: float, 
+                      x: np.ndarray) -> Tuple[float, float, int, float, float]:
     ''' 
     Compute and update sample statistics including sum, squared sum, total count, 
     minimum, and maximum values for a given array, ignoring NaN values.
@@ -27,18 +39,25 @@ def update_statistics(sum: float, square_sum: float, n_total: int, min: float, m
     return sum, square_sum, n_total, min, max
 
 
-def plot_histogram(data, min, max, mean, std, variable:str, title:str, save_dir:str):
+def plot_histogram(data, 
+                   min:float, 
+                   max:float, 
+                   mean:float, 
+                   std:float, 
+                   var:str, 
+                   title:str, 
+                   save_dir:str):
+    
     hist, edges = np.histogram(data, bins=50, range=(min, max), density=True)
     centers = 0.5 * (edges[:-1] + edges[1:])
 
     plt.figure(figsize=(10, 6))
     plt.bar(centers, hist, align='center', width=np.diff(edges), alpha=0.5, color='blue', label='Density')
-    print(mean, std)
     plt.axvline(mean, color='red', linestyle='--', linewidth=2, label=f'$\mu$ = {mean:.2f}')
     plt.axvline(mean - std, color='green', linestyle='--', linewidth=2, label=f' $\sigma$ = {std:.2f}')
     plt.axvline(mean + std, color='green', linestyle='--', linewidth=2)
 
-    plt.xlabel(variable, fontsize=16)
+    plt.xlabel(var, fontsize=16)
     plt.ylabel('Density', fontsize=16)
     plt.title(title, fontsize=18)
     plt.xticks(fontsize=14)
@@ -61,6 +80,7 @@ if __name__=='__main__':
     square_sum = np.zeros(ch)
     n_total = np.zeros(ch)
 
+    # Other way to split the dataset
     #nb = len(dataset)
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
@@ -115,9 +135,7 @@ if __name__=='__main__':
                                                                         max[i],
                                                                         x[i])
                 
-            if max[-1] > 350:
-                print(max[-1])
-        
+
 
         # Validation and test data histograms 
         elif nb in range(train_end, val_end):
@@ -129,7 +147,6 @@ if __name__=='__main__':
         
     mean = sum / n_total
     std = np.sqrt((square_sum / n_total) - (mean**2))
-    print(mean, std, min, max)
 
     stats = {}
     for i, chanel in enumerate(channels):
@@ -143,7 +160,6 @@ if __name__=='__main__':
 
     for name, dict in {'x':x_data, 'y':y_data}.items():
         for type, data in dict.items():
-            # Only Temperature values are kept
             data = np.concatenate(data)
             plot_histogram(data, 
                         min[1:].min(), 

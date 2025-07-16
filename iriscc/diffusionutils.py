@@ -1,3 +1,11 @@
+"""
+Useful functions for diffusion models.
+
+date : 16/07/2025
+Rachid Elmontassir script modified by Zoé Garcia
+"""
+
+
 import sys
 sys.path.append('.')
 
@@ -12,6 +20,7 @@ from iriscc.models.cddpm import CDDPM
 from iriscc.transforms import UnPad, MinMaxNormalisation, FillMissingValue, LandSeaMask, Pad
 from iriscc.dataloaders import get_dataloaders
 from iriscc.plotutils import plot_test
+from iriscc.settings import GRAPHS_DIR
 
 def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
     """
@@ -67,7 +76,7 @@ def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
 
         # Adjust layout and show the figure
         plt.tight_layout()
-        plt.savefig('/gpfs-calypso/scratch/globc/garcia/graph/test3.png')
+        plt.savefig(GRAPHS_DIR/'test.png')
         # Break after the first batch to avoid processing the entire dataset
         break
 
@@ -159,4 +168,6 @@ if __name__ == '__main__':
     start_t = 8
     x = cddpm.sampling(start_t, conditioning_image, eta = None)
     print(x.shape)
-    plot_test(x[0,0,...].detach().numpy(), 'generate x from noise', '/gpfs-calypso/scratch/globc/garcia/graph/test2.png')
+    plot_test(x[0,0,...].detach().numpy(), 
+              'generate x from noise', 
+              GRAPHS_DIR/'test2.png')

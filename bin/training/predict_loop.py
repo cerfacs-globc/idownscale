@@ -1,3 +1,10 @@
+"""
+Predict and save results for a full period by loading a trained model.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -10,19 +17,12 @@ import numpy as np
 from torchvision.transforms import v2
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.plotutils import plot_test
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, DomainCrop
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import (PREDICTION_DIR, 
                              RUNS_DIR, 
                              DATASET_BC_DIR, 
-                             DATES,
-                             CONFIG,
-                             GRAPHS_DIR)
-from iriscc.datautils import (standardize_longitudes, 
-                              remove_countries, 
-                              standardize_dims_and_coords, 
-                              crop_domain_from_array,
-                              crop_domain_from_ds,
+                             CONFIG,)
+from iriscc.datautils import (remove_countries,
                               Data)
 
 def get_target_format(exp:str, dates):

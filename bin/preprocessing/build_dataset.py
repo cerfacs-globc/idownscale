@@ -1,4 +1,10 @@
-''' Experience 2 : ERA5 and topography as input and SAFRAN as target'''
+''' 
+Build dataset for training purpuse in Phase 1.
+This script processes input data (ERA5) and target data (ex : SAFRAN or EOBS) for a given experiment.
+
+date : 16/07/2025
+author : Zoé GARCIA
+'''
 
 import sys
 sys.path.append('.')
@@ -6,33 +12,46 @@ sys.path.append('.')
 import xarray as xr
 import numpy as np
 import argparse
-import glob
-import pandas as pd
+import datetime
+from typing import Tuple
 
 from iriscc.plotutils import plot_test
 from iriscc.datautils import (standardize_dims_and_coords, 
-                              standardize_longitudes, 
                               interpolation_target_grid, 
                               reformat_as_target,
                               crop_domain_from_ds,
-                              apply_landseamask,
-                              remove_countries,
                               Data)
 from iriscc.settings import (DATES,
-                             ERA5_DIR,
                              CONFIG,
-                             GCM_RAW_DIR,
                              GRAPHS_DIR,
-                             SAFRAN_REFORMAT_DIR,
-                             EOBS_RAW_DIR,
-                             RCM_RAW_DIR,
                              DATASET_DIR)
-
-
 
    
 class DatasetBuilder:
-    def __init__(self, exp):
+    """
+    DatasetBuilder is a class responsible for building datasets for a given experiment.
+    It processes input and target data based on specified configurations and dates.
+    Attributes:
+        exp (str): The experiment identifier.
+        dataset (str): The dataset path for the experiment.
+        domain (str): The domain for the dataset.
+        target (str): The target type (e.g., 'safran', 'eobs').
+        target_vars (list): List of target variable names.
+        input_vars (list): List of input variable names.
+        target_file (str): Path to the target file.
+        orog_file (str): Path to the orography file.
+        ssp (str): Shared socioeconomic pathway identifier.
+    Methods:
+        process_date(date: datetime.date, plot: bool = False, baseline: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+            Processes the data for a specific date, optionally plotting or using baseline data.
+        input_data(date: datetime.date) -> np.ndarray:
+            Retrieves and formats input data for the specified date [C,H,W].
+        target_data(date: datetime.date) -> np.ndarray:
+            Retrieves and formats target data for the specified date [C,H,W].
+        baseline_data(date: datetime.date) -> np.ndarray:
+            Retrieves and formats baseline input data for the specified date [C,H,W]
+    """
+    def __init__(self, exp:str):
         self.exp = exp
         self.dataset = CONFIG[exp]['dataset']
         self.domain = CONFIG[exp]['domain']
@@ -43,7 +62,10 @@ class DatasetBuilder:
         self.orog_file = CONFIG[exp]['orog_file']
         self.ssp = CONFIG[exp]['ssp']
     
-    def process_date(self, date, plot=False, baseline=False):
+    def process_date(self, 
+                     date: datetime.date, 
+                     plot: bool = False, 
+                     baseline: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         if baseline:
             y_hat = self.baseline_data(date)
             y =self.target_data(date)
@@ -63,7 +85,8 @@ class DatasetBuilder:
             np.savez(dataset / f'sample_{date_str}.npz', **sample)
         return x, y
 
-    def input_data(self, date):
+    def input_data(self, 
+                   date: datetime.date) -> np.ndarray:
         x = []
         get_data = Data(self.domain)
 
@@ -87,7 +110,8 @@ class DatasetBuilder:
         x = np.stack(x, axis=0)
         return x
 
-    def target_data(self, date):
+    def target_data(self, 
+                    date: datetime.date) -> np.ndarray:
         get_data = Data(self.domain)
         y = []
         if self.target == 'safran':
@@ -103,8 +127,8 @@ class DatasetBuilder:
         y = np.stack(y, axis=0)
         return y
     
-    def baseline_data(self, date):
-        ''' Returns inputs data as an array of shape (C, H, W) '''
+    def baseline_data(self, 
+                      date: datetime.date) -> np.ndarray:
         get_data = Data(self.domain)
         y_hat = []
         for var in self.input_vars:
@@ -136,7 +160,9 @@ if __name__=='__main__':
 
     dataset_builder = DatasetBuilder(exp)
     for i, date in enumerate(DATES):
-        x, y = dataset_builder.process_date(date, plot=args.plot, baseline=args.baseline)
+        x, y = dataset_builder.process_date(date, 
+                                            plot=args.plot, 
+                                            baseline=args.baseline)
 
         
 

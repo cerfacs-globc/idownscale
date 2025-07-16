@@ -1,4 +1,7 @@
-''' U-NET FOR BRAIN MRI '''
+''' 
+U-NET FOR BRAIN MRI 
+Adapted to diffusion purposes adding time embeddings by Zoé Garcia
+'''
 
 import sys
 sys.path.append('.')

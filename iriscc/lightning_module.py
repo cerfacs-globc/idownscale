@@ -1,3 +1,11 @@
+"""
+Lightning module for IRISCC project.
+
+date : 16/07/2025
+Inspired by Météo-France segmentation Lightning Module https://github.com/meteofrance/mfai/tree/main
+Modified by Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 

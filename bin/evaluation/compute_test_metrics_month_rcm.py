@@ -1,5 +1,8 @@
 """ 
 Evaluate input data x against high resolution rcm data y for rcm prediction data
+
+date = 16/07/2025
+author = Zoé GARCIA
 """
 
 import sys
@@ -12,35 +15,25 @@ import xarray as xr
 import torch
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DomainCrop
-from iriscc.settings import (DATES_BC_TEST_HIST,
-                             CONFIG, 
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.settings import (CONFIG, 
                              GRAPHS_DIR, 
-                             TARGET_SIZE, 
                              RUNS_DIR, 
                              METRICS_DIR, 
-                             DATASET_BC_DIR,
-                             DATASET_EXP3_30Y_DIR,
-                             DATASET_EXP4_30Y_DIR,
-                             ALADIN_PROJ_PYPROJ,
                              RCM_RAW_DIR)
 from iriscc.transforms import UnPad
-from iriscc.datautils import Data, interpolation_target_grid
-from iriscc.plotutils import plot_test
-
+from iriscc.datautils import Data
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
-    parser.add_argument('--start-date', type=str, help='Start date (e.g., 2023-01-01)', default='2000-01-01')
-    parser.add_argument('--end-date', type=str, help='End date (e.g., 2023-01-01)', default='2014-12-31')
+    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
+    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='(e.g., gcm or gcm_bc)', default=None)
@@ -103,9 +96,6 @@ if __name__ == "__main__":
     df_dates['month'] = df_dates['date'].dt.month
     df_dates['day'] = df_dates['date'].dt.day
 
-    #boucle sur le duo mois années 
-    ## boucle interne sur les jours du mois en faisant la moyenne
-
     for i, ((year, month), group) in enumerate(df_dates.groupby(['year', 'month'])):
         if month in [6,7,8]:
             i_summer.append(i)
@@ -145,7 +135,6 @@ if __name__ == "__main__":
 
         y = np.mean(np.stack(daily_y), axis=0)
         y_hat = np.mean(np.stack(daily_y_hat), axis=0)
-
 
         h, w = y.shape
 

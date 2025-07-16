@@ -1,13 +1,16 @@
-''' Data correction, evaluation and saving of the bias corrected dataset using IBICUS '''
+''' 
+Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy
+
+date : 16/07/2025
+author : Zoé GARCIA
+'''
 
 import sys
 sys.path.append('.')
 
 import xarray as xr
 import numpy as np
-import glob
 import argparse
-from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from typing import Optional, List, Tuple
@@ -15,15 +18,9 @@ from ibicus.evaluate import marginal, metrics, trend
 from ibicus.debias import CDFt
 
 
-from iriscc.datautils import (remove_countries, 
-                              reformat_as_target, 
-                              standardize_dims_and_coords, 
-                              crop_domain_from_ds,
-                              add_coordinates_file,
-                              Data,
-                              standardize_longitudes)
-from iriscc.settings import (SAFRAN_REFORMAT_DIR, 
-                             GRAPHS_DIR,
+from iriscc.datautils import (reformat_as_target, 
+                              Data)
+from iriscc.settings import (GRAPHS_DIR,
                              CONFIG,
                              DATES_BC_TEST_FUTURE,
                              DATES_BC_TEST_HIST,
@@ -165,7 +162,7 @@ if __name__=='__main__':
     dataset = CONFIG[exp]['dataset']
     
 
-    get_data_bc = Data([-12.5, 27.5, 31., 71.])
+    get_data_bc = Data([-12.5, 27.5, 31., 71.]) # Europeen domain
     gcm_ds = get_data_bc.get_gcm_dataset(var, None)
     lon, lat = gcm_ds.lon.values, gcm_ds.lat.values
     get_data = Data(domain=domain)
@@ -299,8 +296,8 @@ if __name__=='__main__':
 
     plt.figure(figsize=(8, 4))
     plt.plot(df_era5_year.index, np.where(df_era5_year["labels"]==1., df_era5_year["values"], None), color="red", label='ERA5')
-    plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==1., df_simu_year["values"], None), color="blue", label='CNRM-CM6-1')
-    plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==1., df_simu_bc_year["values"], None), color="green", label='CNRM-CM6-1 bc')
+    plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==1., df_simu_year["values"], None), color="blue", label=simu)
+    plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==1., df_simu_bc_year["values"], None), color="green", label=simu)
     plt.plot(df_era5_year.index, np.where(df_era5_year["labels"]==2., df_era5_year["values"], None), color="red")
     plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==2., df_simu_year["values"], None), color="blue")
     plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==2., df_simu_bc_year["values"], None), color="green")
@@ -355,15 +352,14 @@ if __name__=='__main__':
         ds_test_hist_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc')
         ds_test_future_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc')
     elif simu == 'rcm':
-        #ds_train_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_19800101-19991231_150km_bc.nc')
-        #ds_test_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_20000101-20141231_150km_bc.nc')
+        ds_train_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_19800101-19991231_150km_bc.nc')
+        ds_test_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_20000101-20141231_150km_bc.nc')
         ds_test_future_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc')
-    '''
+    
     for date in DATES_BC_TRAIN_HIST:
         print(date)
         x = []
 
-        # Commune variables
         ds = xr.open_dataset(orog_file)
         x.append(ds['elevation'].values)
         ds_train_hist_bc_i = ds_train_hist_bc.sel(time=ds_train_hist_bc.time.dt.date == date.date())
@@ -397,7 +393,6 @@ if __name__=='__main__':
         print(date)
         x = []
 
-        # Commune variables
         ds = xr.open_dataset(orog_file)
         x.append(ds['elevation'].values)
 
@@ -425,13 +420,12 @@ if __name__=='__main__':
         date_str = date.date().strftime('%Y%m%d')
         np.savez(DATASET_BC_DIR/f'dataset_{exp}_test_{simu}_bc/sample_{date_str}.npz', **sample)
 
-    '''
+    
 
     for date in DATES_BC_TEST_FUTURE:
         print(date)
         x = []
 
-        # Commune variables
         ds = xr.open_dataset(orog_file)
         x.append(ds['elevation'].values)
 

@@ -1,9 +1,14 @@
+"""
+Experimental settings for all configurations.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 from pathlib import Path
 import pandas as pd
 import cartopy.crs as ccrs
 import pyproj
-
-
 
 RAW_DIR = Path('/scratch/globc/garcia/rawdata/')
 SAFRAN_DIR = RAW_DIR / 'safran'
@@ -25,7 +30,6 @@ LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
 
-
 DATASET_DIR = Path('/scratch/globc/garcia/datasets/')
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
@@ -43,23 +47,17 @@ DATASET_EXP5_30Y_DIR = DATASET_DIR / 'dataset_exp5_30y'
 DATASET_EXP6_30Y_DIR = DATASET_DIR / 'dataset_exp6_30y'
 DATASET_EXP6_BASELINE_DIR = DATASET_DIR / 'dataset_exp6_baseline'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
-DATASET_TEST_6MB_ISAFRAN = DATASET_DIR / 'dataset_test_6mb_iSAFRAN'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
-DATASET_BC_GCM_ERA5 = DATASET_BC_DIR / 'dataset_bc_era5_gcm.npz' # Historical data for bias correction
-
 
 RUNS_DIR = Path('/scratch/globc/garcia/runs/')
 GRAPHS_DIR = Path('/scratch/globc/garcia/graph/')
 METRICS_DIR = Path('/scratch/globc/garcia/metrics/')
 PREDICTION_DIR = Path('/scratch/globc/garcia/prediction/')
 
-# Plot standard
-## FRANCE DOMAIN 
-
 CONFIG = {
     'exp3':
         {'target':'safran',
-        'domain': [-6., 12., 40., 52.],  # safran dataset original crop + padding --> 160*160 crop
+        'domain': [-6., 12., 40., 52.],
         'domain_xy' : [60000, 1196000, 1617000, 2681000],
         'data_projection' : ccrs.LambertConformal(central_longitude=2.337229,
                                  central_latitude=46.8,
@@ -70,7 +68,7 @@ CONFIG = {
         'pyproj_projection' : pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000"),
         'shape' : (134,143),
         'target_file' : OROG_SAFRAN_FILE,
-        'orog_file' : OROG_SAFRAN_FILE, # fichier et coordonnées cibles
+        'orog_file' : OROG_SAFRAN_FILE, 
         'dataset' : DATASET_EXP3_30Y_DIR,
         'target_vars': ['tas'],
         'input_vars': ['elevation', 'tas'],
@@ -142,24 +140,14 @@ COLORS = {'SAFRAN 8km': 'purple',
 
 ALADIN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lat_1=49.500000 +lat_0=49.500000 +lon_0=10.500000 +k_0=1.0 +x_0=2925000.000000 +y_0=2925000.000000 +R=6371229.000000", preserve_units=True)
 SAFRAN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
-SAFRAN_PROJ = ccrs.LambertConformal(central_longitude=2.337229,
-                                 central_latitude=46.8,
-                                 false_easting=600000,
-                                 false_northing=2200000,
-                                 standard_parallels=(45.89892, 47.69601))
 
 
-# Experience settings
-#DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D') # exp3 exp4
-DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data
+# Phase 1 settings
+#DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D')
+DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
 
-GCM = ['CNRM-CM6-1']
-
-# Test settings
-#DATES_TEST = pd.date_range(start='2012-10-18', end='2014-12-31', freq='D') #exp1 exp2
-DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') # exp3
-
-
+# Phase 2 settings
+DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
 DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq='D')

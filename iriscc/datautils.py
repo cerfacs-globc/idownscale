@@ -1,3 +1,10 @@
+"""
+Useful functions for data processing and reformatting.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -9,11 +16,9 @@ import glob
 from datetime import datetime
 import pandas as pd
 
-from iriscc.plotutils import plot_test
 from iriscc.settings import (TARGET_SAFRAN_FILE,
                              SAFRAN_REFORMAT_DIR,
                              EOBS_RAW_DIR,
-                             TARGET_EOBS_FRANCE_FILE,
                              GCM_RAW_DIR,
                              COUNTRIES_MASK,
                              LANDSEAMASK_GCM,
@@ -21,7 +26,6 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
                              LANDSEAMASK_EOBS,
                              SAFRAN_PROJ_PYPROJ,
                              CONFIG,
-                             GRAPHS_DIR,
                              RCM_RAW_DIR,
                              ERA5_DIR)
 
@@ -356,14 +360,6 @@ def datetime_period_to_string(dates):
    period = f'{startdate}-{enddate}'
    return period
 
-
-def add_coordinates_file(ds, domain, save_dir):
-    lon = crop_domain_from_ds(ds, domain).lon.values
-    lat = crop_domain_from_ds(ds, domain).lat.values
-    coordinates = {'lon': lon,
-                'lat': lat}
-    np.savez(save_dir/f'coordinates.npz', **coordinates)
-
 class Data(object):
    def __init__(self, domain=None):
       self.domain = domain
@@ -423,13 +419,10 @@ class Data(object):
          ds = ds.assign_coords(x = (['x'], xref))
          ds = ds.assign_coords(y = (['y'], yref))
 
-      x = ds['x'].values * 1000
+      x = ds['x'].values * 1000 # in meter to match Lambert Conformal projection
       y = ds['y'].values * 1000
       ds['x'] = x
       ds['y'] = y
-      # For xESMF format :
-      #ds = ds.assign_coords(lon_b = (['y_b', 'x_b'], ds['bounds_lon'].values[:,:,0]))
-      #ds = ds.assign_coords(lat_b = (['y_b', 'x_b'], ds['bounds_lat'].values[:,:,0]))
       ds[var].values = self.clean_data(ds[var].values, var, data_type='rcm')
       return ds
    
@@ -462,3 +455,30 @@ class Data(object):
       elif target == 'eobs':
          ds = self.get_eobs_dataset(var, date)
       return ds
+   
+
+def return_unit(var:str):
+   """
+   Returns the unit of measurement for a given variable.
+
+   Parameters:
+      var (str): The variable name for which the unit is requested. 
+               Accepted values are 'tas', 'pr', 'sfcWind', and 'psl'.
+
+   Returns:
+      str: The unit of measurement corresponding to the variable.
+
+   Raises:
+      ValueError: If the variable name is not recognized.
+   """
+   match var:
+      case 'tas':
+         return 'K'
+      case 'pr':
+         return 'mm/day'
+      case 'sfcWind':
+         return 'm/s'
+      case 'psl':
+         return 'Pa'
+      case _:
+         raise ValueError(f"Unknown variable: {var}")

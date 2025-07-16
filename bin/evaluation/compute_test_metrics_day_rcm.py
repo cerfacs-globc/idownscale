@@ -1,5 +1,8 @@
 """ 
 Evaluate input data x against high resolution rcm data y for rcm prediction data
+
+date = 16/07/2025
+author = Zoé GARCIA
 """
 
 import sys
@@ -12,35 +15,22 @@ import xarray as xr
 import torch
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DomainCrop
-from iriscc.settings import (DATES_BC_TEST_HIST,
-                             CONFIG, 
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.settings import (CONFIG, 
                              GRAPHS_DIR, 
-                             TARGET_SIZE, 
                              RUNS_DIR, 
                              METRICS_DIR, 
-                             DATASET_BC_DIR,
-                             DATASET_EXP3_30Y_DIR,
-                             DATASET_EXP4_30Y_DIR,
-                             ALADIN_PROJ_PYPROJ,
                              RCM_RAW_DIR)
 from iriscc.transforms import UnPad
-from iriscc.datautils import Data, interpolation_target_grid
-from iriscc.plotutils import plot_test
-
-
-
-
+from iriscc.datautils import Data
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
-    parser.add_argument('--start-date', type=str, help='Start date (e.g., 2023-01-01)', default='2000-01-01')
-    parser.add_argument('--end-date', type=str, help='End date (e.g., 2023-01-01)', default='2014-12-31')
+    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
+    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='(e.g., gcm or gcm_bc)', default=None)
@@ -60,7 +50,6 @@ if __name__ == "__main__":
     os.makedirs(graph_dir, exist_ok=True)
     os.makedirs(metric_dir, exist_ok=True)
 
-
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
     model.eval()
     hparams = model.hparams['hparams']
@@ -76,7 +65,6 @@ if __name__ == "__main__":
                 ])
     device = 'cpu'
     sample_dir = hparams['sample_dir']
-
 
     rmse = MeanSquaredError(squared=False).to(device)
     corr = PearsonCorrCoef().to(device)
@@ -106,8 +94,6 @@ if __name__ == "__main__":
         sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
         data = dict(np.load(sample), allow_pickle=True)
         x = data['x']
-
-        # Get high resoluion rcm data interpolated to target grid
         y = []
         for var in CONFIG[exp]['target_vars']:
             file = glob.glob(str(RCM_RAW_DIR/f'ALADIN_reformat/{var}*nc'))[0]

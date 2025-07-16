@@ -1,3 +1,10 @@
+"""
+Predict and plot results from a trained model.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -11,7 +18,7 @@ import matplotlib.pyplot as plt
 from iriscc.diffusionutils import generate
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, TARGET_SIZE, RUNS_DIR, DATASET_EXP1_30Y_DIR
+from iriscc.settings import GRAPHS_DIR, RUNS_DIR, CONFIG, DATASET_BC_DIR
 
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
@@ -25,7 +32,7 @@ def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
     data = [x, y, y_hat, diff_y]
     subtitles = ["input", "target", "prediction", "prediction - target"]
     cmaps = ["OrRd", "OrRd", "OrRd", "RdBu"]
-    levels_list = [levels_y, levels_y, levels_y, levels_diff]
+    #levels_list = [levels_y, levels_y, levels_y, levels_diff]
 
     for i, ax in enumerate(axes.flat):
         if pixel is True:
@@ -44,7 +51,6 @@ def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
         else:
             cbar.set_label(label='tas (K)', size=12)
 
-    # Titre général
     fig.suptitle(title, fontsize=20)
     fig.tight_layout()
     plt.savefig(save_dir)
@@ -55,7 +61,7 @@ if __name__=='__main__':
     parser.add_argument('--date', type=str, help='Date of the sample to predict (format: YYYYMMDD)')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
-    parser.add_argument('--gcm-test', type=str, help='GCM test (yes or no)')
+    parser.add_argument('--simu-test', type=str, help='gcm, gcm_bc, rcm, rcm_bc', default=None)
     args = parser.parse_args()
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
@@ -73,10 +79,10 @@ if __name__=='__main__':
                 ])
     
     sample_dir = hparams['sample_dir']
-    if args.gcm_test == 'yes':
-        test_name = f'{args.test_name}_gcm'
-        sample_dir = DATASET_EXP1_30Y_DIR
-    else:
+    if args.simu_test is not None:
+        test_name = f'{args.test_name}_{args.simu_test}'
+        sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}'
+    else : 
         test_name = args.test_name
     device = 'cpu'
 
@@ -96,12 +102,10 @@ if __name__=='__main__':
                                    start_t = None, 
                                    clamp=None, 
                                    device='cpu')
-    print(len(intermediate_images))
-    print(intermediate_images[-1].shape)
     y_hat = intermediate_images[-1][0,...]
     
 
-    unpad_func = UnPad(TARGET_SIZE)
+    unpad_func = UnPad(list(CONFIG[args.exp]['shape']))
     y_hat = unpad_func(torch.Tensor(y_hat))[0].numpy()
     y_hat[condition] = np.nan
     conditioning_image_init = conditioning_image_init[1]
@@ -115,11 +119,3 @@ if __name__=='__main__':
                         f'{args.date} {test_name}', 
                         GRAPHS_DIR/f'pred/{args.date}_subplot_{args.exp}_{test_name}.png')
     
-    
-    compare_4_subplots(conditioning_image_init[10:40,50:80],
-                        y[0][10:40,50:80], 
-                        y_hat[10:40,50:80], 
-                        True,
-                        f'{args.date} {test_name}', 
-                        GRAPHS_DIR/f'pred/{args.date}_subplot_{args.exp}_{test_name}_local.png')
-                        

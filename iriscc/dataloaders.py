@@ -1,3 +1,11 @@
+"""
+Dataloader for the IRISCC dataset.
+This module defines a custom PyTorch Dataset for loading and transforming the IRISCC dataset.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -6,14 +14,11 @@ from torchvision.transforms import v2
 import numpy as np
 import torch
 import glob
-from pathlib import Path
 from typing import Optional
 from torch import Tensor
 
-
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DeMinMaxNormalisation, DomainCrop
-from iriscc.plotutils import plot_test
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
 
 class IRISCC(Dataset):
     def __init__(self,
@@ -112,9 +117,5 @@ if __name__=='__main__':
         y = batch[1][0,:,:,:]
         y[y == 0] = torch.nan
         y[y == 0] = torch.nan
-        denorm = DeMinMaxNormalisation(Path('/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp3_30y'), True)
-        _, y = denorm((x,y))
-        plot_test(x[1].numpy(), 'x', '/gpfs-calypso/scratch/globc/garcia/graph/test.png')
-        plot_test(y[0].numpy(), 'y', '/gpfs-calypso/scratch/globc/garcia/graph/test1.png')
         print(x.shape, y.shape)
         break

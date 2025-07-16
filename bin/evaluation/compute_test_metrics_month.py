@@ -1,5 +1,8 @@
 """ 
 Evaluate input data x against target data y for raw, prediction and baseline data
+
+date = 16/07/2025
+author = Zoé GARCIA
 """
 
 import sys
@@ -20,7 +23,7 @@ from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, DomainCrop, UnPad
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import (CONFIG, 
                              GRAPHS_DIR, 
                              RUNS_DIR, 
@@ -29,7 +32,9 @@ from iriscc.settings import (CONFIG,
                              DATASET_DIR)
 
 
-def get_config(exp: str, test_name: str, simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
+def get_config(exp: str, 
+               test_name: str, 
+               simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
     """
     Configure the model, transforms, and sample directory based on the experiment and test parameters.
     Args:
@@ -121,8 +126,8 @@ def preprocess(year:int,
 if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
-    parser.add_argument('--start-date', type=str, help='Start date (e.g., 2023-01-01)', default='2000-01-01')
-    parser.add_argument('--end-date', type=str, help='End date (e.g., 2023-01-01)', default='2014-12-31')
+    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
+    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='if predict (e.g., gcm or gcm_bc, rcm, rcm_bc)', default=None)
@@ -168,9 +173,6 @@ if __name__=='__main__':
     df_dates['year'] = df_dates['date'].dt.year
     df_dates['month'] = df_dates['date'].dt.month
     df_dates['day'] = df_dates['date'].dt.day
-
-    #boucle sur le duo mois années 
-    ## boucle interne sur les jours du mois en faisant la moyenne
 
     for i, ((year, month), group) in enumerate(df_dates.groupby(['year', 'month'])):
         if month in [6,7,8]:

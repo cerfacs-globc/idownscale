@@ -1,3 +1,10 @@
+"""
+Hyperparameters for the IRISCC project.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 

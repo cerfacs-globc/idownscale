@@ -1,3 +1,10 @@
+"""
+Plot the future trend of temperature changes using netcdf predictions and raw data
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -14,15 +21,15 @@ import cartopy.feature as cfeature
 
 
 from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, COLORS, RCM_RAW_DIR
-from iriscc.plotutils import plot_test, plot_histogram
-from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, reformat_as_target
+from iriscc.plotutils import plot_histogram
+from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, return_unit
 
 def compute_variability(data):
     var = [data[i,:,:] - data[i-1,:,:] for i in range(data.shape[0])]
     var_temporal = np.nanmean(np.abs(var), axis= (1,2))
     return var_temporal
 
-def plot_variability(fig, axes, df_var_temporal, periods, labels, colors):
+def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     sns.boxplot(x='period', y='Variability', hue='label', data=df_var_temporal, ax=axes[0], palette=colors, gap=0.1)
     axes[0].set_title("Temporal variability")
     axes[0].set_xlabel(None)
@@ -48,7 +55,7 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors):
                     color=colors[i],
                     linewidth=2.5)
     axes[1].set_title("Variability annual mean")
-    axes[1].set_ylabel("Variability (K)")
+    axes[1].set_ylabel(f"Variability {unit}")
     return fig, axes
 
 
@@ -89,6 +96,7 @@ if __name__=='__main__':
     colors = [COLORS[i] for i in labels]
     colors_map = ['white', 'yellow', 'orange', 'red', 'black']
     custom_cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', colors_map, N=12)
+    unit = return_unit(CONFIG[exp]['target_vars'][0])
 
     var_spatial = []
     var_temporal = []
@@ -108,12 +116,12 @@ if __name__=='__main__':
         figsize=(15,5)
     )
 
-    ## Réference 1980-2010
+    ## Reference 1980-2010
     data_ref = xr.open_mfdataset(glob.glob(str(dir/f'tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
-    tas_ref = data_ref.tas.values # mean spatial reference tas
+    tas_ref = data_ref.tas.values
     data_ref.close()
 
     unet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
@@ -167,7 +175,7 @@ if __name__=='__main__':
             cbar = plt.colorbar(cs, ax=ax1, pad=0.05, shrink=0.8)
             cbar.set_ticks([0, 1, 2, 3, 4, 5, 6])
             cbar.ax.tick_params(labelsize=14)
-            cbar.set_label(label='K', size=14, labelpad=5)
+            cbar.set_label(label=unit, size=14, labelpad=5)
             if col == 0:
                 ax1.text(-0.07, 0.55, f'{periods[i]} - {periods[i+1]}', va='bottom', ha='center',
                 rotation='vertical', rotation_mode='anchor',
@@ -211,7 +219,7 @@ if __name__=='__main__':
     df_var_temporal = pd.DataFrame(var_temporal)
 
     fig4, axes4 = plt.subplots(2, 1, figsize=(10, 6))
-    fig4, axes4 =  plot_variability(fig4, axes4, df_var_temporal, periods, labels, colors)
+    fig4, axes4 =  plot_variability(fig4, axes4, df_var_temporal, periods, labels, colors, unit)
     fig4.suptitle(f'Daily temperature variability for {ssp}', fontsize=16)
     fig4.tight_layout()
     fig4.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_variability_futur_trend_{ssp}_{simu}.png')

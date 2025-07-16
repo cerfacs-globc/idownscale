@@ -1,32 +1,23 @@
-''' Data preprocessing for bias correction, for RCM or GCM data. 
+''' 
+Data preprocessing for bias correction, for RCM or GCM data. 
 NPZ files are saved with predictors (simu), predictants (ERA5) and dates for training, validation and test
-'''
 
+date : 16/07/2025
+author : Zoé GARCIA
+'''
 import sys
 sys.path.append('.')
 
-import xarray as xr
 import numpy as np
-import pandas as pd
-import glob
 import argparse
 
 from bin.preprocessing.build_dataset import Data
-from iriscc.plotutils import plot_test
-from iriscc.datautils import (
-                              interpolation_target_grid, 
-                              crop_domain_from_ds,)
-from iriscc.settings import (DATES_TEST,
-                             DATES_BC_TRAIN_HIST,
+from iriscc.datautils import (interpolation_target_grid, 
+                              crop_domain_from_ds)
+from iriscc.settings import (DATES_BC_TRAIN_HIST,
                              DATES_BC_TEST_HIST,
                              DATES_BC_TEST_FUTURE,
-                             DATASET_DIR,
-                             DATASET_BC_DIR,
-                             CONFIG,
-                             GRAPHS_DIR,
-                             ALADIN_PROJ_PYPROJ)
-
-
+                             DATASET_BC_DIR)
 
 if __name__=='__main__':
 
@@ -39,23 +30,30 @@ if __name__=='__main__':
     domain = [-12.5, 27.5, 31., 71.]
     get_data = Data(domain=domain)
     
-    '''
+    
     #### TRAIN HISTORIQUE DATASET
     era5_train_hist = []
     simu_train_hist = []
     for i, date in enumerate(DATES_BC_TRAIN_HIST):
         print(date)
+        ds_era5 = get_data.get_era5_dataset(args.var, date)
+
         if args.simu == 'gcm':
-            ds_simu = get_data.get_gcm_dataset(args.var, date) # 1er membre
-        elif args.simu == 'rcm':
+            ds_simu = get_data.get_gcm_dataset(args.var, date)
+            ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
+                                                       ds_target=ds_simu, 
+                                                       method="conservative_normed")
+        else :
             ds_simu = get_data.get_rcm_dataset(args.var, date)
             ds_gcm = get_data.get_gcm_dataset(args.var, date)
-            ds = interpolation_target_grid(ds, 
+            ds_simu = interpolation_target_grid(ds_simu, 
                                    ds_target=crop_domain_from_ds(ds_gcm, domain), 
-                                   method="conservative_normed")
-        ds_era5 = get_data.get_era5_dataset(args.var, date)
-        ds_era5_to_simu = interpolation_target_grid(ds_era5, ds_target=ds_simu, method="conservative_normed") # tout à la résolution simu
-        tas_era5 = ds_era5_to_simu.tas.values
+                                   method="conservative_normed",
+                                   bounds_method="2") # method 1 doesn't work for ALADIN, don't know why
+            ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
+                                                       ds_target=ds_gcm, 
+                                                       method="conservative_normed")
+        tas_era5 = ds_era5_to_gcm.tas.values
         tas_simu = ds_simu.tas.values
         era5_train_hist.append(tas_era5)
         simu_train_hist.append(tas_simu)
@@ -73,17 +71,26 @@ if __name__=='__main__':
     simu_test_hist = []
     for date in DATES_BC_TEST_HIST:    
         print(date)
+        ds_era5 = get_data.get_era5_dataset(args.var, date)
+
         if args.simu == 'gcm':
             ds_simu = get_data.get_gcm_dataset(args.var, date)
+            ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
+                                                       ds_target=ds_simu, 
+                                                       method="conservative_normed")
         else :
             ds_simu = get_data.get_rcm_dataset(args.var, date)
             ds_gcm = get_data.get_gcm_dataset(args.var, date)
-            ds = interpolation_target_grid(ds, 
+            ds_simu = interpolation_target_grid(ds_simu, 
                                    ds_target=crop_domain_from_ds(ds_gcm, domain), 
-                                   method="conservative_normed")
-        ds_era5 = get_data.get_era5_dataset(args.var, date)
-        ds_era5_to_simu = interpolation_target_grid(ds_era5, ds_target=ds_simu, method="conservative_normed") # tout à la résolution simu
-        tas_era5 = ds_era5_to_simu.tas.values
+                                   method="conservative_normed",
+                                   bounds_method="2")
+            ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
+                                                       ds_target=ds_gcm, 
+                                                       method="conservative_normed")
+
+        
+        tas_era5 = ds_era5_to_gcm.tas.values
         tas_simu = ds_simu.tas.values
         era5_test_hist.append(tas_era5)
         simu_test_hist.append(tas_simu)
@@ -93,7 +100,7 @@ if __name__=='__main__':
                 args.simu : simu_test_hist,
                 'dates': DATES_BC_TEST_HIST}
     np.savez(DATASET_BC_DIR/f'bc_test_hist_{args.simu}.npz', **test_hist)
-    '''
+    
 
     #### TEST FUTUR DATASET
     simu_test_future = []

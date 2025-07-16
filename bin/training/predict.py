@@ -1,3 +1,10 @@
+"""
+Predict and plot results from a trained model.
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -9,11 +16,8 @@ from torchvision.transforms import v2
 import matplotlib.pyplot as plt
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.plotutils import plot_test, plot_contour, plot_map_image
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import GRAPHS_DIR, RUNS_DIR, DATASET_BC_DIR, CONFIG
-
-
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
     diff_y = y_hat-y  
@@ -98,19 +102,9 @@ if __name__=='__main__':
     x_init = x_init[1]
     x_init[condition] = np.nan
 
-
-
     compare_4_subplots(x_init,
                         y[0], 
                         y_hat, 
                         False,
                         f'{args.date} {test_name}', 
                         GRAPHS_DIR/f'pred/{args.date}_subplot_{args.exp}_{test_name}.png')
-    
-    
-    compare_4_subplots(x_init[10:40,50:80],
-                        y[0][10:40,50:80], 
-                        y_hat[10:40,50:80], 
-                        True,
-                        f'{args.date} {test_name}', 
-                        GRAPHS_DIR/f'pred/{args.date}_subplot_{args.exp}_{test_name}_local.png')

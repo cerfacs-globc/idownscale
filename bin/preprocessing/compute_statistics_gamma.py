@@ -1,21 +1,22 @@
-""" Compute alpha and beta statistics (Gamma distribution) on training period """
+""" 
+Compute alpha and beta statistics (Gamma distribution) on training historical period 
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
 
 import sys
 sys.path.append('.')
 
 import numpy as np
 import glob
-from pathlib import Path
-import json
 import argparse
-import matplotlib.pyplot as plt
 from scipy.stats import gamma
 
-from iriscc.settings import CONFIG, GRAPHS_DIR
-from iriscc.plotutils import plot_test
-from typing import Tuple
+from iriscc.settings import CONFIG
 
 if __name__=='__main__':
+    
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
     parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
     args = parser.parse_args()

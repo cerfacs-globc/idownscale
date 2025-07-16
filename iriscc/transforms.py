@@ -1,3 +1,11 @@
+"""
+Transformations class for the IRISCC dataset.
+This module provides various transformations to preprocess the dataset for training and inference
+
+date : 16/07/2025
+author : Zoé GARCIA
+"""
+
 import sys
 sys.path.append('.')
 
@@ -11,10 +19,7 @@ import torch.nn.functional as F
 from typing import Tuple, Union, List, Optional
 from pathlib import Path
 
-
-from iriscc.settings import (IMERG_MASK, GRAPHS_DIR)
-from iriscc.plotutils import plot_test
-
+from iriscc.settings import IMERG_MASK
 
 class StandardNormalisation():
     """
@@ -224,19 +229,3 @@ class DomainCrop:
             x = x[:, lat_indices_torch][:, :, lon_indices_torch]
             y = y[:, lat_indices_torch][:, :, lon_indices_torch]
         return torch.tensor(x), torch.tensor(y)
-
-    
-if __name__=='__main__':
-    file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_19850102.npz'
-    data = dict(np.load(file), allow_pickle=True)
-    x, y = data['x'], data['y']
-    pad = Pad(0)
-    unpad = UnPad((134, 143))
-    x, y = torch.tensor(x), torch.tensor(y)
-
-    x,y = pad((x,y))
-    print(y.shape)
-    plot_test(y.numpy()[0], 'ujhih', GRAPHS_DIR / 'test.png')
-    y = unpad(y)
-    print(y.shape)
-    plot_test(y.numpy()[0], 'ujhih', GRAPHS_DIR / 'test2.png')
