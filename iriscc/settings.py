@@ -117,14 +117,14 @@ CONFIG = {
         'domain': [-6., 10., 38, 54],
         'data_projection' : ccrs.PlateCarree(),
         'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
-        'pyproj_projection' : None,
+        'pyproj_projection' : None, # for curvilign grids conservative interpolation
         'shape': (64,64),
-        'target_file' : TARGET_EOBS_FRANCE_FILE,
+        'target_file' : TARGET_EOBS_FRANCE_FILE, # target grid coordinates
         'orog_file' : OROG_EOBS_FRANCE_FILE,
         'dataset' : DATASET_EXP6_30Y_DIR,
         'target_vars': ['pr'],
         'input_vars': ['elevation', 'pr'],
-        'channels': ['topography', 'pr input', 'pr target'],
+        'channels': ['topography', 'pr input', 'pr target'], # to not get lost for normalization
         'ssp' : 'ssp585'   
         }
     }
