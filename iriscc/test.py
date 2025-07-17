@@ -1,89 +1,70 @@
 import sys
+
+import scipy.stats
 sys.path.append('.')
 
+import os
 import glob
-import numpy as np
+import torch
+import pyproj
 import xarray as xr
-from ibicus.debias import CDFt
+import numpy as np
+import pandas as pd
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from torch.distributions.gamma import Gamma
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import scipy
+from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
+from iriscc.settings import (GRAPHS_DIR, 
+                             TARGET_EOBS_FRANCE_FILE, 
+                             CONFIG, 
+                             TARGET_GCM_FILE, 
+                             RCM_RAW_DIR, 
+                             ALADIN_PROJ_PYPROJ,
+                             DATES_BC_TEST_HIST,
+                             DATES_BC_TEST_FUTURE,
+                             DATASET_BC_DIR,
+                             PREDICTION_DIR,
+                             GCM_RAW_DIR,
+                             DATASET_EXP6_30Y_DIR
+                             )
+from iriscc.transforms import DomainCrop
+from iriscc.plotutils import plot_map_contour, plot_test
+from iriscc.datautils import reformat_as_target, standardize_longitudes, Data, interpolation_target_grid, crop_domain_from_ds
+from bin.training.predict_loop import get_target_format
 
-from iriscc.settings import DATASET_TEST_BC_CMIP6_DIR, DATASET_BC_CMIP6_ERA5, DATES_TEST, DATASET_EXP2_DIR, DATASET_EXP1_DIR
-from iriscc.plotutils import plot_test
+# Generate 100 curves transitioning from pdf1 to pdf2
+'''
+file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_bc/bc_test_future_rcm.npz'
+data = dict(np.load(file, allow_pickle=True))
+dates = data['dates']
+rcm = data['rcm']
+rcm = rcm[:, 4:11, 4:11]  # Crop to the region of interest
+index = np.where(dates == pd.Timestamp('2070-01-01'))[0]
+plot_test(rcm[index[0],:,:], GRAPHS_DIR/'test.png')
 
-mean_era5 = []
-mean_cmip6 = []
-mean_cmip6bc = []
+index = np.where(dates == pd.Timestamp('2030-01-01'))[0]
+plot_test(rcm[index[0],:,:], GRAPHS_DIR/'test1.png')
+'''
+file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_bc/dataset_exp5_test_rcm_bc/sample_20150101.npz'
+data = dict(np.load(file, allow_pickle=True))
+x = data['x']
+plot_test(x[1], GRAPHS_DIR/'test.png')
 
-dates = []
+file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_bc/dataset_exp5_test_rcm_bc/sample_20350101.npz'
+data = dict(np.load(file, allow_pickle=True))
+x = data['x']
+plot_test(x[1], GRAPHS_DIR/'test1.png')
 
-for date in DATES_TEST:
-    print(date)
-    date_str = date.strftime('%Y%m%d')  # Conversion en format string
-    dates.append(date)
-    
-    # Chargement des données ERA5
-    sample = glob.glob(str(DATASET_EXP2_DIR/f'sample_{date_str}.npz'))[0]
-    data_era5 = np.load(sample, allow_pickle=True)
-    era5 = data_era5['x'][1]
-    mean_era5.append(np.mean(era5))
-    
-    # Chargement des données CMIP6
-    sample = glob.glob(str(DATASET_EXP1_DIR/f'sample_{date_str}.npz'))[0]
-    data_cmip6 = np.load(sample, allow_pickle=True)
-    cmip6 = data_cmip6['x'][1]
-    mean_cmip6.append(np.mean(cmip6))
-    
-    # Chargement des données CMIP6BC
-    sample = glob.glob(str(DATASET_TEST_BC_CMIP6_DIR/f'sample_{date_str}.npz'))[0]
-    data_cmip6bc = np.load(sample, allow_pickle=True)
-    cmip6bc = data_cmip6bc['x'][1]
-    mean_cmip6bc.append(np.mean(cmip6bc))
+file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_bc/dataset_exp5_test_rcm_bc/sample_20800101.npz'
+data = dict(np.load(file, allow_pickle=True))
+x = data['x']
+plot_test(x[1], GRAPHS_DIR/'test2.png')
 
-# Calcul des erreurs
-mean_cmip6_error = np.array(mean_cmip6) - np.array(mean_era5)
-mean_cmip6bc_error = np.array(mean_cmip6bc) - np.array(mean_era5)
-
-rmse_cmip6 = np.sqrt(np.mean(mean_cmip6_error**2))
-rmse_cmip6bc = np.sqrt(np.mean(mean_cmip6bc_error**2))
-
-bias_cmip6 = np.mean(mean_cmip6_error)
-bias_cmip6bc = np.mean(mean_cmip6bc_error)
-
-# Tracé des courbes
-plt.figure(figsize=(12, 6))
-plt.plot(dates, mean_era5, label='ERA5', color='blue')
-plt.plot(dates, mean_cmip6, label='CMIP6', color='red')
-plt.plot(dates, mean_cmip6bc, label='CMIP6BC', color='green')
-plt.xlabel('Temps')
-plt.ylabel('Température Moyenne')
-plt.title('Évolution des températures moyennes')
-plt.legend()
-plt.grid()
-plt.savefig('/scratch/globc/garcia/graph/test.png')
-
-# Tracé du scatter plot
-plt.figure(figsize=(8, 8))
-plt.scatter(mean_era5, mean_cmip6, label='CMIP6 vs ERA5', color='red')
-plt.scatter(mean_era5, mean_cmip6bc, label='CMIP6BC vs ERA5', color='green')
-plt.plot(np.arange(270,300), np.arange(270,300), color='black')
-plt.xlim(270,300)
-plt.ylim(270,300)
-plt.xlabel('Température Moyenne ERA5')
-plt.ylabel('Température Moyenne CMIP6 / CMIP6BC')
-plt.title('Comparaison des températures moyennes')
-plt.legend()
-plt.grid()
-plt.savefig('/scratch/globc/garcia/graph/test2.png')
-
-# Affichage des erreurs
-print(f"RMSE CMIP6 vs ERA5: {rmse_cmip6}")
-print(f"RMSE CMIP6BC vs ERA5: {rmse_cmip6bc}")
-print(f"Biais CMIP6 vs ERA5: {bias_cmip6}")
-print(f"Biais CMIP6BC vs ERA5: {bias_cmip6bc}")
-
-#plot_test(xinit[1], 'xinit', '/scratch/globc/garcia/graph/test.png')
-#plot_test(x, 'x 20040101', '/scratch/globc/garcia/graph/test.png')
-#plot_test(yinit[0], 'yinit', '/scratch/globc/garcia/graph/test3.png')
-#plot_test(y, 'y 20040101', '/scratch/globc/garcia/graph/test4.png')
-#plot_test(y_hat, 'yhat', '/scratch/globc/garcia/graph/test.png')
+file = '/gpfs-calypso/scratch/globc/garcia/datasets/dataset_bc/dataset_exp5_test_gcm_bc/sample_19800107.npz'
+data = dict(np.load(file, allow_pickle=True))
+x = data['x']
+plot_test(x[1], GRAPHS_DIR/'test3.png')
