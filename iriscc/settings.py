@@ -72,7 +72,7 @@ CONFIG = {
         'dataset' : DATASET_EXP3_30Y_DIR,
         'target_vars': ['tas'],
         'input_vars': ['elevation', 'tas'],
-        'channels': ['topography', 'tas input', 'tas target']
+        'channels': ['elevation', 'tas input', 'tas target']
         },
 
     'exp4':
@@ -95,7 +95,7 @@ CONFIG = {
         'dataset' : DATASET_EXP4_30Y_DIR,
         'target_vars': ['tas'],
         'input_vars': ['elevation', 'tas'],
-        'channels': ['topography', 'tas input', 'tas target']       
+        'channels': ['elevation', 'tas input', 'tas target']       
         },
     'exp5':
         {'target':'eobs',
@@ -109,7 +109,7 @@ CONFIG = {
         'dataset' : DATASET_EXP5_30Y_DIR,
         'target_vars': ['tas'],
         'input_vars': ['elevation', 'tas'],
-        'channels': ['topography', 'tas input', 'tas target'],
+        'channels': ['elevation', 'tas input', 'tas target'],
         'ssp': 'ssp585'        
         },
     'exp6':
@@ -124,7 +124,7 @@ CONFIG = {
         'dataset' : DATASET_EXP6_30Y_DIR,
         'target_vars': ['pr'],
         'input_vars': ['elevation', 'pr'],
-        'channels': ['topography', 'pr input', 'pr target'], # to not get lost for normalization
+        'channels': ['elevation', 'pr input', 'pr target'], # to not get lost for normalization
         'ssp' : 'ssp585'   
         }
     }
