@@ -1,8 +1,8 @@
 # IRISCC
 
 <p float="left">
-    <img src="/doc/gcm_20700101.png" width="200"/>
-    <img src="/doc/unet_20700101.png" width="200"/>
+    <img src="/doc/gcm_20700101.png" width="400"/>
+    <img src="/doc/unet_20700101.png" width="400"/>
 </p>
 
 ## Project context
@@ -49,7 +49,7 @@ iriscc/
 │   │   ├── miniunet.py 
 │   │   ├── swin2sr.py
 │   │   ├── unet.py
-│   ├── dataloaders.py                          # Load rain, valid and test batches
+│   ├── dataloaders.py                          # Load train, valid and test batches
 │   ├── hparams.py                              # Training configuration
 │   ├── settings.py                             # Experience configuration
 │   ├── lightning_module.py                     # Training workflow

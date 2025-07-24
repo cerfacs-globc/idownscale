@@ -44,7 +44,7 @@ def plot_map_image(var,
 
 
     fig, ax = plt.subplots(
-        figsize=(6,7),
+        figsize=(6,5),
         subplot_kw={"projection": fig_projection}
     )
     
@@ -57,14 +57,17 @@ def plot_map_image(var,
         vmin=vmin,
         vmax=vmax
     )
-    ax.set_extent(domain, crs=data_projection)
+    ax.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
+    #ax.set_extent(domain, crs=fig_projection)
+    ax.add_feature(cfeature.OCEAN, facecolor='white', zorder=100, edgecolor='black')
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
 
     cbar = plt.colorbar(img, ax=ax, pad=0.05, shrink=0.8)
-    cbar.set_label(label=var_desc, size=12)
+    cbar.set_label(label=var_desc, size=14, labelpad=10)
+    cbar.ax.tick_params(labelsize=14)
     plt.tight_layout()
-    plt.title(title, fontsize=14)
+    plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
         return fig, ax  
     else:

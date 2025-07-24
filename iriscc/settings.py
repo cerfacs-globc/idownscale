@@ -46,6 +46,7 @@ DATASET_EXP4_BASELINE_DIR = DATASET_DIR / 'dataset_exp4_baseline'
 DATASET_EXP5_30Y_DIR = DATASET_DIR / 'dataset_exp5_30y'
 DATASET_EXP6_30Y_DIR = DATASET_DIR / 'dataset_exp6_30y'
 DATASET_EXP6_BASELINE_DIR = DATASET_DIR / 'dataset_exp6_baseline'
+DATASET_EXP7_30Y_DIR = DATASET_DIR / 'dataset_exp7_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
 
@@ -125,6 +126,21 @@ CONFIG = {
         'target_vars': ['pr'],
         'input_vars': ['elevation', 'pr'],
         'channels': ['elevation', 'pr input', 'pr target'], # to not get lost for normalization
+        'ssp' : 'ssp585'   
+        },
+    'exp7':
+        {'target':'eobs',
+        'domain': [-6., 10., 38, 54],
+        'data_projection' : ccrs.PlateCarree(),
+        'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+        'pyproj_projection' : None, # for curvilign grids conservative interpolation
+        'shape': (64,64),
+        'target_file' : TARGET_EOBS_FRANCE_FILE, # target grid coordinates
+        'orog_file' : OROG_EOBS_FRANCE_FILE,
+        'dataset' : DATASET_EXP7_30Y_DIR,
+        'target_vars': ['pr'],
+        'input_vars': ['elevation', 'huss', 'psl', 'tas'],
+        'channels': ['elevation', 'huss input', 'psl input', 'tas input', 'pr target'], # to not get lost for normalization
         'ssp' : 'ssp585'   
         }
     }
