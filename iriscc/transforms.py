@@ -19,7 +19,8 @@ import torch.nn.functional as F
 from typing import Tuple, Union, List, Optional
 from pathlib import Path
 
-from iriscc.settings import IMERG_MASK
+from iriscc.settings import IMERG_MASK, GRAPHS_DIR
+from iriscc.plotutils import plot_test
 
 class StandardNormalisation():
     """
@@ -37,11 +38,15 @@ class StandardNormalisation():
         self.mean = mean
         self.std = std
     
-    def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x)
+        if not isinstance(y, torch.Tensor):
+            y = torch.tensor(y)
         x = [(x[C, :, :] - self.mean[C]) / self.std[C] for C in range(len(x))]
-        x = np.stack(x, axis=0)
-        return torch.tensor(x), torch.tensor(y)
+        x = torch.stack(x, dim=0)
+        return x, y
     
 
 class MinMaxNormalisation():
@@ -52,22 +57,21 @@ class MinMaxNormalisation():
         statistics_file = Path(sample_dir) / 'statistics.json'
         with open(statistics_file) as f:
             stats = json.load(f)
-        min = []
-        max = []
-        for channel in stats.keys():
-            min.append(stats[channel]['min'])
-            max.append(stats[channel]['max'])
-        self.min = min
-        self.max = max
+        self.min = [stats[channel]['min'] for channel in stats.keys()]
+        self.max = [stats[channel]['max'] for channel in stats.keys()]
         self.output_norm = output_norm
     
-    def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x)
+        if not isinstance(y, torch.Tensor):
+            y = torch.tensor(y)
         x = [(x[C, :, :] - self.min[C]) / (self.max[C] - self.min[C]) for C in range(len(x))]
-        x = np.stack(x, axis=0)
+        x = torch.stack(x, dim=0)
         if self.output_norm:
             y[0, :, :] = (y[0, :, :] - self.min[-1]) / (self.max[-1] - self.min[-1])
-        return torch.tensor(x), torch.tensor(y)
+        return x, y
 
     
 class DeMinMaxNormalisation:
@@ -229,3 +233,19 @@ class DomainCrop:
             x = x[:, lat_indices_torch][:, :, lon_indices_torch]
             y = y[:, lat_indices_torch][:, :, lon_indices_torch]
         return torch.tensor(x), torch.tensor(y)
+
+class Log10Transform:
+    """
+    Applies a logarithmic transformation to the input data, specifically for the precipitations channel.
+    """
+    def __init__(self, channels:List[str]):
+        self.channels = channels
+
+    def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+        x, y = sample
+        x, y = torch.tensor(x), torch.tensor(y)
+        pr_i = self.channels.index('pr input')
+        if pr_i != -1:
+            x[pr_i, :, :] = torch.log10(1 + x[pr_i, :, :])
+        return x, y
+

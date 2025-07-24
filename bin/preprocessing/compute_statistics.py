@@ -85,8 +85,9 @@ if __name__=='__main__':
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
     
-    train_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
-    val_end = np.where(dataset == str(dataset_dir/'sample_20131231.npz'))[0][0]
+    train_start = np.where(dataset == str(dataset_dir/'sample_19850101.npz'))[0][0]
+    train_end = np.where(dataset == str(dataset_dir/'sample_20041231.npz'))[0][0]
+    val_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
 
     
     x_data = {'train' : [],
@@ -111,10 +112,10 @@ if __name__=='__main__':
                 print(np.nanmax(x[c]))
 
         # Only training statistics are used for normalization
-        if nb < train_end :
+        if nb in range(train_start, train_end):
             x_data['train'].append(x[1:,:,:].flatten())
             y_data['train'].append(y.flatten())
-            if nb == 0:
+            if nb == train_start:
                 min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
                 min = np.concatenate((min, np.nanmin(y, axis=(1, 2))))
                 max = np.concatenate((max, np.nanmax(y, axis=(1, 2))))

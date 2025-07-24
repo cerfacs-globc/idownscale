@@ -24,7 +24,7 @@ from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.unet import UNet
 from iriscc.models.miniunet import MiniUNet
 from iriscc.models.miniswinunetr import MiniSwinUNETR
-from iriscc.loss import MaskedMSELoss
+from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
 
 layout = {
     "Check Overfit": {
@@ -32,16 +32,27 @@ layout = {
     },
 }
 
+def get_model(model:str, 
+              in_channels:int, 
+              out_channels:int, 
+              img_size:tuple):
+    
+    match model:
+        case 'unet':
+            return UNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+        case 'miniunet':
+            return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+        case 'swinunetr':
+            return SwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2)
+        case 'miniswinunetr':
+            return MiniSwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2)
+        
+
+
 class IRISCCLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
  
-        #self.loss = hparams['loss']
-        self.loss = MaskedMSELoss(ignore_value=hparams['fill_value'])
-        self.metrics_dict = nn.ModuleDict({
-                    "rmse": MaskedRMSE(ignore_value = hparams['fill_value']),
-                    "mae": MaskedMAE(ignore_value = hparams['fill_value'])
-                })
         self.fill_value = hparams['fill_value']    
         self.learning_rate = hparams['learning_rate']
         self.runs_dir = hparams['runs_dir']
@@ -51,15 +62,20 @@ class IRISCCLightningModule(pl.LightningModule):
         self.img_size = hparams['img_size']
         os.makedirs(self.runs_dir, exist_ok=True)
 
-        if hparams['model'] == 'unet':
-            self.model = UNet(in_channels=self.in_channels, out_channels=1, init_features=32).float()
-        elif hparams['model'] == 'miniunet':
-            self.model = MiniUNet(in_channels=self.in_channels, out_channels=1, init_features=32).float()
-        elif hparams['model'] == 'swinunetr':
-            self.model = SwinUNETR(img_size=self.img_size, in_channels=self.in_channels, out_channels=1,spatial_dims=2)
-        elif hparams['model'] == 'miniswinunetr':
-            self.model = MiniSwinUNETR(img_size=self.img_size, in_channels=self.in_channels, out_channels=1,spatial_dims=2)
-
+        loss_name = hparams['loss']
+        if loss_name == 'masked_gamma_mae':
+            self.loss = MaskedGammaMAELoss(ignore_value=self.fill_value,
+                                           sample_dir=hparams['sample_dir'])
+        else :
+            self.loss = MaskedMSELoss(ignore_value=self.fill_value)
+        self.metrics_dict = nn.ModuleDict({
+                    "rmse": MaskedRMSE(ignore_value = self.fill_value),
+                    "mae": MaskedMAE(ignore_value = self.fill_value)
+                })
+        self.model = get_model(model=hparams['model'], 
+                               in_channels=self.in_channels, 
+                               out_channels=1, 
+                               img_size=self.img_size)
 
         self.test_metrics = {}
         self.train_step_outputs = []

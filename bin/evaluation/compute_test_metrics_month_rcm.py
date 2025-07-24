@@ -19,7 +19,7 @@ from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, Log10Transform
 from iriscc.settings import (CONFIG, 
                              GRAPHS_DIR, 
                              RUNS_DIR, 
@@ -62,6 +62,7 @@ if __name__ == "__main__":
     if CONFIG[exp]['target'] == 'safran':
         domain = 'france_xy'
     transforms = v2.Compose([
+                Log10Transform(hparams['channels']),
                 MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
                 LandSeaMask(hparams['mask'], hparams['fill_value']),
                 FillMissingValue(hparams['fill_value']),

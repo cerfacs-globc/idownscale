@@ -8,9 +8,11 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.distributions import Gamma
+from pathlib import Path
 
 class MaskedMSELoss(nn.Module):
     """
@@ -60,9 +62,12 @@ class MaskedGammaMAELoss(nn.Module):
     
     Following Antoine Doury's code : https://github.com/antoinedoury/RCM-Emulator 
     """
-    def __init__(self, ignore_value:float, alpha:torch.Tensor, beta:torch.Tensor):
+    def __init__(self, ignore_value:float, sample_dir:Path):
         super(MaskedGammaMAELoss, self).__init__()
-        alpha[torch.isnan(alpha)] = 1.0  # Replace NaN with 1.0 or random value to match Gamma distribution requirements
+        gamma_params_file = dict(np.load(sample_dir/ 'gamma_params.npz', allow_pickle=True))
+        alpha, beta = gamma_params_file['alpha'], gamma_params_file['beta']
+        alpha, beta = torch.tensor(alpha, dtype=torch.float32), torch.tensor(beta, dtype=torch.float32)
+        alpha[torch.isnan(alpha)] = 1.0  # Replace NaN with 1.0 or random value > 0 to match Gamma distribution requirements
         alpha = torch.unsqueeze(alpha, dim=0)  # Ensure alpha is a tensor of shape (1, h, w)
         self.register_buffer("alpha", alpha) 
 

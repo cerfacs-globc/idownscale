@@ -23,7 +23,7 @@ from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
 from iriscc.settings import (CONFIG, 
                              RUNS_DIR, 
                              METRICS_DIR, 
@@ -62,6 +62,7 @@ def get_config(exp: str,
         hparams = model.hparams['hparams']
         
         transforms = v2.Compose([
+            Log10Transform(hparams['channels']),
             MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),

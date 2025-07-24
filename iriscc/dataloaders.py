@@ -18,7 +18,11 @@ from typing import Optional
 from torch import Tensor
 
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.transforms import (MinMaxNormalisation, 
+                               LandSeaMask, 
+                               Pad, 
+                               FillMissingValue,
+                               Log10Transform)
 
 class IRISCC(Dataset):
     def __init__(self,
@@ -38,11 +42,14 @@ class IRISCC(Dataset):
         self.data_type = data_type
 
         list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        train_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
-        val_end = np.where(list_data == str(self.sample_dir / 'sample_20131231.npz'))[0][0]
+        #train_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
+        #val_end = np.where(list_data == str(self.sample_dir / 'sample_20131231.npz'))[0][0]
+        train_start = np.where(list_data == str(self.sample_dir / 'sample_19850101.npz'))[0][0]
+        train_end = np.where(list_data == str(self.sample_dir / 'sample_20041231.npz'))[0][0]
+        val_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
 
         if self.data_type == 'train':
-            self.samples = list_data[:train_end]
+            self.samples = list_data[train_start:train_end]
         elif self.data_type == 'val':
             self.samples = list_data[train_end:val_end]
         elif self.data_type == 'test':
@@ -84,6 +91,7 @@ def get_dataloaders(data_type: str) -> DataLoader:
 
     hparams = IRISCCHyperParameters()
     transforms = v2.Compose([
+                Log10Transform(hparams.channels),
                 MinMaxNormalisation(hparams.sample_dir, hparams.output_norm), 
                 LandSeaMask(hparams.mask, hparams.fill_value),
                 FillMissingValue(hparams.fill_value),
