@@ -1,7 +1,10 @@
 # IRISCC
 
-![Global projection](/doc/gcm_20700101.png =20%x)  ![Downscaled projection](/doc/unet_20700101.png =20%x)
-
+![Global projection](/doc/gcm_20700101.png)  ![Downscaled projection](/doc/unet_20700101.png)
+<p float="left">
+    <img src="/doc/gcm_20700101.png> alt="drawing width="50"/>
+    <img src="/doc/unet_20700101.png> alt="drawing width="50"/>
+</p>
 
 ## Project context
 
