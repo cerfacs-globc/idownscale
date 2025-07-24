@@ -1,5 +1,8 @@
 # IRISCC
 
+![Global projection](/doc/gcm_20700101.png) | ![Downscaled projection](/doc/unet_20700101.png)
+
+
 ## Project context
 
 The **IRISCC** project is part of a consortium of European research infrastructures of which CERFACS is a member. Its aim is to study the impacts of risks linked to climate change, by offering services, data and opportunities to the various players involved. The CERFACS mission is to provide high-quality, fine-resolution (around 10 km) climate projection data based on daily data from global climate model (GCM) simulations (around 150 km resolution) for the needs of the project's demonstrators. The variables of interest are surface temperature (K), precipitation (mm) and humidity.
