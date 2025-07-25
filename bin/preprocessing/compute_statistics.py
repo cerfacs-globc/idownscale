@@ -89,10 +89,6 @@ if __name__=='__main__':
     train_end = np.where(dataset == str(dataset_dir/'sample_20041231.npz'))[0][0]
     val_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
 
-    
-    x_data = {'train' : [],
-                 'val' : [],
-                 'test' : []}
     y_data = {'train' : [],
                  'val' : [],
                  'test' : []}
@@ -113,7 +109,6 @@ if __name__=='__main__':
 
         # Only training statistics are used for normalization
         if nb in range(train_start, train_end):
-            x_data['train'].append(x[1:,:,:].flatten())
             y_data['train'].append(y.flatten())
             if nb == train_start:
                 min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
@@ -140,10 +135,8 @@ if __name__=='__main__':
 
         # Validation and test data histograms 
         elif nb in range(train_end, val_end):
-            x_data['val'].append(x[1:,:,:].flatten())
             y_data['val'].append(y.flatten())
         elif nb >= val_end :
-            x_data['test'].append(x[1:,:,:].flatten())
             y_data['test'].append(y.flatten())
         
     mean = sum / n_total
@@ -159,17 +152,16 @@ if __name__=='__main__':
     with open(dataset_dir/'statistics.json', "w") as f: 
         json.dump(stats, f)
 
-    for name, dict in {'x':x_data, 'y':y_data}.items():
-        for type, data in dict.items():
-            data = np.concatenate(data)
-            plot_histogram(data, 
-                        min[1:].min(), 
-                        max[1:].max(), 
-                        np.nanmean(data), 
-                        np.nanstd(data), 
-                        CONFIG[args.exp]['target_vars'][0], 
-                        f'{name} {type} dataset histogram', 
-                        dataset_dir/f'hist_{name}_{type}.png')
+    for type, data in y_data.items():
+        data = np.concatenate(data)
+        plot_histogram(data, 
+                    np.nanmin(data), 
+                    np.nanmax(data), 
+                    np.nanmean(data), 
+                    np.nanstd(data), 
+                    CONFIG[args.exp]['target_vars'][0], 
+                    f'y {type} dataset histogram', 
+                    dataset_dir/f'hist_y_{type}.png')
  
     
 

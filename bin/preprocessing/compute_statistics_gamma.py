@@ -80,6 +80,7 @@ if __name__=='__main__':
 
     alpha = np.nanmean(alpha, axis=0)
     beta = np.nanmean(beta, axis=0)
+    print(beta,alpha)
     
     params = {'alpha': alpha, 'beta': beta}
     np.savez(str(dataset_dir/'gamma_params.npz'), **params)

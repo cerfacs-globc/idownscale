@@ -17,6 +17,8 @@ import glob
 from typing import Optional
 from torch import Tensor
 
+from iriscc.settings import GRAPHS_DIR
+from iriscc.plotutils import plot_test
 from iriscc.hparams import IRISCCHyperParameters
 from iriscc.transforms import (MinMaxNormalisation, 
                                LandSeaMask, 
@@ -123,7 +125,11 @@ if __name__=='__main__':
     for batch in train_dataloader:
         x = batch[0][0,:,:,:]
         y = batch[1][0,:,:,:]
-        y[y == 0] = torch.nan
-        y[y == 0] = torch.nan
+        
         print(x.shape, y.shape)
+        print(y)
+        plot_test(x[1].numpy(), GRAPHS_DIR/'test.png', title='huss')
+        plot_test(x[2].numpy(), GRAPHS_DIR/'test1.png', title='psl')
+        plot_test(x[3].numpy(), GRAPHS_DIR/'test2.png', title='tas')
+        plot_test(y[0].numpy(), GRAPHS_DIR/'test3.png', title='pr y')
         break
