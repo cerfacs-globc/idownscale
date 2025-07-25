@@ -1,4 +1,4 @@
-# IRISCC
+# idownscale
 
 <p float="left">
     <img src="/doc/gcm_20700101.png" width="400"/>

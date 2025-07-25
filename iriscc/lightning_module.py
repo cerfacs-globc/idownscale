@@ -95,7 +95,8 @@ class IRISCCLightningModule(pl.LightningModule):
         self.epoch_start_time = time.time()
 
     def common_step(self, x, y):
-        y_hat = self(x)
+        out = self(x)
+        y_hat = torch.relu(out)
         loss = torch.sqrt(self.loss(y_hat, y))
         return y_hat, loss
 
