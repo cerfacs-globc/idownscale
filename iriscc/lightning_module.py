@@ -62,8 +62,8 @@ class IRISCCLightningModule(pl.LightningModule):
         self.img_size = hparams['img_size']
         os.makedirs(self.runs_dir, exist_ok=True)
 
-        loss_name = hparams['loss']
-        if loss_name == 'masked_gamma_mae':
+        self.loss_name = hparams['loss']
+        if self.loss_name == 'masked_gamma_mae':
             self.loss = MaskedGammaMAELoss(ignore_value=self.fill_value,
                                            sample_dir=hparams['sample_dir'])
         else :
@@ -97,7 +97,7 @@ class IRISCCLightningModule(pl.LightningModule):
     def common_step(self, x, y):
         out = self(x)
         y_hat = torch.relu(out)
-        loss = torch.sqrt(self.loss(y_hat, y))
+        loss = self.loss(y_hat, y)
         return y_hat, loss
 
     def training_step(self, batch, batch_idx):
