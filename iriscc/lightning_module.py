@@ -18,10 +18,10 @@ import numpy as np
 import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
-from monai.networks.nets import SwinUNETR
+from monai.networks.nets import SwinUNETR, UNet
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
-from iriscc.models.unet import UNet
+#from iriscc.models.unet import UNet
 from iriscc.models.miniunet import MiniUNet
 from iriscc.models.miniswinunetr import MiniSwinUNETR
 from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
@@ -35,17 +35,21 @@ layout = {
 def get_model(model:str, 
               in_channels:int, 
               out_channels:int, 
-              img_size:tuple):
+              img_size:tuple,
+              dropout:float=0):
     
     match model:
         case 'unet':
-            return UNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+            #return UNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+            return UNet(spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout,
+                        channels=(4, 8, 16, 32), strides=(2,2,2)).float()
         case 'miniunet':
             return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
         case 'swinunetr':
-            return SwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2)
+            return SwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2, drop_rate=dropout).float()
         case 'miniswinunetr':
-            return MiniSwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2)
+            return MiniSwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2,
+                                 drop_rate=dropout).float()
         
 
 
@@ -60,6 +64,7 @@ class IRISCCLightningModule(pl.LightningModule):
         self.scheduler_gamma = hparams['scheduler_gamma']
         self.in_channels = hparams['in_channels']
         self.img_size = hparams['img_size']
+        self.dropout = hparams['dropout']
         os.makedirs(self.runs_dir, exist_ok=True)
 
         self.loss_name = hparams['loss']
@@ -75,7 +80,8 @@ class IRISCCLightningModule(pl.LightningModule):
         self.model = get_model(model=hparams['model'], 
                                in_channels=self.in_channels, 
                                out_channels=1, 
-                               img_size=self.img_size)
+                               img_size=self.img_size,
+                               dropout=self.dropout)
 
         self.test_metrics = {}
         self.train_step_outputs = []
@@ -189,7 +195,7 @@ class IRISCCLightningModule(pl.LightningModule):
         
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
-        #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
+        return [optimizer], [scheduler]
 
 
