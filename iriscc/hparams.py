@@ -17,11 +17,11 @@ class IRISCCHyperParameters():
         self.img_size = CONFIG[exp]['shape']
         self.in_channels = 2
         self.mask = 'target'
-        self.learning_rate = 0.001
+        self.learning_rate = 0.003
         self.batch_size = 32
-        self.max_epoch = 30
-        self.model ='swinunetr'
-        self.exp = f'{exp}/swinunet'
+        self.max_epoch = 1 
+        self.model ='unet'
+        self.exp = f'{exp}/unet_all'
         self.runs_dir = RUNS_DIR / self.exp
         self.sample_dir = CONFIG[exp]['dataset']
         self.fill_value = -1.
@@ -29,6 +29,7 @@ class IRISCCHyperParameters():
         self.domain_crop = None
         self.channels = CONFIG[exp]['channels']
         self.loss = 'masked_gamma_mae' # masked_mse or masked_gamma_mae
+        self.dropout = 0.1
         
         # Diffusion hparams
         self.n_steps = 200

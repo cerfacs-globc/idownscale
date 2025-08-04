@@ -85,9 +85,9 @@ if __name__=='__main__':
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
     
-    train_start = np.where(dataset == str(dataset_dir/'sample_19850101.npz'))[0][0]
-    train_end = np.where(dataset == str(dataset_dir/'sample_20041231.npz'))[0][0]
-    val_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
+    train_start = np.where(dataset == str(dataset_dir/'sample_19800101.npz'))[0][0]
+    train_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
+    val_end = np.where(dataset == str(dataset_dir/'sample_20131231.npz'))[0][0]
 
     y_data = {'train' : [],
                  'val' : [],

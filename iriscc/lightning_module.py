@@ -18,10 +18,10 @@ import numpy as np
 import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
+from torchmetrics import PearsonCorrCoef
 from monai.networks.nets import SwinUNETR, UNet
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
-#from iriscc.models.unet import UNet
 from iriscc.models.miniunet import MiniUNet
 from iriscc.models.miniswinunetr import MiniSwinUNETR
 from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
@@ -40,7 +40,6 @@ def get_model(model:str,
     
     match model:
         case 'unet':
-            #return UNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
             return UNet(spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout,
                         channels=(4, 8, 16, 32), strides=(2,2,2)).float()
         case 'miniunet':
@@ -77,6 +76,7 @@ class IRISCCLightningModule(pl.LightningModule):
                     "rmse": MaskedRMSE(ignore_value = self.fill_value),
                     "mae": MaskedMAE(ignore_value = self.fill_value)
                 })
+        self.spatial_corr_metric = PearsonCorrCoef()
         self.model = get_model(model=hparams['model'], 
                                in_channels=self.in_channels, 
                                out_channels=1, 
@@ -146,6 +146,15 @@ class IRISCCLightningModule(pl.LightningModule):
             metric.reset()
         self.test_metrics[batch_idx] = batch_dict
 
+        y_flat = y.view(y.size(0) * y.size(1), -1)
+        y_hat_flat = y_hat.view(y_hat.size(0) * y_hat.size(1), -1)
+        for i in range(y.size(0)):
+            mask = y_flat[i] != self.fill_value
+            if mask.any():
+                y_masked = y_flat[i][mask]
+                y_hat_masked = y_hat_flat[i][mask]
+            self.spatial_corr_metric.update(y_hat_masked, y_masked)
+
         if batch_idx == 0:
 
             fig, ax = plt.subplots()
@@ -191,6 +200,10 @@ class IRISCCLightningModule(pl.LightningModule):
         self.save_test_metrics_as_csv(df)
         df = df.drop("Name", axis=1)
         self.log('hp_metric', df['rmse'].mean())
+        self.log('loss', df['loss'].mean())
+
+        spatial_corr = self.spatial_corr_metric.compute()
+        self.log("hp_metric_corr", spatial_corr)
     
         
     def configure_optimizers(self):

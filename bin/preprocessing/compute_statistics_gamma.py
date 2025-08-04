@@ -44,7 +44,7 @@ if __name__=='__main__':
 
     alpha, beta = [], []
     calibration_y = 1
-    for nb in range(1985, 2004, calibration_y):  # Increment by 5 years
+    for nb in range(1980, 2009, calibration_y):  # Increment by 5 years
         y_year = []
         for year in range(nb, nb + calibration_y):  # Collect data for 5 years
             files = np.sort(glob.glob(str(dataset_dir/f'sample_{year}*')))

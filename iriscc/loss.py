@@ -13,6 +13,8 @@ import torch
 import torch.nn as nn
 from torch.distributions import Gamma
 from pathlib import Path
+from iriscc.plotutils import plot_test
+from iriscc.settings import GRAPHS_DIR
 
 class MaskedMSELoss(nn.Module):
     """
@@ -42,7 +44,7 @@ class MaskedMSELoss(nn.Module):
         mask = (y != self.ignore_value).float()
         squared_error = (y_hat - y) ** 2
         masked_error = squared_error * mask
-        loss = masked_error.sum() / (mask.sum())
+        loss = masked_error.sum() / (mask.sum()) # Mean over non-masked values
         return torch.sqrt(loss)
     
 
@@ -80,10 +82,12 @@ class MaskedGammaMAELoss(nn.Module):
     def forward(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         gamma_dist = Gamma(concentration=self.alpha.to(y.device), rate=self.beta.to(y.device))
         mask = (y != self.ignore_value).float()
-        y[y < 0] = 0.0  # Ensure y is non-negative for Gamma distribution
-        cdf_values = gamma_dist.cdf(y)
-        loss_2D = torch.abs(y - y_hat) + cdf_values**2 * torch.max(torch.zeros_like(y), y - y_hat)
-        loss = torch.mean(loss_2D * mask) # Compute mean over the non-masked values
+        y_copy = y.clone()
+        y_copy[y_copy == self.ignore_value] = 0.0  # Replace ignore_value with 0 for Gamma dist computation
+        cdf_values = gamma_dist.cdf(y_copy)
+        loss_2D = torch.abs(y_copy - y_hat) + cdf_values**2 * torch.max(torch.zeros_like(y_copy), y_copy - y_hat)
+        masked_loss_2D = loss_2D * mask  # Apply mask to the loss
+        loss = masked_loss_2D.sum() / mask.sum() # Mean over non-masked values
         return loss
 
 if __name__ == '__main__':

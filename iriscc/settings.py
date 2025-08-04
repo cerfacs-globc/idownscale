@@ -76,7 +76,7 @@ CONFIG = {
         'channels': ['elevation', 'tas input', 'tas target']
         },
 
-    'exp4':
+    'exp4': # obsolete, use exp5 
         {'target':'eobs',
         'domain': 
             {'france': [-6., 10., 38, 54],

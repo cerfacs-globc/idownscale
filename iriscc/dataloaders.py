@@ -44,11 +44,11 @@ class IRISCC(Dataset):
         self.data_type = data_type
 
         list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        #train_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
-        #val_end = np.where(list_data == str(self.sample_dir / 'sample_20131231.npz'))[0][0]
-        train_start = np.where(list_data == str(self.sample_dir / 'sample_19850101.npz'))[0][0]
-        train_end = np.where(list_data == str(self.sample_dir / 'sample_20041231.npz'))[0][0]
-        val_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
+        train_start = np.where(list_data == str(self.sample_dir / 'sample_19800101.npz'))[0][0]
+        train_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
+        val_end = np.where(list_data == str(self.sample_dir / 'sample_20131231.npz'))[0][0]
+        #train_end = np.where(list_data == str(self.sample_dir / 'sample_20041231.npz'))[0][0]
+        #val_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
 
         if self.data_type == 'train':
             self.samples = list_data[train_start:train_end]
@@ -121,11 +121,12 @@ def get_dataloaders(data_type: str) -> DataLoader:
     return dataloader   
 
 if __name__=='__main__':
-    train_dataloader = get_dataloaders('train')
+    train_dataloader = get_dataloaders('test')
     for batch in train_dataloader:
         x = batch[0][0,:,:,:]
         y = batch[1][0,:,:,:]
-        
+        y[y == -1.] = torch.nan
+
         print(x.shape, y.shape)
         print(y)
         plot_test(x[1].numpy(), GRAPHS_DIR/'test.png', title='huss')
