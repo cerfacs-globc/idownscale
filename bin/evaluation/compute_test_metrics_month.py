@@ -63,7 +63,7 @@ def get_config(exp: str,
         hparams = model.hparams['hparams']
         
         transforms = v2.Compose([
-            log10_transform := Log10Transform(hparams['channels']),
+            Log10Transform(hparams['channels']),
             MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
@@ -137,7 +137,7 @@ if __name__=='__main__':
     exp = args.exp
     test_name = args.test_name
     simu_test = args.simu_test
-    dates = pd.date_range(start=args.start_date, end=args.end_date, freq='D')
+    dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
 
     transforms = None
     model, transforms, sample_dir = get_config(exp, test_name, simu_test)

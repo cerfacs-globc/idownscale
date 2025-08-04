@@ -128,7 +128,7 @@ if __name__=='__main__':
     exp = args.exp
     test_name = args.test_name
     simu_test = args.simu_test
-    dates = pd.date_range(start=args.start_date, end=args.end_date, freq='D')
+    dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
 
     transforms = None
     model, transforms, sample_dir = get_config(exp, test_name, simu_test)

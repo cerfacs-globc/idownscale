@@ -39,7 +39,7 @@ if __name__ == "__main__":
     exp = args.exp
     test_name = args.test_name
     simu_test = args.simu_test
-    dates = pd.date_range(start=args.start_date, end=args.end_date, freq='D')
+    dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
     get_data = Data(CONFIG[exp]['domain'])
 
     run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
