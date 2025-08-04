@@ -17,8 +17,7 @@ import glob
 from typing import Optional
 from torch import Tensor
 
-from iriscc.settings import GRAPHS_DIR
-from iriscc.plotutils import plot_test
+from iriscc.settings import DATES_TRAIN
 from iriscc.hparams import IRISCCHyperParameters
 from iriscc.transforms import (MinMaxNormalisation, 
                                LandSeaMask, 
@@ -44,18 +43,16 @@ class IRISCC(Dataset):
         self.data_type = data_type
 
         list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        train_start = np.where(list_data == str(self.sample_dir / 'sample_19800101.npz'))[0][0]
-        train_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
-        val_end = np.where(list_data == str(self.sample_dir / 'sample_20131231.npz'))[0][0]
-        #train_end = np.where(list_data == str(self.sample_dir / 'sample_20041231.npz'))[0][0]
-        #val_end = np.where(list_data == str(self.sample_dir / 'sample_20091231.npz'))[0][0]
+        train_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
+        val_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
+        test_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
 
         if self.data_type == 'train':
-            self.samples = list_data[train_start:train_end]
+            self.samples = list_data[train_start:val_start-1]
         elif self.data_type == 'val':
-            self.samples = list_data[train_end:val_end]
+            self.samples = list_data[val_start:test_start-1]
         elif self.data_type == 'test':
-            self.samples = list_data[val_end:]
+            self.samples = list_data[test_start:]
 
     def __len__(self) -> int:
         """
@@ -129,8 +126,5 @@ if __name__=='__main__':
 
         print(x.shape, y.shape)
         print(y)
-        plot_test(x[1].numpy(), GRAPHS_DIR/'test.png', title='huss')
-        plot_test(x[2].numpy(), GRAPHS_DIR/'test1.png', title='psl')
-        plot_test(x[3].numpy(), GRAPHS_DIR/'test2.png', title='tas')
-        plot_test(y[0].numpy(), GRAPHS_DIR/'test3.png', title='pr y')
+
         break

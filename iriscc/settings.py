@@ -160,10 +160,13 @@ SAFRAN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=4
 
 # Phase 1 settings
 #DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D')
+#DATES_TRAIN = ['1985', '2005', '2010'] # train, valid, test start
 DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
 
 # Phase 2 settings
 DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
+DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
+
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
 DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq='D')

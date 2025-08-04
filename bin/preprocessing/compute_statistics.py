@@ -15,7 +15,7 @@ import json
 import argparse
 import matplotlib.pyplot as plt
 
-from iriscc.settings import CONFIG
+from iriscc.settings import CONFIG, DATES_TRAIN
 from typing import Tuple
 
 def update_statistics(sum: float, 
@@ -85,10 +85,10 @@ if __name__=='__main__':
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
     
-    train_start = np.where(dataset == str(dataset_dir/'sample_19800101.npz'))[0][0]
-    train_end = np.where(dataset == str(dataset_dir/'sample_20091231.npz'))[0][0]
-    val_end = np.where(dataset == str(dataset_dir/'sample_20131231.npz'))[0][0]
-
+    train_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
+    val_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
+    test_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
+   
     y_data = {'train' : [],
                  'val' : [],
                  'test' : []}
@@ -108,7 +108,7 @@ if __name__=='__main__':
                 print(np.nanmax(x[c]))
 
         # Only training statistics are used for normalization
-        if nb in range(train_start, train_end):
+        if nb in range(train_start, val_start-1):
             y_data['train'].append(y.flatten())
             if nb == train_start:
                 min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
@@ -134,9 +134,9 @@ if __name__=='__main__':
 
 
         # Validation and test data histograms 
-        elif nb in range(train_end, val_end):
+        elif nb in range(val_start, test_start-1):
             y_data['val'].append(y.flatten())
-        elif nb >= val_end :
+        elif nb >= test_start :
             y_data['test'].append(y.flatten())
         
     mean = sum / n_total

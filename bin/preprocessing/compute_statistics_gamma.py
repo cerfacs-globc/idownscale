@@ -14,8 +14,7 @@ import glob
 import argparse
 from scipy.stats import gamma
 
-from iriscc.settings import CONFIG, GRAPHS_DIR
-from iriscc.plotutils import plot_test
+from iriscc.settings import CONFIG, DATES_TRAIN
 
 def filter_aberrant_values(param: np.ndarray, threshold: float) -> np.ndarray:
     """
@@ -44,7 +43,7 @@ if __name__=='__main__':
 
     alpha, beta = [], []
     calibration_y = 1
-    for nb in range(1980, 2009, calibration_y):  # Increment by 5 years
+    for nb in range(int(DATES_TRAIN[0]), int(DATES_TRAIN[1])-1, calibration_y):  # Increment by 5 years
         y_year = []
         for year in range(nb, nb + calibration_y):  # Collect data for 5 years
             files = np.sort(glob.glob(str(dataset_dir/f'sample_{year}*')))
