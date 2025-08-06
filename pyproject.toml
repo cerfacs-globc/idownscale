@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "idownscale"
+version = "0.1.0"
+description = "downscaling tool for climate projections"
+authors = [
+    { name = "Zoé Garcia", email = "zoe.garcia@cerfacs.fr" }
+]
+readme = "README.md"
+dependencies = [
+    "numpy",
+    "cartopy",
+    "dask",
+    "datetime",
+    "h5netcdf"
+    "ibicus",
+    "matplotlib",
+    "monai",
+    "numpy",
+    "pandas",
+    "ruff",
+    "pyproj",
+    "pytorch_lightning",
+    "scipy",
+    "seaborn",
+    "timm",
+    "torch",
+    "torchmetrics",
+    "torchvision",
+    "tqdm",
+    "xarray",
+    "xesmf"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/cerfacs-globc/idownscale.git"
+
+# Ruff configuration: https://docs.astral.sh/ruff/configuration/
+[tool.ruff]
+line-length = 130
+exclude = [
+  ".git", "__pycache__", "docs/conf.py", "use-cases", "tutorials",
+  "tests", "old", "build", "dist", ".venv*", "envAI*", "env-files", ".vscode"
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E203"]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
