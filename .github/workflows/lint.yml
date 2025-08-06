@@ -10,7 +10,7 @@ permissions: read-all
 jobs:
   super-lint:
     name: Lint with Super-Linter
-    #runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
     ############################################
     # Grant status permission for MULTI_STATUS #

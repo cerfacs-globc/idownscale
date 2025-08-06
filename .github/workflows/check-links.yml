@@ -10,7 +10,7 @@ permissions: read-all
 jobs:
   markdown-link-check:
     name: Check links using markdown-link-check
-    #runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
 
     steps:
       # Checks out a copy of your repository on the ubuntu-latest machine
