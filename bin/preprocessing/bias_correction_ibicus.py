@@ -1,4 +1,4 @@
-''' 
+'''
 Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy
 
 date : 16/07/2025
@@ -75,7 +75,7 @@ def plot_seasonal_hist(
     Plots seasonal histograms (winter and summer) for {var} data.
 
     Args:
-        y (list | None): Optional {var} data for comparison (e.g., ERA5). 
+        y (list | None): Optional {var} data for comparison (e.g., ERA5).
                             If None, only `x` and `z` are plotted.
         x (list): {var} data for biased dataset.
         z (list): {var} data for the corrected dataset.
@@ -125,7 +125,7 @@ def monthly_mean(y: Optional[np.ndarray],
         dates (List[str]): A list of date strings corresponding to the input arrays.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     if y is None:
         y = x

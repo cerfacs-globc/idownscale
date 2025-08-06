@@ -1,4 +1,4 @@
-""" 
+"""
 Evaluate input data x against high resolution rcm data y for rcm prediction data
 
 date = 16/07/2025

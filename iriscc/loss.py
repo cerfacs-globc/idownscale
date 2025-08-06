@@ -18,11 +18,11 @@ from iriscc.settings import GRAPHS_DIR
 
 class MaskedMSELoss(nn.Module):
     """
-    MaskedMSELoss is a custom loss function that computes the Mean Squared Error (MSE) 
+    MaskedMSELoss is a custom loss function that computes the Mean Squared Error (MSE)
     while ignoring specific target values.
 
     Attributes:
-        ignore_value (float): The value in the target tensor `y` to be ignored during 
+        ignore_value (float): The value in the target tensor `y` to be ignored during
             loss computation.
     """
     def __init__(self, ignore_value):
@@ -31,7 +31,7 @@ class MaskedMSELoss(nn.Module):
 
     def forward(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
-        Computes the masked mean squared error loss between the predicted values (y_hat) 
+        Computes the masked mean squared error loss between the predicted values (y_hat)
         and the target values (y), ignoring a specific value.
 
         Args:
@@ -51,7 +51,7 @@ class MaskedMSELoss(nn.Module):
 
 class MaskedGammaMAELoss(nn.Module):
     """
-    MaskedGammaMAELoss is a PyTorch loss function that computes the masked mean absolute error 
+    MaskedGammaMAELoss is a PyTorch loss function that computes the masked mean absolute error
     between predicted values and target values, incorporating a Gamma distribution for modeling.
     Attributes:
         ignore_value (float): The value to ignore in the loss computation.
@@ -61,8 +61,7 @@ class MaskedGammaMAELoss(nn.Module):
         forward(y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
             Computes the loss between the predicted values (y_hat) and the target values (y).
             Applies a mask to ignore specified values during loss calculation.
-    
-    Following Antoine Doury's code : https://github.com/antoinedoury/RCM-Emulator 
+    Following Antoine Doury's code : https://github.com/antoinedoury/RCM-Emulator
     """
     def __init__(self, ignore_value:float, sample_dir:Path):
         super(MaskedGammaMAELoss, self).__init__()

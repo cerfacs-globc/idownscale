@@ -24,8 +24,8 @@ def update_statistics(sum: float,
                       min: float, 
                       max: float, 
                       x: np.ndarray) -> Tuple[float, float, int, float, float]:
-    ''' 
-    Compute and update sample statistics including sum, squared sum, total count, 
+    '''
+    Compute and update sample statistics including sum, squared sum, total count,
     minimum, and maximum values for a given array, ignoring NaN values.
     '''
     x = x[~np.isnan(x)]  # Remove NaN values

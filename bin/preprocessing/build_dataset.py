@@ -1,4 +1,4 @@
-''' 
+'''
 Build dataset for training purpuse in Phase 1.
 This script processes input data (ERA5) and target data (ex : SAFRAN or EOBS) for a given experiment.
 
@@ -96,7 +96,7 @@ class DatasetBuilder:
                 ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
             else:
                 ds_era5 = get_data.get_era5_dataset(var, date)
-                ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp)
+                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) # default value
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                         ds_target=ds_gcm, 
                                                         method="conservative_normed")

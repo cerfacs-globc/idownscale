@@ -47,6 +47,7 @@ DATASET_EXP5_30Y_DIR = DATASET_DIR / 'dataset_exp5_30y'
 DATASET_EXP6_30Y_DIR = DATASET_DIR / 'dataset_exp6_30y'
 DATASET_EXP6_BASELINE_DIR = DATASET_DIR / 'dataset_exp6_baseline'
 DATASET_EXP7_30Y_DIR = DATASET_DIR / 'dataset_exp7_30y'
+DATASET_EXP8_30Y_DIR = DATASET_DIR / 'dataset_exp8_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
 
@@ -142,6 +143,46 @@ CONFIG = {
         'input_vars': ['elevation', 'huss', 'psl', 'tas'],
         'channels': ['elevation', 'huss input', 'psl input', 'tas input', 'pr target'], # to not get lost for normalization
         'ssp' : 'ssp585'   
+        },
+    'exp8':
+        {'target':'eobs',
+        'domain': [-6., 10., 38, 54],
+        'data_projection' : ccrs.PlateCarree(),
+        'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+        'pyproj_projection' : None, # for curvilign grids conservative interpolation
+        'shape': (64,64),
+        'target_file' : TARGET_EOBS_FRANCE_FILE, # target grid coordinates
+        'orog_file' : OROG_EOBS_FRANCE_FILE,
+        'dataset' : DATASET_EXP8_30Y_DIR,
+        'target_vars': ['pr'],
+        'input_vars': ['elevation',
+                       'zg500',
+                       'zg700',
+                       'zg850',
+                       'ta500',
+                       'ta700',
+                       'ta850',
+                       'ua500',
+                       'ua700',
+                       'ua850',
+                       'vas',
+                       'uas',
+                       'psl'],
+        'channels': ['elevation',
+                       'zg500 input',
+                       'zg700 input',
+                       'zg850 input',
+                       'ta500 input',
+                       'ta700 input',
+                       'ta850 input',
+                       'ua500 input',
+                       'ua700 input',
+                       'ua850 input',
+                       'vas input',
+                       'uas input',
+                       'psl input',
+                       'pr target'], # to not get lost for normalization
+        'ssp' : 'ssp585'   
         }
     }
 
@@ -154,18 +195,20 @@ COLORS = {'SAFRAN 8km': 'purple',
           'UNet' : 'orangered',
           'SwinUNETR' : 'hotpink'}
 
-ALADIN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lat_1=49.500000 +lat_0=49.500000 +lon_0=10.500000 +k_0=1.0 +x_0=2925000.000000 +y_0=2925000.000000 +R=6371229.000000", preserve_units=True)
-SAFRAN_PROJ_PYPROJ = pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
+ALADIN_PROJ_PYPROJ = pyproj.Proj(
+    "+proj=lcc +lat_1=49.500000 +lat_0=49.500000 +lon_0=10.500000 +k_0=1.0 +x_0=2925000.000000 +y_0=2925000.000000 +R=6371229.000000", preserve_units=True)
+SAFRAN_PROJ_PYPROJ = pyproj.Proj(
+    "+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
 
 
 # Phase 1 settings
-#DATES = pd.date_range(start='1985-01-01', end='2014-12-31', freq='D')
-#DATES_TRAIN = ['1985', '2005', '2010'] # train, valid, test start
+DATES = pd.date_range(start='19961231', end='2014-12-31', freq='D')
+DATES_TRAIN = ['1985', '2005', '2010'] # train, valid, test start
 DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
 
 # Phase 2 settings
-DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
-DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
+#DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
+#DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
 
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')

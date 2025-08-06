@@ -90,7 +90,6 @@ def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t
         output_shape (tuple): Shape of the output images.
         neighbours (bool): If True, generate samples from neighbouring points.
         std (float): Standard deviation for noise.
-    
     Returns:
         torch.Tensor: Generated samples.
     """

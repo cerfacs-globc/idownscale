@@ -1,4 +1,4 @@
-""" 
+"""
 Bias correction using SBCK python library. This script is just a test.
 
 date : 16/07/2025

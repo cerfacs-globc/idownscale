@@ -34,7 +34,8 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
 
 def standardize_dims_and_coords(ds) :
    # Camille Le Gloannec script
-   # GCM models have inconsistent names of dimensions and coordinates, this function fix that at the dataset level by naming dimensions (x,y) and coordinates (lon,lat).
+   # GCM models have inconsistent names of dimensions and coordinates, 
+   # this function fix that at the dataset level by naming dimensions (x,y) and coordinates (lon,lat).
 
    dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon'], 
          'y' : ['j', 'nj', 'yh', 'lat', 'nlat'],
@@ -59,7 +60,8 @@ def standardize_dims_and_coords(ds) :
 
 def standardize_longitudes(ds) :
    # Camille Le Gloannec script
-   # GCM models have inconsistent longitude conventions, this function fix that at the dataset level by setting the convention to -180° - 180°.
+   # GCM models have inconsistent longitude conventions, this function fix 
+   # that at the dataset level by setting the convention to -180° - 180°.
 
    if 'lon' in ds.coords :
       lon = ds.coords['lon']
@@ -462,7 +464,7 @@ def return_unit(var:str):
    Returns the unit of measurement for a given variable.
 
    Parameters:
-      var (str): The variable name for which the unit is requested. 
+      var (str): The variable name for which the unit is requested.
                Accepted values are 'tas', 'pr', 'sfcWind', and 'psl'.
 
    Returns:

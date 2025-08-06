@@ -1,6 +1,6 @@
 """
-Build dataset of corrected GCM data for network inference. 
-This step is also performed by bias_correction_ibicus.py but can be usefull 
+Build dataset of corrected GCM data for network inference.
+This step is also performed by bias_correction_ibicus.py but can be usefull
 when an issue appears and don't want to run the whole bias correction process again.
 
 date : 16/07/2025

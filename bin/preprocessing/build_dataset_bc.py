@@ -1,5 +1,5 @@
-''' 
-Data preprocessing for bias correction, for RCM or GCM data. 
+'''
+Data preprocessing for bias correction, for RCM or GCM data.
 NPZ files are saved with predictors (simu), predictants (ERA5) and dates for training, validation and test
 
 date : 16/07/2025

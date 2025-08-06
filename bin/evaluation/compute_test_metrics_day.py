@@ -1,4 +1,4 @@
-""" 
+"""
 Evaluate input data x against target data y for raw, prediction and baseline data
 
 date = 16/07/2025

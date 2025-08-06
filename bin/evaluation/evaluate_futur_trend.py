@@ -154,7 +154,7 @@ if __name__=='__main__':
         tas_swinunet = swinunet.tas.values
         swinunet.close()
 
-        l = [tas_data, tas_unet, tas_swinunet]
+        tas_list = [tas_data, tas_unet, tas_swinunet]
         tref = [tas_ref, tas_unet_ref, tas_swinunet_ref]
 
         ## PLOT CHANGES MAPS
@@ -162,7 +162,7 @@ if __name__=='__main__':
             ax1 = axes1[i, col]
             data_proj = inputs_projections[col]
             cs = ax1.contourf(
-                np.nanmean(l[col], axis=0) - tref[col],
+                np.nanmean(tas_list[col], axis=0) - tref[col],
                 extent=domain[col],
                 transform=data_proj,
                 cmap=custom_cmap,
@@ -183,7 +183,7 @@ if __name__=='__main__':
 
 
             ## PLOT VARIABILITY
-            var_t = compute_variability(l[col])
+            var_t = compute_variability(tas_list[col])
             var_temporal.extend([
                 {'period': f'{periods[i]} - {periods[i+1]}', 'Variability': val, 'label': labels[col]}
                 for val in var_t.flatten()

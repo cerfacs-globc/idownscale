@@ -32,7 +32,7 @@ def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
     data = [x, y, y_hat, diff_y]
     subtitles = ["input", "target", "prediction", "prediction - target"]
     cmaps = ["OrRd", "OrRd", "OrRd", "RdBu"]
-    #levels_list = [levels_y, levels_y, levels_y, levels_diff]
+    levels_list = [levels_y, levels_y, levels_y, levels_diff]
 
     for i, ax in enumerate(axes.flat):
         if pixel is True:
@@ -41,8 +41,7 @@ def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
             else: 
                 cs = ax.imshow(np.flip(data[i],axis=0), cmap=cmaps[i],vmin=vmin_y, vmax=vmax_y)
         else:
-            #cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
-            cs = ax.contourf(data[i], cmap=cmaps[i])
+            cs = ax.contourf(data[i], cmap=cmaps[i], levels=levels_list[i])
 
         cbar = plt.colorbar(cs, ax=ax, pad=0.05)
         ax.set_title(subtitles[i], fontsize=12)

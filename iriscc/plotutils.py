@@ -126,8 +126,7 @@ def plot_map_contour(var,
         plt.savefig(save_dir)
 
 def plot_test(var,  save_dir: str, title: str = None,vmin: float = None, vmax: float = None):
-
-    ''' 
+    '''
     Simple test plot function.
 
     Args:
@@ -136,7 +135,6 @@ def plot_test(var,  save_dir: str, title: str = None,vmin: float = None, vmax: f
         save_dir (str): Path to save the generated plot.
         vmin (float, optional): Minimum value for colormap scaling. Defaults to None.
         vmax (float, optional): Maximum value for colormap scaling. Defaults to None.
-    
     Returns:
         None
     '''
@@ -163,7 +161,7 @@ def plot_monthly_var_seasonal_cycle(
     save_dir: str
     ) -> None:
     """
-    Plots the seasonal cycle of a variable, showing the mean monthly values 
+    Plots the seasonal cycle of a variable, showing the mean monthly values
     and individual yearly trends, and saves the plot to a specified directory.
     The function accepts either daily or monthly data as input.
 
