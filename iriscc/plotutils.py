@@ -1,4 +1,4 @@
-''' 
+'''
 Useful plot functions
 
 date : 16/07/2025

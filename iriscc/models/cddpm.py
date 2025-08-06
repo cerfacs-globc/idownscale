@@ -21,7 +21,7 @@ class CDDPM(nn.Module):
 
     Reference:
         Ho, J., Chen, X., Srinivas, A., Duan, Y., Abbeel, P., & Finn, C. (2020).
-        Denoising Diffusion Probabilistic Models. arXiv preprint arXiv:2006.11239. 
+        Denoising Diffusion Probabilistic Models. arXiv preprint arXiv:2006.11239.
     Methods:
         forward(x0, t, eta): Forward pass of the DDPM model.
         backward(x, t, conditioning_image): Backward pass of the DDPM model.
