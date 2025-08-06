@@ -5,14 +5,14 @@ date : 16/07/2025
 author : Zoé GARCIA
 '''
 
-import sys
-sys.path.append('.')
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+
+import sys
+sys.path.append('.')
 
 def plot_map_image(var,
                     var_desc: str = None,

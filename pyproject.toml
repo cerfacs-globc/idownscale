@@ -40,7 +40,7 @@ dependencies = [
 
 # Ruff configuration: https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
-line-length = 130
+line-length = 165
 exclude = [
   ".git", "__pycache__", "docs/conf.py", "use-cases", "tutorials",
   "tests", "old", "build", "dist", ".venv*", "envAI*", "env-files", ".vscode"

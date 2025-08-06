@@ -6,12 +6,11 @@ Created on Sun Aug 18 11:01:26 2024
 @author: elaabar
 """
 
-import sys
-sys.path.append('.')
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+import sys
+sys.path.append('.')
 
 from iriscc.models.denoising_unet import CUNet
 
