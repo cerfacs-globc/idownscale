@@ -6,13 +6,15 @@ Created on Sun Aug 18 11:01:26 2024
 @author: elaabar
 """
 
+import sys
+
 import torch
 import torch.nn as nn
 
-import sys
 sys.path.append('.')
 
 from iriscc.models.denoising_unet import CUNet
+
 
 class CDDPM(nn.Module):
     """
@@ -42,10 +44,10 @@ class CDDPM(nn.Module):
         self.n_steps = n_steps
 
         # Move the neural network to the specified device
-        self.network = CUNet(n_steps=self.n_steps, 
-                             time_emb_dim = 100, 
-                             in_channels=in_ch, 
-                             out_channels=1, 
+        self.network = CUNet(n_steps=self.n_steps,
+                             time_emb_dim = 100,
+                             in_channels=in_ch,
+                             out_channels=1,
                              init_features=32)
 
         # Generate beta values between min_beta and max_beta
@@ -101,12 +103,12 @@ class CDDPM(nn.Module):
 
         Returns:
             torch.Tensor: Estimated noise tensor.
-        """        
+        """
         # Run the input image through the neural network for noise estimation
-        if self.encode_conditioning_image:                
+        if self.encode_conditioning_image:
             conditioning_image = self.conditioning_encoder(conditioning_image)
         return self.network(x, t, conditioning_image)
-    
+
     def set_device(self, device: str) -> None:
         """
         Set the device for tensor computations.
@@ -159,14 +161,14 @@ class CDDPM(nn.Module):
                 x = x + sigma_t * z
         # Returning the final image
         return x
-    
+
 
 
 if __name__=='__main__':
 
-    cddpm = CDDPM(n_steps=5, 
-                  min_beta=1e-4, 
-                  max_beta=0.02, 
-                  encode_conditioning_image=False, 
+    cddpm = CDDPM(n_steps=5,
+                  min_beta=1e-4,
+                  max_beta=0.02,
+                  encode_conditioning_image=False,
                   in_ch=3)
 

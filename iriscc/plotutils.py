@@ -5,13 +5,14 @@ date : 16/07/2025
 author : Zoé GARCIA
 '''
 
+import sys
+
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 
-import sys
 sys.path.append('.')
 
 def plot_map_image(var,
@@ -47,11 +48,11 @@ def plot_map_image(var,
         figsize=(6,5),
         subplot_kw={"projection": fig_projection}
     )
-    
+
     img = ax.imshow(
         var,
-        extent=domain, 
-        transform=data_projection, 
+        extent=domain,
+        transform=data_projection,
         origin='lower',
         cmap=cmap,
         vmin=vmin,
@@ -69,7 +70,7 @@ def plot_map_image(var,
     plt.tight_layout()
     plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
-        return fig, ax  
+        return fig, ax
     else:
         plt.savefig(save_dir)
 
@@ -102,9 +103,9 @@ def plot_map_contour(var,
         figsize=(6, 5),
         subplot_kw={"projection": fig_projection}
     )
-    
-    cs = ax.contourf(var, 
-                     cmap=cmap, 
+
+    cs = ax.contourf(var,
+                     cmap=cmap,
                      levels=levels,
                      extent=domain,
                      transform=data_projection
@@ -121,7 +122,7 @@ def plot_map_contour(var,
     plt.tight_layout()
     plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
-        return fig, ax  
+        return fig, ax
     else:
         plt.savefig(save_dir)
 
@@ -154,10 +155,10 @@ def plot_contour(var, title, save_dir, levels=None):
     plt.savefig(save_dir)
 
 def plot_monthly_var_seasonal_cycle(
-    var_temporal: np.ndarray, 
-    dates: np.ndarray, 
-    title: str, 
-    var_desc: str, 
+    var_temporal: np.ndarray,
+    dates: np.ndarray,
+    title: str,
+    var_desc: str,
     save_dir: str
     ) -> None:
     """
@@ -177,7 +178,7 @@ def plot_monthly_var_seasonal_cycle(
     """
     df_var = pd.DataFrame({'date': dates, 'var_temporal': var_temporal})
     df_var['date'] = pd.to_datetime(df_var['date'])
-    
+
     # Determine if the data is daily or monthly
     if len(df_var['date'].dt.day.unique()) > 1:  # Data is daily
         df_var['month'] = df_var['date'].dt.month
@@ -197,13 +198,13 @@ def plot_monthly_var_seasonal_cycle(
     for year in var_per_year.columns:
         plt.plot(var_per_year.index, var_per_year[year], label=str(year), alpha=0.3, linestyle='--')
     plt.xticks(ticks=np.arange(1, 13), labels=[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], fontsize=12)
     plt.ylabel(f'{var_desc}')
     plt.xlabel('Month')
     plt.grid(axis='y', linestyle='--', alpha=0.7)
     plt.legend(loc='upper right', fontsize=12, ncol=2)
-    ax.text(0.02, 0.10, f"Mean temporal {var_desc}: {np.mean(var_temporal):.2f}", transform=ax.transAxes, fontsize=12, 
+    ax.text(0.02, 0.10, f"Mean temporal {var_desc}: {np.mean(var_temporal):.2f}", transform=ax.transAxes, fontsize=12,
         verticalalignment='top', horizontalalignment='left', color='red')
     plt.tight_layout()
     plt.savefig(save_dir)
@@ -211,7 +212,7 @@ def plot_monthly_var_seasonal_cycle(
 
 def plot_histogram(data, ax, labels, colors, xlabel):
     for i in range(len(data)):
-        ax.hist(data[i], histtype='step', color=colors[i], 
+        ax.hist(data[i], histtype='step', color=colors[i],
                 label=labels[i], density=True, range=(260,310), bins=100, linewidth=2)
         ax.axvline(np.nanmean(data[i]), color=colors[i], linestyle='--', linewidth=2)
     ax.set_ylim(0, 0.07)
