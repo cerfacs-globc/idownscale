@@ -15,7 +15,7 @@ dependencies = [
     "cartopy",
     "dask",
     "datetime",
-    "h5netcdf"
+    "h5netcdf",
     "ibicus",
     "matplotlib",
     "monai",
