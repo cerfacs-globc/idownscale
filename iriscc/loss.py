@@ -13,8 +13,6 @@ import torch
 import torch.nn as nn
 from torch.distributions import Gamma
 from pathlib import Path
-from iriscc.plotutils import plot_test
-from iriscc.settings import GRAPHS_DIR
 
 class MaskedMSELoss(nn.Module):
     """

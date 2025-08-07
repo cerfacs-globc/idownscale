@@ -19,8 +19,7 @@ import torch.nn.functional as F
 from typing import Tuple, Union, List, Optional
 from pathlib import Path
 
-from iriscc.settings import IMERG_MASK, GRAPHS_DIR
-from iriscc.plotutils import plot_test
+from iriscc.settings import IMERG_MASK
 
 class StandardNormalisation():
     """

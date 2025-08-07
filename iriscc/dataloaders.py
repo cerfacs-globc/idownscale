@@ -97,14 +97,14 @@ def get_dataloaders(data_type: str) -> DataLoader:
                 Pad(hparams.fill_value)
                 ])
     training_data = IRISCC(transform=transforms,
-                        hparams=hparams,
-                        data_type=data_type)
+                            hparams=hparams,
+                            data_type=data_type)
     
     
     if data_type == 'train':
-        shuffle=True
+        shuffle = True
     else:
-        shuffle=False
+        shuffle = False
 
     if data_type == 'train':
         batch_size = hparams.batch_size
@@ -117,11 +117,11 @@ def get_dataloaders(data_type: str) -> DataLoader:
                             num_workers=1)
     return dataloader   
 
-if __name__=='__main__':
+if __name__ == '__main__':
     train_dataloader = get_dataloaders('test')
     for batch in train_dataloader:
-        x = batch[0][0,:,:,:]
-        y = batch[1][0,:,:,:]
+        x = batch[0][0, :, :, :]
+        y = batch[1][0, :, :, :]
         y[y == -1.] = torch.nan
 
         print(x.shape, y.shape)

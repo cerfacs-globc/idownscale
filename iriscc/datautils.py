@@ -370,10 +370,10 @@ class Data(object):
       if var == 'pr':
          data[data < 0] = 0.
          if data_type == 'gcm' or data_type =='rcm': # kg/m2/s to mm/day
-               data = data * 3600 * 24
+            data = data * 3600 * 24
       if var == 'tas':
          if np.nanmean(data) < 100: # celsius to kelvin
-               data = data + 273.15
+            data = data + 273.15
       return data
    
    def get_era5_dataset(self, var:str, date):
@@ -405,18 +405,18 @@ class Data(object):
          ds = xr.open_dataset(file).isel(time=0)
       else :
          if date < pd.Timestamp('2015-01-01'):
-               file_for_xy = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
-               ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
-               xref = ds_for_xy['x'].values
-               yref = ds_for_xy['y'].values
-               ds_for_xy.close()
-               files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*historical*r1i1p1f2*')))
+            file_for_xy = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
+            ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
+            xref = ds_for_xy['x'].values
+            yref = ds_for_xy['y'].values
+            ds_for_xy.close()
+            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*historical*r1i1p1f2*')))
          else :
-               files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*{ssp}*r1i1p1f2*')))
+            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*{ssp}*r1i1p1f2*')))
          for file in files:
-               if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
-                  ds = xr.open_dataset(file)
-                  ds = self.crop_time_dim(ds, date)
+            if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
+               ds = xr.open_dataset(file)
+               ds = self.crop_time_dim(ds, date)
       if 'x' not in ds.coords:
          ds = ds.assign_coords(x = (['x'], xref))
          ds = ds.assign_coords(y = (['y'], yref))
