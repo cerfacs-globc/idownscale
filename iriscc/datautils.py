@@ -33,63 +33,63 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
 
 
 def standardize_dims_and_coords(ds) :
-   # Camille Le Gloannec script
-   # GCM models have inconsistent names of dimensions and coordinates, 
-   # this function fix that at the dataset level by naming dimensions (x,y) and coordinates (lon,lat).
+    # Camille Le Gloannec script
+    # GCM models have inconsistent names of dimensions and coordinates, 
+    # this function fix that at the dataset level by naming dimensions (x,y) and coordinates (lon,lat).
 
-   dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon'], 
+    dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon'], 
          'y' : ['j', 'nj', 'yh', 'lat', 'nlat'],
          'lev' : ['olevel']}
-   coord_mapping = {'lon' : ['longitude', 'nav_lon'],
+    coord_mapping = {'lon' : ['longitude', 'nav_lon'],
          'lat' : ['latitude', 'nav_lat']}
    
-   for standard_name, possible_names in dim_mapping.items() :
-      for name in possible_names :
-         if name in ds.dims :
-            ds = ds.rename({name: standard_name})
-            break
+    for standard_name, possible_names in dim_mapping.items() :
+        for name in possible_names :
+            if name in ds.dims :
+                ds = ds.rename({name: standard_name})
+                break
    
-   for standard_name, possible_names in coord_mapping.items() :
-      for name in possible_names :
-         if name in ds.coords :
+    for standard_name, possible_names in coord_mapping.items() :
+       for name in possible_names :
+           if name in ds.coords :
             ds = ds.rename({name: standard_name})
             break
          
-   return ds
+    return ds
 
 
 def standardize_longitudes(ds) :
-   # Camille Le Gloannec script
-   # GCM models have inconsistent longitude conventions, this function fix 
-   # that at the dataset level by setting the convention to -180° - 180°.
+    # Camille Le Gloannec script
+    # GCM models have inconsistent longitude conventions, this function fix 
+    # that at the dataset level by setting the convention to -180° - 180°.
 
-   if 'lon' in ds.coords :
-      lon = ds.coords['lon']
-      ds.coords['lon'] = ((lon+180)%360)-180
+    if 'lon' in ds.coords :
+        lon = ds.coords['lon']
+        ds.coords['lon'] = ((lon+180)%360)-180
       
-      if len(ds.lon.shape) == 1 :
-         ds = ds.sortby('lon')
-      else :
-         for dim in ds.lon.dims :
-            ds = ds.sortby(dim)
+        if len(ds.lon.shape) == 1 :
+            ds = ds.sortby('lon')
+        else :
+            for dim in ds.lon.dims :
+                ds = ds.sortby(dim)
          
-   else :
-      x = ds.coords['x']
-      ds.coords['x'] = ((x+180)%360)-180
-      ds = ds.sortby(ds.x)
+    else :
+        x = ds.coords['x']
+        ds.coords['x'] = ((x+180)%360)-180
+        ds = ds.sortby(ds.x)
       
-   return ds
+    return ds
 
 
 def generate_bounds(coord:np.ndarray) -> np.ndarray:
-   """
-   Generates bounds for a given coordinate array.
-   """
-   bounds = np.zeros(len(coord) + 1)
-   bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
-   bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
-   bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
-   return bounds.astype(np.int32)
+    """
+    Generates bounds for a given coordinate array.
+    """
+    bounds = np.zeros(len(coord) + 1)
+    bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
+    bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
+    bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
+    return bounds.astype(np.int32)
 
 
 def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
