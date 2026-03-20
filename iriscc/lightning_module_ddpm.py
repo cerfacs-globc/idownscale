@@ -42,7 +42,7 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         self.scheduler_step_size = hparams['scheduler_step_size']
         self.scheduler_gamma = hparams['scheduler_gamma']
         self.output_norm = hparams['output_norm']
-        os.makedirs(self.runs_dir, exist_ok=True)
+        Path(self.runs_dir).mkdir(parents=True, exist_ok=True)
 
         self.loss = nn.MSELoss()  
         #self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
@@ -91,8 +91,7 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
 
     def common_step(self, x, y):
         eta, eta_theta = self(x, y)
-        loss = torch.sqrt(self.loss(eta_theta, eta))
-        return loss
+        return torch.sqrt(self.loss(eta_theta, eta))
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -170,7 +169,7 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
             
     def build_metrics_dataframe(self):
         data = []
-        first_sample = list(self.test_metrics.keys())[0]
+        first_sample = next(iter(self.test_metrics.keys()))
         metrics = list(self.test_metrics[first_sample].keys())
         for name_sample, metrics_dict in self.test_metrics.items():
             data.append([name_sample] + [metrics_dict[m].item() for m in metrics])

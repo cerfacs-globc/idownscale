@@ -40,6 +40,12 @@ dependencies = [
 
 # Ruff configuration: https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
+exclude = [
+    ".git",
+    "build",
+    "dist",
+    "*.egg-info",
+]
 line-length = 165 # icclim allows line too long, but keeping a reasonable limit here if needed, or I can just drop it if E501 is ignored anyway.
 # Wait, icclim ruff config says E501 is ignored.
 
@@ -136,6 +142,7 @@ ignore = [
   "B905",   # Allow zip without strict
   "PLR2004",# Allow magic values in comparisons
   "SIM108", # Allow if/else blocks instead of ternary
+  "ARG002", # Allow unused method arguments (required for PyTorch Lightning signatures)
 ]
 
 [tool.ruff.lint.per-file-ignores]

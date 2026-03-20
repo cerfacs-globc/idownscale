@@ -64,7 +64,8 @@ class IRISCCLightningModule(pl.LightningModule):
         self.in_channels = hparams['in_channels']
         self.img_size = hparams['img_size']
         self.dropout = hparams['dropout']
-        os.makedirs(self.runs_dir, exist_ok=True)
+        from pathlib import Path
+        Path(self.runs_dir).mkdir(parents=True, exist_ok=True)
 
         self.loss_name = hparams['loss']
         if self.loss_name == 'masked_gamma_mae':
@@ -108,7 +109,7 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, loss = self.common_step(x, y)
+        _y_hat, loss = self.common_step(x, y)
         self.train_step_outputs.append(loss)
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
