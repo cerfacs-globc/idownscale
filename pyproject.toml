@@ -130,6 +130,12 @@ ignore = [
   "ANN202", # Missing return type annotation for private function
   "ANN204", # Missing return type annotation for special method `__init__`
   "ERA001", # Found commented-out code (too noisy for research scripts)
+  "T201",   # Allow print statements globally
+  "C408",   # Allow dict() calls (often used in dataset creation)
+  "N806",   # Allow uppercase variables (H, W for image shapes)
+  "B905",   # Allow zip without strict
+  "PLR2004",# Allow magic values in comparisons
+  "SIM108", # Allow if/else blocks instead of ternary
 ]
 
 [tool.ruff.lint.per-file-ignores]

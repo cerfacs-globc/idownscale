@@ -31,6 +31,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
           JSCPD_THRESHOLD: 40
+          JSCPD_CONFIG_FILE: '.jscpd.json'
           FILTER_REGEX_EXCLUDE: '.*(build|dist|\.egg-info).*'
           SHFMT_ARGUMENTS: '-i 4'
           VALIDATE_JSCPD: true
