@@ -5,16 +5,17 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import sys
-sys.path.append('.')
-
-import xarray as xr
-import numpy as np
-from pathlib import Path
-import xesmf as xe
+import datetime
 import glob
-from datetime import datetime
+import sys
+from pathlib import Path
+
+sys.path.append(".")  # noqa: E402
+
+import numpy as np
 import pandas as pd
+import xarray as xr
+import xesmf as xe
 
 from iriscc.settings import (TARGET_SAFRAN_FILE,
                              SAFRAN_REFORMAT_DIR,

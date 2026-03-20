@@ -10,8 +10,12 @@ author: Zoé GARCIA
 import argparse
 import sys
 
-sys.path.append('.')  # noqa: E402
+# noqa: E402
+sys.path.append(".")
 
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

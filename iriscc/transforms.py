@@ -194,8 +194,7 @@ class UnPad():
 
         pad_top = padding_H // 2
         pad_left = padding_W // 2
-        unpadded_array = array[pad_top:pad_top + H, pad_left:pad_left + W]
-        return unpadded_array
+        return array[pad_top:pad_top + H, pad_left:pad_left + W]
 
     def __call__(self, sample: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
         y = [self.unpad_func(sample[C]) for C in range(len(sample))]

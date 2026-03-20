@@ -44,7 +44,7 @@ jobs:
           DISABLE_ERRORS: false
           
           # Increase threshold to accommodate model variants (U-Net, MiniU-Net, etc.)
-          JSCPD_CONFIG_FILE: .jscpd.json
+          JSCPD_THRESHOLD: 20
           
           # Indent with 4 spaces for shfmt
           SHFMT_ARGUMENTS: "-i 4"

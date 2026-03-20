@@ -5,19 +5,21 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import sys
-sys.path.append('.')
-
-import glob
-import pandas as pd
-import xarray as xr
 import argparse
-import numpy as np
-import matplotlib.colors as mcolors
-import seaborn as sns
-import matplotlib.pyplot as plt
+import glob
+import sys
+
+# noqa: E402
+sys.path.append(".")
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import xarray as xr
 
 
 from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, COLORS, RCM_RAW_DIR
