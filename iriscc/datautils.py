@@ -182,7 +182,7 @@ def interpolation_target_grid(ds: xr.Dataset,
 
    for var in ds.data_vars:
          data = ds[var].values
-         if data.ndim == 2 or data.ndim == 3:
+         if data.ndim in (2, 3):
             ds[var].values = np.asfortranarray(data)
             ds[var].values = np.ascontiguousarray(data)
    if method == 'bilinear':

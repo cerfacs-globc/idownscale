@@ -1,0 +1,13 @@
+{
+  "threshold": 40,
+  "minLines": 50,
+  "minTokens": 500,
+  "reporters": ["console", "checkstyle"],
+  "ignore": [
+    "**/tests/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/.git/**"
+  ],
+  "absolute": true
+}

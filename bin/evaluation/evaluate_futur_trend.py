@@ -37,8 +37,7 @@ from iriscc.settings import (
 
 def compute_variability(data):
     var = [data[i,:,:] - data[i-1,:,:] for i in range(data.shape[0])]
-    var_temporal = np.nanmean(np.abs(var), axis= (1,2))
-    return var_temporal
+    return np.nanmean(np.abs(var), axis= (1,2))
 
 def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     sns.boxplot(x='period', y='Variability', hue='label', data=df_var_temporal, ax=axes[0], palette=colors, gap=0.1)
@@ -99,10 +98,10 @@ if __name__=='__main__':
                     CONFIG[exp]['domain']]
     if simu == 'rcm':
         simu_name = 'RCM 12km'
-        dir = RCM_RAW_DIR / 'ALADIN_reformat'
+        simu_dir = RCM_RAW_DIR / 'ALADIN_reformat'
     else:
         simu_name = 'GCM 1°'
-        dir = GCM_RAW_DIR / 'CNRM-CM6-1'
+        simu_dir = GCM_RAW_DIR / 'CNRM-CM6-1'
     labels = [simu_name, 'UNet', 'SwinUNETR']
     colors = [COLORS[i] for i in labels]
     colors_map = ['white', 'yellow', 'orange', 'red', 'black']
@@ -131,7 +130,7 @@ if __name__=='__main__':
     )
 
     ## Reference 1980-2010
-    data_ref = xr.open_mfdataset(list(dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    data_ref = xr.open_mfdataset(list(simu_dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
@@ -154,7 +153,7 @@ if __name__=='__main__':
         print(log_msg, flush=True)
 
         # GET DATA
-        file = next(dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
+        file = next(simu_dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
         data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         data = standardize_longitudes(data)
         data = crop_domain_from_ds(data, CONFIG[exp]['domain'])

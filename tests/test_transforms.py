@@ -1,13 +1,13 @@
 import json
+
 import torch
-import numpy as np
-import pytest
+
 from iriscc.transforms import (
-    StandardNormalisation,
+    Log10Transform,
     MinMaxNormalisation,
     Pad,
+    StandardNormalisation,
     UnPad,
-    Log10Transform
 )
 
 def test_standard_normalisation(tmp_path):

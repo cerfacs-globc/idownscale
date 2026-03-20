@@ -176,7 +176,7 @@ if __name__=='__main__':
     df_dates['month'] = df_dates['date'].dt.month
     df_dates['day'] = df_dates['date'].dt.day
 
-    for i, ((year, month), group) in enumerate(df_dates.groupby(['year', 'month'])):
+    for i, ((year, month), _group) in enumerate(df_dates.groupby(['year', 'month'])):
         if month in [6,7,8]:
             i_summer.append(i)
         if month in [1,2,12]:
