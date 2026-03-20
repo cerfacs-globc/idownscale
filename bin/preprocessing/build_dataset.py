@@ -1,6 +1,7 @@
 '''
-Build dataset for training purpuse in Phase 1.
-This script processes input data (ERA5) and target data (ex : SAFRAN or EOBS) for a given experiment.
+Build dataset for training purposes in Phase 1.
+
+This script processes input data (ERA5) and target data (e.g., SAFRAN or EOBS) for a given experiment.
 
 date : 16/07/2025
 author : Zoé GARCIA
@@ -126,8 +127,7 @@ class DatasetBuilder:
                 ds = get_data.get_eobs_dataset(var, date)
                 data = ds[var].values
                 y.append(data)
-        y = np.stack(y, axis=0)
-        return y
+        return np.stack(y, axis=0)
     
     def baseline_data(self, 
                       date: datetime.date) -> np.ndarray:
@@ -146,8 +146,7 @@ class DatasetBuilder:
                                     crop_target=True, mask=True)
             data = ds[var].values
             y_hat.append(data)
-        y_hat = np.stack(y_hat, axis=0)
-        return y_hat
+        return np.stack(y_hat, axis=0)
 
     
 

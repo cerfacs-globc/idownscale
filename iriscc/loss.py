@@ -29,8 +29,10 @@ class MaskedMSELoss(nn.Module):
 
     def forward(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
-        Computes the masked mean squared error loss between the predicted values (y_hat)
-        and the target values (y), ignoring a specific value.
+        Computes the masked mean squared error loss.
+
+        Computes the loss between the predicted values (y_hat) and the target 
+        values (y), ignoring a specific value.
 
         Args:
             y_hat (torch.Tensor): Predicted values with shape (N, ...), where N is the batch size.
@@ -49,8 +51,11 @@ class MaskedMSELoss(nn.Module):
 
 class MaskedGammaMAELoss(nn.Module):
     """
-    MaskedGammaMAELoss is a PyTorch loss function that computes the masked mean absolute error
-    between predicted values and target values, incorporating a Gamma distribution for modeling.
+    Masked mean absolute error loss using a Gamma distribution.
+
+    Computes the masked mean absolute error between predicted values and 
+    target values, incorporating a Gamma distribution for modeling.
+
     Attributes:
         ignore_value (float): The value to ignore in the loss computation.
         alpha (torch.Tensor): Concentration parameter for the Gamma distribution.
