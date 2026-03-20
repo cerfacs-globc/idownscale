@@ -63,25 +63,25 @@ def standardize_longitudes(ds) :
     # GCM models have inconsistent longitude conventions, this function fix 
     # that at the dataset level by setting the convention to -180° - 180°.
 
-    if 'lon' in ds.coords :
+    if 'lon' in ds.coords:
         lon = ds.coords['lon']
-        ds.coords['lon'] = ((lon+180)%360)-180
+        ds.coords['lon'] = ((lon + 180) % 360) - 180
       
-        if len(ds.lon.shape) == 1 :
+        if len(ds.lon.shape) == 1:
             ds = ds.sortby('lon')
-        else :
-            for dim in ds.lon.dims :
+        else:
+            for dim in ds.lon.dims:
                 ds = ds.sortby(dim)
          
-    else :
+    else:
         x = ds.coords['x']
-        ds.coords['x'] = ((x+180)%360)-180
+        ds.coords['x'] = ((x + 180) % 360) - 180
         ds = ds.sortby(ds.x)
       
     return ds
 
 
-def generate_bounds(coord:np.ndarray) -> np.ndarray:
+def generate_bounds(coord: np.ndarray) -> np.ndarray:
     """
     Generates bounds for a given coordinate array.
     """
@@ -92,7 +92,7 @@ def generate_bounds(coord:np.ndarray) -> np.ndarray:
     return bounds.astype(np.int32)
 
 
-def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
+def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
    """
    Adds longitude and latitude bounds to the dataset based on the coordinates of the cells using exact data projection
    """
@@ -143,20 +143,20 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
       lon_b_full[1:-1, 0] = 2 * lon[:-1, 0] - lon[:-1, 1]
       lon_b_full[1:-1, -1] = 2 * lon[:-1, -1] - lon[:-1, -2]
 
-      lon_b_full[0, 0]     = 2 * lon[0, 0]     - lon[1, 1]
-      lon_b_full[0, -1]    = 2 * lon[0, -1]    - lon[1, -2]
-      lon_b_full[-1, 0]    = 2 * lon[-1, 0]    - lon[-2, 1]
-      lon_b_full[-1, -1]   = 2 * lon[-1, -1]   - lon[-2, -2]
+      lon_b_full[0, 0] = 2 * lon[0, 0] - lon[1, 1]
+      lon_b_full[0, -1] = 2 * lon[0, -1] - lon[1, -2]
+      lon_b_full[-1, 0] = 2 * lon[-1, 0] - lon[-2, 1]
+      lon_b_full[-1, -1] = 2 * lon[-1, -1] - lon[-2, -2]
 
       lat_b_full[0, 1:-1] = 2 * lat[0, :-1] - lat[1, :-1]
       lat_b_full[-1, 1:-1] = 2 * lat[-1, :-1] - lat[-2, :-1]
       lat_b_full[1:-1, 0] = 2 * lat[:-1, 0] - lat[:-1, 1]
       lat_b_full[1:-1, -1] = 2 * lat[:-1, -1] - lat[:-1, -2]
 
-      lat_b_full[0, 0]     = 2 * lat[0, 0]     - lat[1, 1]
-      lat_b_full[0, -1]    = 2 * lat[0, -1]    - lat[1, -2]
-      lat_b_full[-1, 0]    = 2 * lat[-1, 0]    - lat[-2, 1]
-      lat_b_full[-1, -1]   = 2 * lat[-1, -1]   - lat[-2, -2]
+      lat_b_full[0, 0] = 2 * lat[0, 0] - lat[1, 1]
+      lat_b_full[0, -1] = 2 * lat[0, -1] - lat[1, -2]
+      lat_b_full[-1, 0] = 2 * lat[-1, 0] - lat[-2, 1]
+      lat_b_full[-1, -1] = 2 * lat[-1, -1] - lat[-2, -2]
 
       ds = ds.assign_coords(
          lon_b=(["y_b", "x_b"], lon_b_full),
@@ -166,9 +166,9 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
    return ds
 
 
-def interpolation_target_grid(ds:xr.Dataset, 
-                              ds_target:xr.Dataset, 
-                              method:str, 
+def interpolation_target_grid(ds: xr.Dataset, 
+                              ds_target: xr.Dataset, 
+                              method: str, 
                               input_projection=None,
                               target_projection=None,
                               bounds_method="1") -> xr.Dataset:

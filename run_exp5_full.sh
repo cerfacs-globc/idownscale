@@ -33,27 +33,27 @@ MARKER_DIR=".markers"
 PROGRESS_LOG="PROGRESS.log"
 mkdir -p "$MARKER_DIR"
 
-function log_progress() {
+log_progress() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$PROGRESS_LOG"
 }
 
-function run_phase() {
+run_phase() {
     local phase_num=$1
     local marker="$MARKER_DIR/phase$phase_num.done"
-    
+
     if [[ $phase_num -lt $START_PHASE || $phase_num -gt $STOP_PHASE ]]; then
         return 1 # Skip due to range
     fi
-    
+
     if [[ -f "$marker" && $FORCE -ne 1 ]]; then
         log_progress "Phase $phase_num: SKIPPING (marker found)"
         return 1 # Skip due to marker
     fi
-    
+
     return 0 # Should run
 }
 
-function complete_phase() {
+complete_phase() {
     local phase_num=$1
     touch "$MARKER_DIR/phase$phase_num.done"
     log_progress "Phase $phase_num: COMPLETED"

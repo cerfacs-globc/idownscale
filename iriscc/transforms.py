@@ -13,7 +13,6 @@ import numpy as np
 import glob
 import json
 import torch
-import numpy as np
 import xarray as xr
 import torch.nn.functional as F
 from typing import Tuple, Union, List, Optional
@@ -237,7 +236,7 @@ class Log10Transform:
     """
     Applies a logarithmic transformation to the input data, specifically for the precipitations channel.
     """
-    def __init__(self, channels:List[str]):
+    def __init__(self, channels: List[str]):
         self.channels = channels
 
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:

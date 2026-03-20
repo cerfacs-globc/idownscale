@@ -149,24 +149,30 @@ class DatasetBuilder:
 
     
 
-if __name__=='__main__':
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Build dataset for experiment ")
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
-    
-    # Custom type to handle --plot True or --plot
-    def str2bool(v):
-        if isinstance(v, bool):
-           return v
-        if v.lower() in ('yes', 'true', 't', 'y', '1'):
-            return True
-        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-            return False
-        else:
-            raise argparse.ArgumentTypeError('Boolean value expected.')
 
-    parser.add_argument('--plot', type=str2bool, nargs='?', const=True, help='Plot the data', default=False)
-    parser.add_argument('--baseline', type=str2bool, nargs='?', const=True, help='Use baseline data instead of input data', default=False) 
+    parser.add_argument(
+        '--plot', type=str2bool, nargs='?', const=True,
+        help='Plot the data', default=False
+    )
+    parser.add_argument(
+        '--baseline', type=str2bool, nargs='?', const=True,
+        help='Use baseline data instead of input data', default=False
+    )
     args = parser.parse_args()
     exp = args.exp
 
