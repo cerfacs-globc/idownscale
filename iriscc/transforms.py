@@ -218,7 +218,7 @@ class DomainCrop:
     def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
         if self.domain is not None:
-            coords_file = list(self.sample_dir.glob('coordinates.npz'))[0]
+            coords_file = next(self.sample_dir.glob('coordinates.npz'))
             coordinates = dict(np.load(coords_file, allow_pickle=True))
             self.lon = coordinates['lon']
             self.lat = coordinates['lat']

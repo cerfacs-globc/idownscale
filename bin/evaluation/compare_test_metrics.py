@@ -7,22 +7,25 @@ date: 16/07/2025
 author: Zoé GARCIA
 """
 
+import argparse
 import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
 sys.path.append('.')
 
-import argparse
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 from iriscc.datautils import return_unit
-from iriscc.settings import (METRICS_DIR, 
-                             DATES_TEST, 
-                             GRAPHS_DIR, 
-                             COLORS, 
-                             DATES_BC_TEST_HIST, 
-                             CONFIG)
+from iriscc.settings import (
+    COLORS,
+    CONFIG,
+    DATES_BC_TEST_HIST,
+    DATES_TEST,
+    GRAPHS_DIR,
+    METRICS_DIR,
+)
 
 
 parser = argparse.ArgumentParser(description="Compare test metrics")

@@ -1,5 +1,5 @@
 """
-Evaluate input data x against high resolution rcm data y for rcm prediction data
+Evaluate input data x against high resolution rcm data y for rcm prediction data.
 
 date = 16/07/2025
 author = Zoé GARCIA

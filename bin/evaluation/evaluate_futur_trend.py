@@ -1,5 +1,5 @@
 """
-Plot the future trend of temperature changes using netcdf predictions and raw data
+Plot the future trend of temperature changes using netcdf predictions and raw data.
 
 date : 16/07/2025
 author : Zoé GARCIA
