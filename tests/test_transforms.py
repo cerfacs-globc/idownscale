@@ -1,3 +1,4 @@
+import json
 import torch
 import numpy as np
 import pytest
@@ -14,28 +15,26 @@ def test_standard_normalisation(tmp_path):
     stats_dir = tmp_path / "stats"
     stats_dir.mkdir()
     stats_file = stats_dir / "statistics.json"
-    import json
-    with open(stats_file, 'w') as f:
+    with stats_file.open("w") as f:
         json.dump({"chan1": {"mean": 10.0, "std": 2.0}, "chan2": {"mean": 5.0, "std": 1.0}}, f)
     
     norm = StandardNormalisation(stats_dir)
     x = torch.tensor([[[12.0, 8.0]], [[6.0, 4.0]]]) # (2, 1, 2)
     y = torch.tensor([[[1.0]]])
     
-    x_norm, y_out = norm((x, y))
+    x_norm, _y_out = norm((x, y))
     
     # Chan 1: (12-10)/2 = 1.0, (8-10)/2 = -1.0
     # Chan 2: (6-5)/1 = 1.0, (4-5)/1 = -1.0
     expected_x = torch.tensor([[[1.0, -1.0]], [[1.0, -1.0]]])
     assert torch.allclose(x_norm, expected_x)
-    assert torch.equal(y_out, y)
+    assert torch.equal(_y_out, y)
 
 def test_min_max_normalisation(tmp_path):
     stats_dir = tmp_path / "stats_minmax"
     stats_dir.mkdir()
     stats_file = stats_dir / "statistics.json"
-    import json
-    with open(stats_file, 'w') as f:
+    with stats_file.open("w") as f:
         json.dump({"chan1": {"min": 0.0, "max": 10.0}}, f)
     
     norm = MinMaxNormalisation(stats_dir, output_norm=True)
@@ -70,7 +69,7 @@ def test_log10_transform():
     x = torch.tensor([[[10.0]], [[9.0]]]) # chan 0=10, chan 1=9
     y = torch.tensor([[[1.0]]])
     
-    x_out, y_out = trans((x, y))
+    x_out, _y_out = trans((x, y))
     
     # chan 1: log10(1 + 9) = 1.0
     assert torch.isclose(x_out[1, 0, 0], torch.tensor(1.0))

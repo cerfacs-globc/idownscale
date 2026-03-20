@@ -48,7 +48,7 @@ if args.pp == 'no': # Phase 1 : ERA5 to SAFRAN training
     test_names = ['Baseline', 'UNet', 'SwinUNETR']
     metrics = ['rmse_temporal', 'bias_spatial', 'corr_temporal', 'corr_spatial']
     palette = None
-    color = color=".8"
+    color = '.8'
     dates = DATES_TEST
     term = ''
 
@@ -91,16 +91,16 @@ for test in args.test_list:
 metrics_dict_mean = {}
 for col in list_data_mean[0].columns:
     new_df_mean = pd.DataFrame(
-        {name: df[col] for name, df in zip(test_names, list_data_mean)}
+        {name: df[col] for name, df in zip(test_names, list_data_mean, strict=True)}
     ).T
-    new_df_mean.columns = list_data_mean[0].index 
+    new_df_mean.columns = list_data_mean[0].index
     metrics_dict_mean[col] = new_df_mean
 
 
 metrics_dict = {}
 for col in metrics:
     new_df = pd.DataFrame(
-        {name: dict[col] for name, dict in zip(df_names, list_data)}
+        {name: d[col] for name, d in zip(df_names, list_data, strict=True)}
     )
     metrics_dict[col] = new_df
 
