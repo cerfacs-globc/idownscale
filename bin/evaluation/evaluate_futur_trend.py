@@ -101,6 +101,9 @@ if __name__=='__main__':
     var_spatial = []
     var_temporal = []
 
+    # Ensure output directories exist
+    GRAPHS_DIR.joinpath(f'metrics/{exp}').mkdir(parents=True, exist_ok=True)
+
     fig1, axes1 = plt.subplots(
         3, 3,
         figsize=(15, 10),
@@ -134,7 +137,11 @@ if __name__=='__main__':
     tas_swinunet_ref = swinunet_ref.tas.values
     swinunet_ref.close()
 
-    for i in range(len(periods)-1):
+    import datetime
+    total_periods = len(periods) - 1
+    for i in range(total_periods):
+        log_msg = f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [EVALUATION] Processing period {periods[i]} - {periods[i+1]} ({i+1}/{total_periods})"
+        print(log_msg, flush=True)
 
         # GET DATA
         file = glob.glob(str(dir/f'tas*{ssp}_r1i1p1f2*.nc'))[0]

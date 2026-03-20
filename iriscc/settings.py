@@ -3,6 +3,10 @@ Experimental settings for all configurations.
 
 date : 16/07/2025
 author : Zoé GARCIA
+
+date : 18/02/2026
+modifications: Christian Pagé
+
 """
 
 from pathlib import Path
@@ -10,27 +14,29 @@ import pandas as pd
 import cartopy.crs as ccrs
 import pyproj
 
-RAW_DIR = Path('/scratch/globc/garcia/rawdata/')
+RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/')
+LOCAL_RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/')
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
-GCM_RAW_DIR = RAW_DIR / 'gcm'
+GCM_RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/gcm/')
 RCM_RAW_DIR = RAW_DIR / 'rcm'
-ERA5_DIR = RAW_DIR / "era5"
+ERA5_DIR = Path("/scratch/globc/page/idownscale_active/rawdata/era5")
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
+LOCAL_EOBS_RAW_DIR = LOCAL_RAW_DIR / 'eobs'
 ALADIN_RAW_DIR = RAW_DIR / 'ALADIN'
 TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'tas_day_SAFRAN_1959_reformat.nc'
 TARGET_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc'
-TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
-OROG_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e_france.nc'
-OROG_SAFRAN_FILE = RAW_DIR / 'topography/topography_safran2.nc'
+TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/historical/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
+OROG_EOBS_FRANCE_FILE = LOCAL_EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e_france.nc'
+OROG_SAFRAN_FILE = RAW_DIR / 'topography/topography_safran.nc'
 IMERG_MASK = RAW_DIR / 'landseamask/IMERG_land_sea_mask_regrid.nc' # only continents
-LANDSEAMASK_GCM = GCM_RAW_DIR / 'CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
+LANDSEAMASK_GCM = GCM_RAW_DIR / 'sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
 LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
 
-DATASET_DIR = Path('/scratch/globc/garcia/datasets/')
+DATASET_DIR = Path('/scratch/globc/page/idownscale_active/datasets/')
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
@@ -51,10 +57,10 @@ DATASET_EXP8_30Y_DIR = DATASET_DIR / 'dataset_exp8_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
 
-RUNS_DIR = Path('/scratch/globc/garcia/runs/')
-GRAPHS_DIR = Path('/scratch/globc/garcia/graph/')
-METRICS_DIR = Path('/scratch/globc/garcia/metrics/')
-PREDICTION_DIR = Path('/scratch/globc/garcia/prediction/')
+RUNS_DIR = Path('/scratch/globc/page/idownscale_active/runs/')
+GRAPHS_DIR = Path('/scratch/globc/page/idownscale_active/graph/')
+METRICS_DIR = Path('/scratch/globc/page/idownscale_active/metrics/')
+PREDICTION_DIR = Path('/scratch/globc/page/idownscale_active/prediction/')
 
 CONFIG = {
     'exp3':

@@ -98,8 +98,13 @@ if __name__=='__main__':
     ds, y = get_target_format(args.exp, dates=dates)
     y = np.expand_dims(y, axis= 0)
     
+    # Ensure output directory exists
+    PREDICTION_DIR.mkdir(parents=True, exist_ok=True)
+    
+    import datetime
+    total = len(dates)
     for i, date in enumerate(dates):
-        print(date)
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [INFERENCE] Processing {date.date()} ({i+1}/{total})", flush=True)
         date_str = date.date().strftime('%Y%m%d')
         sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
         data = dict(np.load(sample), allow_pickle=True)

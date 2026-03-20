@@ -306,7 +306,6 @@ def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> x
    mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
                    lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
    for var in variables:
-      print(var)
       data = ds[var].values
       data[condition] = np.nan  # Apply the mask condition
       ds[var].values = data
@@ -377,7 +376,7 @@ class Data(object):
       return data
    
    def get_era5_dataset(self, var:str, date):
-      file = glob.glob(str(ERA5_DIR/f'{var}/{var}*_{date.year}_*'))[0]
+      file = glob.glob(str(ERA5_DIR/f'{var}_1d/{var}*_{date.year}_*'))[0]
       ds = xr.open_dataset(file)
       ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
@@ -389,9 +388,9 @@ class Data(object):
    
    def get_gcm_dataset(self, var:str, date, ssp:str=None):
       if date is None or date < pd.Timestamp('2015-01-01'):
-         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*historical*r1i1p1f2*'))[0]
+         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/*/{var}*historical*r1i1p1f2*'))[0]
       else:
-         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*{ssp}*'))[0]
+         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/*/{var}*{ssp}*'))[0]
       ds = xr.open_dataset(file)
       ds = standardize_longitudes(ds)
       ds = self.crop_time_dim(ds, date)

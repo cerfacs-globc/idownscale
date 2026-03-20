@@ -67,9 +67,9 @@ class DatasetBuilder:
                      plot: bool = False, 
                      baseline: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         if baseline:
-            y_hat = self.baseline_data(date)
-            y =self.target_data(date)
-            sample = {'y_hat': y_hat,
+            x = self.baseline_data(date)
+            y = self.target_data(date)
+            sample = {'x': x,
                       'y': y}
             dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
         else:
@@ -131,7 +131,7 @@ class DatasetBuilder:
                       date: datetime.date) -> np.ndarray:
         get_data = Data(self.domain)
         y_hat = []
-        for var in self.input_vars:
+        for var in self.target_vars:
             ds_era5 = get_data.get_era5_dataset(var, date)
             ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp)
             ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
@@ -153,13 +153,32 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description="Build dataset for experiment ")
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
-    parser.add_argument('--plot', action='store_true', help='Plot the data', default=False)
-    parser.add_argument('--baseline', action='store_true', help='Use baseline data instead of input data', default=False) 
+    
+    # Custom type to handle --plot True or --plot
+    def str2bool(v):
+        if isinstance(v, bool):
+           return v
+        if v.lower() in ('yes', 'true', 't', 'y', '1'):
+            return True
+        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+            return False
+        else:
+            raise argparse.ArgumentTypeError('Boolean value expected.')
+
+    parser.add_argument('--plot', type=str2bool, nargs='?', const=True, help='Plot the data', default=False)
+    parser.add_argument('--baseline', type=str2bool, nargs='?', const=True, help='Use baseline data instead of input data', default=False) 
     args = parser.parse_args()
     exp = args.exp
 
     dataset_builder = DatasetBuilder(exp)
+    
+    # Ensure dataset directories exist
+    dataset_builder.dataset.mkdir(parents=True, exist_ok=True)
+    (DATASET_DIR / f'dataset_{exp}_baseline').mkdir(parents=True, exist_ok=True)
+
+    total = len(DATES)
     for i, date in enumerate(DATES):
+        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
         x, y = dataset_builder.process_date(date, 
                                             plot=args.plot, 
                                             baseline=args.baseline)
