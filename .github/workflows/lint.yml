@@ -49,14 +49,12 @@ jobs:
           # Indent with 4 spaces for shfmt
           SHFMT_ARGUMENTS: "-i 4"
 
-          # Both options below should be already covered by ruff
-          VALIDATE_PYTHON_ISORT: false
-          VALIDATE_PYTHON_FLAKE8: false
-          VALIDATE_PYTHON_BLACK: false
-          VALIDATE_PYTHON_MYPY: false
-          VALIDATE_PYTHON_PYLINT: false
-          VALIDATE_PYTHON_PYINK: false
+          # Only run specific linters to avoid conflicts and save time
           VALIDATE_JSCPD: true
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_YAML_PRETTIER: true
           VALIDATE_SHELL_SHFMT: true
+          VALIDATE_PYTHON_RUFF: true
+          VALIDATE_MARKDOWN: true
+          VALIDATE_NATURAL_LANGUAGE: true
+          VALIDATE_GITHUB_ACTIONS: true
