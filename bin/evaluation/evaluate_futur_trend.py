@@ -218,7 +218,7 @@ if __name__=='__main__':
                        [colors[0], colors[2]], 
                        f'{periods[i]} - {periods[i+1]}')
 
-    for ax, col in zip(axes1[0], labels):
+    for ax, col in zip(axes1[0], labels, strict=True):
         ax.set_title(col, fontsize=14)
 
     

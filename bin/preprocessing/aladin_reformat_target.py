@@ -1,5 +1,5 @@
 """
-Reformat RCM data to match target format for comparison
+Reformat RCM data to match target format for comparison.
 
 date : 16/07/2025
 author : Zoé GARCIA

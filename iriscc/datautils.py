@@ -329,14 +329,13 @@ def crop_domain_from_array(array: np.ndarray, sample_dir: Path, domain: tuple) -
    Returns:
       np.ndarray: The cropped 2D array restricted to the specified domain.
    """
-   coords_file = glob.glob(str(sample_dir/'coordinates.npz'))[0]
+   coords_file = next(sample_dir.glob('coordinates.npz'))
    coordinates = dict(np.load(coords_file, allow_pickle=True))
    lon = coordinates['lon']
    lat = coordinates['lat']
    lon_indices = np.where((lon >= domain[0]) & (lon <= domain[1]))[0]
    lat_indices = np.where((lat >= domain[2]) & (lat <= domain[3]))[0]
-   array = array[np.ix_(lat_indices, lon_indices)]
-   return array
+   return array[np.ix_(lat_indices, lon_indices)]
 
 
 def datetime_period_to_string(dates):
