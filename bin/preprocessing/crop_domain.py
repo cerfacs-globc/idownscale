@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """
 Generic script to crop a NetCDF file to a specific geographical domain.
-Can use predefined domains from settings.py or custom user-defined domains.
 
-Author: Antigravity AI
-Date: 19/03/2026
+Can use predefined domains from settings.py or custom user-defined domains.
 """
 
 import sys
@@ -51,7 +49,7 @@ def main():
     else:
         print("Warning: No domain specified. The entire file will be saved (possibly standardized).")
 
-    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Opening {input_path}...")
+    print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Opening {input_path}...")
     ds = xr.open_dataset(input_path)
 
     if args.standardize:

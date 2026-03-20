@@ -1,5 +1,5 @@
 """
-Reformat SAFRAN data from raw 1D format to a 2D grid format usng cKDTree for interpolation and a reference file
+Reformat SAFRAN data from raw 1D format to a 2D grid format using cKDTree for interpolation and a reference file.
 
 date : 16/07/2025
 author : Zoé GARCIA
@@ -13,6 +13,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 import glob
 import os
+from pathlib import Path
 
 from iriscc.settings import SAFRAN_RAW_DIR, SAFRAN_DIR
 
@@ -55,7 +56,7 @@ def reformat_safran_xy(file):
     new_ds['tas'] = (['time', 'y', 'x'], tas_grid)
     new_ds['tas'].attrs = tas_attrs
 
-    new_ds.to_netcdf(SAFRAN_DIR/f'{os.path.basename(file)[:-3]}_reformat.nc')
+    new_ds.to_netcdf(SAFRAN_DIR / f'{Path(file).stem}_reformat.nc')
 
 if __name__=='__main__':
     safran_files = glob.glob(str(SAFRAN_RAW_DIR/'SAFRAN*'))

@@ -12,44 +12,26 @@ jobs:
     name: Lint with Super-Linter
     runs-on: ubuntu-latest
 
-    ############################################
-    # Grant status permission for MULTI_STATUS #
-    ############################################
     permissions:
       contents: read
       packages: read
       statuses: write
 
     steps:
-      # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # Make sure the actual branch is checked out when running on PR
-          # ref: ${{ github.event.pull_request.head.sha }}
-          # Full git history needed to get proper list of changed files
           fetch-depth: 0
 
-      # Runs the Super-Linter action
       - name: Run Super-Linter on new changes
         uses: github/super-linter/slim@v7
         env:
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MARKDOWN_CONFIG_FILE: .markdownlint.json
-          PYTHON_RUFF_CONFIG_FILE: .ruff.toml
-          # Only check new or edited files
           VALIDATE_ALL_CODEBASE: false
-          # Fail on errors
           DISABLE_ERRORS: false
-          
-          # Increase threshold to accommodate model variants (U-Net, MiniU-Net, etc.)
           JSCPD_THRESHOLD: 20
-          
-          # Indent with 4 spaces for shfmt
           SHFMT_ARGUMENTS: "-i 4"
-
-          # Only run specific linters to avoid conflicts and save time
           VALIDATE_JSCPD: true
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_YAML_PRETTIER: true

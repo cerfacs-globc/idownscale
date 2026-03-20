@@ -6,6 +6,7 @@ author : Zoé GARCIA
 """
 
 import argparse
+import datetime
 import glob
 import sys
 
@@ -22,9 +23,16 @@ import seaborn as sns
 import xarray as xr
 
 
-from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, COLORS, RCM_RAW_DIR
+from iriscc.datautils import crop_domain_from_ds, return_unit, standardize_longitudes
 from iriscc.plotutils import plot_histogram
-from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, return_unit
+from iriscc.settings import (
+    COLORS,
+    CONFIG,
+    GCM_RAW_DIR,
+    GRAPHS_DIR,
+    PREDICTION_DIR,
+    RCM_RAW_DIR,
+)
 
 def compute_variability(data):
     var = [data[i,:,:] - data[i-1,:,:] for i in range(data.shape[0])]
@@ -139,10 +147,9 @@ if __name__=='__main__':
     tas_swinunet_ref = swinunet_ref.tas.values
     swinunet_ref.close()
 
-    import datetime
     total_periods = len(periods) - 1
     for i in range(total_periods):
-        log_msg = f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [EVALUATION] Processing period {periods[i]} - {periods[i+1]} ({i+1}/{total_periods})"
+        log_msg = f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [EVALUATION] Processing period {periods[i]} - {periods[i+1]} ({i+1}/{total_periods})"
         print(log_msg, flush=True)
 
         # GET DATA

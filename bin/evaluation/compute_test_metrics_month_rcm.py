@@ -50,8 +50,8 @@ if __name__ == "__main__":
     test_name = f'{test_name}_{simu_test}_pp'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
-    os.makedirs(graph_dir, exist_ok=True)
-    os.makedirs(metric_dir, exist_ok=True)
+    graph_dir.mkdir(parents=True, exist_ok=True)
+    metric_dir.mkdir(parents=True, exist_ok=True)
 
 
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
@@ -176,16 +176,16 @@ if __name__ == "__main__":
         y_hat_temporal.append(y_hat_flat)
 
 
-    dT = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
-    dT_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
-    dT, dT_hat = np.stack(dT), np.stack(dT_hat)
-    dT_summer = np.stack([dT[i-1,:] for i in i_summer])
-    dT_hat_summer = np.stack([dT_hat[i-1,:] for i in i_summer])
-    dT_winter = np.stack([dT[i-1,:] for i in i_winter])
-    dT_hat_winter = np.stack([dT_hat[i-1,:] for i in i_winter])
-    var = np.mean(dT_hat, axis=0) - np.mean(dT, axis=0)
-    var_summer = np.mean(dT_hat_summer, axis=0) - np.mean(dT_summer, axis=0)
-    var_winter = np.mean(dT_hat_winter, axis=0) - np.mean(dT_winter, axis=0)
+    dt = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
+    dt_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
+    dt, dt_hat = np.stack(dt), np.stack(dt_hat)
+    dt_summer = np.stack([dt[i-1,:] for i in i_summer])
+    dt_hat_summer = np.stack([dt_hat[i-1,:] for i in i_summer])
+    dt_winter = np.stack([dt[i-1,:] for i in i_winter])
+    dt_hat_winter = np.stack([dt_hat[i-1,:] for i in i_winter])
+    var = np.mean(dt_hat, axis=0) - np.mean(dt, axis=0)
+    var_summer = np.mean(dt_hat_summer, axis=0) - np.mean(dt_summer, axis=0)
+    var_winter = np.mean(dt_hat_winter, axis=0) - np.mean(dt_winter, axis=0)
 
     y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
     corr_temporal = [corr(y_hat_temporal[:,j], y_temporal[:,j]).cpu() for j in range(y_temporal.size(dim=1))]

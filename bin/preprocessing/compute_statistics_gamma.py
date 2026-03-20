@@ -19,11 +19,12 @@ from iriscc.settings import CONFIG, DATES_TRAIN
 def filter_aberrant_values(param: np.ndarray, threshold: float) -> np.ndarray:
     """
     Filter aberrant values in the param 3D array based on a threshold.
+
     Replace aberrant values with the mean of neighboring cells.
     """
     indices = np.where(param > threshold)
     
-    for t, i, j in zip(*indices):
+    for t, i, j in zip(*indices, strict=True):
         param_cell = np.mean(param[t,max(0, i-1):min(param.shape[1], i+2), 
                                    max(0, j-1):min(param.shape[2], j+2)])
         param[t, i, j] = param_cell
@@ -46,7 +47,7 @@ if __name__=='__main__':
     for nb in range(int(DATES_TRAIN[0]), int(DATES_TRAIN[1])-1, calibration_y):  # Increment by 5 years
         y_year = []
         for year in range(nb, nb + calibration_y):  # Collect data for 5 years
-            files = np.sort(glob.glob(str(dataset_dir/f'sample_{year}*')))
+            files = sorted(dataset_dir.glob(f'sample_{year}*'))
             for file in files:
                 data = dict(np.load(file, allow_pickle=True))
                 y = data['y'][0]  # Select the precipitation input variable

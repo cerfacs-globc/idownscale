@@ -17,18 +17,20 @@ import pandas as pd
 import xarray as xr
 import xesmf as xe
 
-from iriscc.settings import (TARGET_SAFRAN_FILE,
-                             SAFRAN_REFORMAT_DIR,
-                             EOBS_RAW_DIR,
-                             GCM_RAW_DIR,
-                             COUNTRIES_MASK,
-                             LANDSEAMASK_GCM,
-                             LANDSEAMASK_ERA5,
-                             LANDSEAMASK_EOBS,
-                             SAFRAN_PROJ_PYPROJ,
-                             CONFIG,
-                             RCM_RAW_DIR,
-                             ERA5_DIR)
+from iriscc.settings import (
+    CONFIG,
+    COUNTRIES_MASK,
+    EOBS_RAW_DIR,
+    ERA5_DIR,
+    GCM_RAW_DIR,
+    LANDSEAMASK_EOBS,
+    LANDSEAMASK_ERA5,
+    LANDSEAMASK_GCM,
+    RCM_RAW_DIR,
+    SAFRAN_PROJ_PYPROJ,
+    SAFRAN_REFORMAT_DIR,
+    TARGET_SAFRAN_FILE,
+)
 
 
 
