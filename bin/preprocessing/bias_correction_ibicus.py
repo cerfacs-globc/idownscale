@@ -1,5 +1,5 @@
 '''
-Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy
+Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy.
 
 date : 16/07/2025
 author : Zoé GARCIA
@@ -184,7 +184,7 @@ if __name__=='__main__':
     DATASET_BC_DIR.joinpath(f'dataset_{exp}_test_{simu}_bc').mkdir(parents=True, exist_ok=True)
 
     # Pre-process elevation data to match target grid
-    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Preparing elevation data...", flush=True)
+    print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Preparing elevation data...", flush=True)
     ds_orog = xr.open_dataset(orog_file)
     ds_orog = reformat_as_target(ds_orog, 
                                  target_file=target_file,
@@ -380,7 +380,7 @@ if __name__=='__main__':
     
     total_train = len(DATES_BC_TRAIN_HIST)
     for i, date in enumerate(DATES_BC_TRAIN_HIST):
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [BC TRAIN] Processing {date.date()} ({i+1}/{total_train})", flush=True)
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [BC TRAIN] Processing {date.date()} ({i+1}/{total_train})", flush=True)
         x = []
         x.append(elevation_val)
         ds_train_hist_bc_i = ds_train_hist_bc.sel(time=ds_train_hist_bc.time.dt.date == date.date())
@@ -412,7 +412,7 @@ if __name__=='__main__':
     
     total_test_hist = len(DATES_BC_TEST_HIST)
     for i, date in enumerate(DATES_BC_TEST_HIST):
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [BC TEST HIST] Processing {date.date()} ({i+1}/{total_test_hist})", flush=True)
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [BC TEST HIST] Processing {date.date()} ({i+1}/{total_test_hist})", flush=True)
         x = []
         x.append(elevation_val)
 
@@ -444,7 +444,7 @@ if __name__=='__main__':
 
     total_test_future = len(DATES_BC_TEST_FUTURE)
     for i, date in enumerate(DATES_BC_TEST_FUTURE):
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [BC TEST FUTURE] Processing {date.date()} ({i+1}/{total_test_future})", flush=True)
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [BC TEST FUTURE] Processing {date.date()} ({i+1}/{total_test_future})", flush=True)
         x = []
         x.append(elevation_val)
 

@@ -489,10 +489,10 @@ class PatchEmbed(nn.Module):
         return x
 
     def flops(self):
-        Ho, Wo = self.patches_resolution
-        flops = Ho * Wo * self.embed_dim * self.in_chans * (self.patch_size[0] * self.patch_size[1])
+        ho, wo = self.patches_resolution
+        flops = ho * wo * self.embed_dim * self.in_chans * (self.patch_size[0] * self.patch_size[1])
         if self.norm is not None:
-            flops += Ho * Wo * self.embed_dim
+            flops += ho * wo * self.embed_dim
         return flops           
 
 class RSTB(nn.Module):
@@ -562,15 +562,15 @@ class RSTB(nn.Module):
     def flops(self):
         flops = 0
         flops += self.residual_group.flops()
-        H, W = self.input_resolution
-        flops += H * W * self.dim * self.dim * 9
+        h, w = self.input_resolution
+        flops += h * w * self.dim * self.dim * 9
         flops += self.patch_embed.flops()
         flops += self.patch_unembed.flops()
 
         return flops
 
 class PatchUnEmbed(nn.Module):
-    r""" Image to Patch Unembedding
+    r""" Image to Patch Unembedding.
 
     Args:
         img_size (int): Image size.  Default: 224.
@@ -581,6 +581,7 @@ class PatchUnEmbed(nn.Module):
     """
 
     def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
+        _ = norm_layer  # Unused
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
@@ -594,8 +595,8 @@ class PatchUnEmbed(nn.Module):
         self.embed_dim = embed_dim
 
     def forward(self, x, x_size):
-        B, HW, C = x.shape
-        x = x.transpose(1, 2).view(B, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
+        b, _hw, c = x.shape
+        x = x.transpose(1, 2).view(b, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
         return x
 
     def flops(self):
