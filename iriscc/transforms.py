@@ -6,7 +6,6 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import glob
 import json
 import sys
 from pathlib import Path

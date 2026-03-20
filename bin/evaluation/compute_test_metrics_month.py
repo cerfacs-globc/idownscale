@@ -37,11 +37,13 @@ def get_config(exp: str,
                simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
     """
     Configure the model, transforms, and sample directory based on the experiment and test parameters.
+
     Args:
         exp (str): Experiment name.
         test_name (str): Test name (e.g., unet, baseline, gcm_raw).
         predict (bool): Whether to use a pretrained model.
         simu_test (Optional[str]): GCM test type (e.g., gcm or gcm_bc).
+
     Returns:
         Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]
     """
@@ -57,7 +59,7 @@ def get_config(exp: str,
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
     else:
         run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
-        checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
+        checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
         model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
         model.eval()
         hparams = model.hparams['hparams']
@@ -70,10 +72,7 @@ def get_config(exp: str,
             Pad(hparams['fill_value'])
         ])
         
-        if simu_test:
-            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
-        else:
-            sample_dir = hparams['sample_dir']
+        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}' if simu_test else hparams['sample_dir']
     return model, transforms, sample_dir
 
 def preprocess(year:int,
@@ -83,11 +82,13 @@ def preprocess(year:int,
                 transforms: Optional[Compose]) -> Tuple[np.ndarray, np.ndarray]:
     """
     Preprocesses input data and generates predictions using a given model.
+
     Args:
         date (datetime.date): The date corresponding to the sample to process.
         sample_dir (Path): Directory containing the sample `.npz` files.
         model (Optional[nn.Module]): PyTorch model used for predictions or None.
         transforms (Optional[Compose]): Transformations to apply to the input data (x, y).
+
     Returns:
         Tuple[np.ndarray, np.ndarray]
     """
@@ -96,7 +97,7 @@ def preprocess(year:int,
     for day in group['day']:
         date_str = f'{year}{month:02d}{day:02d}'
         print(date_str)
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
         data = dict(np.load(sample), allow_pickle=True)
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])

@@ -10,12 +10,12 @@ author: Zoé GARCIA
 import argparse
 import sys
 
+sys.path.append('.')  # noqa: E402
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-
-sys.path.append('.')
 
 from iriscc.datautils import return_unit
 from iriscc.settings import (

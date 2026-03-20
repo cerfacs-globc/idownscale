@@ -32,6 +32,7 @@ from iriscc.settings import (DATES,
 class DatasetBuilder:
     """
     DatasetBuilder is a class responsible for building datasets for a given experiment.
+
     It processes input and target data based on specified configurations and dates.
     Attributes:
         exp (str): The experiment identifier.
@@ -109,8 +110,7 @@ class DatasetBuilder:
                                         crop_target=True, mask=True)
             data = ds[var].values
             x.append(data)
-        x = np.stack(x, axis=0)
-        return x
+        return np.stack(x, axis=0)
 
     def target_data(self, 
                     date: datetime.date) -> np.ndarray:

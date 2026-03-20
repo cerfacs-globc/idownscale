@@ -46,7 +46,7 @@ if __name__ == "__main__":
     get_data = Data(CONFIG[exp]['domain'])
 
     run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
-    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
     test_name = f'{test_name}_{simu_test}_pp'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
@@ -108,12 +108,12 @@ if __name__ == "__main__":
         for day in group['day']:
             date_str = f'{year}{month:02d}{day:02d}'
             print(date_str)
-            sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+            sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
             data = dict(np.load(sample), allow_pickle=True)
             x = data['x']
             y = []
             for var in CONFIG[exp]['target_vars']:
-                file = glob.glob(str(RCM_RAW_DIR/f'ALADIN_reformat/{var}*nc'))[0]
+                file = next(RCM_RAW_DIR.glob(f'ALADIN_reformat/{var}*nc'))
                 ds = xr.open_dataset(file)
                 ds = ds.sel(time=ds.time.dt.date == pd.Timestamp(date_str).date())
                 ds = ds.isel(time=0)

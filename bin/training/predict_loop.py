@@ -60,7 +60,7 @@ if __name__=='__main__':
 
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
-    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
     device = 'cpu'
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
@@ -106,7 +106,7 @@ if __name__=='__main__':
     for i, date in enumerate(dates):
         print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [INFERENCE] Processing {date.date()} ({i+1}/{total})", flush=True)
         date_str = date.date().strftime('%Y%m%d')
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
         data = dict(np.load(sample), allow_pickle=True)
 
         x = data['x']

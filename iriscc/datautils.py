@@ -428,14 +428,14 @@ class Data(object):
       return ds
    
    def get_safran_dataset(self, var:str, date):
-      ds = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"{var}*{date.year}_reformat.nc"))[0])
+      ds = xr.open_dataset(next(SAFRAN_REFORMAT_DIR.glob(f"{var}*{date.year}_reformat.nc")))
       ds = self.crop_time_dim(ds, date)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='safran')
       ds[var].values = remove_countries(ds[var].values)
       return ds
 
    def get_eobs_dataset(self, var:str, date):
-      file = glob.glob(str(EOBS_RAW_DIR/f'{var}*'))[0]
+      file = next(EOBS_RAW_DIR.glob(f'{var}*'))
       ds = xr.open_dataset(file)
       ds = self.crop_time_dim(ds, date)
       ds = standardize_dims_and_coords(ds)

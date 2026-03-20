@@ -120,19 +120,19 @@ if __name__=='__main__':
     )
 
     ## Reference 1980-2010
-    data_ref = xr.open_mfdataset(glob.glob(str(dir/f'tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    data_ref = xr.open_mfdataset(list(dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
     tas_ref = data_ref.tas.values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    unet_ref = xr.open_mfdataset(list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
     unet_ref = unet_ref.mean(dim='time')
     tas_unet_ref = unet_ref.tas.values
     unet_ref.close()
 
-    swinunet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    swinunet_ref = xr.open_mfdataset(list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
     swinunet_ref = swinunet_ref.mean(dim='time')
     tas_swinunet_ref = swinunet_ref.tas.values
     swinunet_ref.close()
@@ -144,19 +144,19 @@ if __name__=='__main__':
         print(log_msg, flush=True)
 
         # GET DATA
-        file = glob.glob(str(dir/f'tas*{ssp}_r1i1p1f2*.nc'))[0]
+        file = next(dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
         data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         data = standardize_longitudes(data)
         data = crop_domain_from_ds(data, CONFIG[exp]['domain'])
         tas_data = data.tas.values
         data.close()
         
-        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))[0]
+        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
         unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         tas_unet = unet.tas.values
         unet.close()
 
-        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))[0]
+        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
         swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         tas_swinunet = swinunet.tas.values
         swinunet.close()

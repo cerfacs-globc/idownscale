@@ -42,17 +42,17 @@ class IRISCC(Dataset):
         self.transform = transform
         self.data_type = data_type
 
-        list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        train_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
-        val_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
-        test_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
+        self.samples = sorted(map(str, self.sample_dir.glob('sample*')))
+        train_start = self.samples.index(str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))
+        val_start = self.samples.index(str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))
+        test_start = self.samples.index(str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))
 
         if self.data_type == 'train':
-            self.samples = list_data[train_start:val_start-1]
+            self.samples = self.samples[train_start:val_start-1]
         elif self.data_type == 'val':
-            self.samples = list_data[val_start:test_start-1]
+            self.samples = self.samples[val_start:test_start-1]
         elif self.data_type == 'test':
-            self.samples = list_data[test_start:]
+            self.samples = self.samples[test_start:]
 
     def __len__(self) -> int:
         """
