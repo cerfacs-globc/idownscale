@@ -119,7 +119,16 @@ ignore = [
   "D401", # Allow docstrings to have non-imperative mood.
   "ANN002", # Allow no typing for `*args`
   "ANN003", # Allow no typing for `**kwargs`
-  "N803" # Allow non-lowercase argument names (established API names like ignore_Feb29th)
+  "N803", # Allow non-lowercase argument names
+  "D100", # Missing docstring in public module
+  "D101", # Missing docstring in public class
+  "D102", # Missing docstring in public method
+  "D103", # Missing docstring in public function
+  "D104", # Missing docstring in public package
+  "ANN001", # Missing type annotation for function argument
+  "ANN201", # Missing return type annotation for public function
+  "ANN202", # Missing return type annotation for private function
+  "ANN204", # Missing return type annotation for special method `__init__`
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -138,6 +147,12 @@ ignore = [
   "PLR2004", # Magic numbers are common in CLI scripts (argv length checks).
   "T201" # Path handling and comparison results are printed in scripts.
 ]
+"bin/**/*.py" = [
+  "INP001", # bin/ is a script folder, not a package.
+  "T201",   # allow print statements in scripts.
+  "PLR2004" # allow magic numbers in scripts.
+]
+
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

@@ -1,6 +1,7 @@
 """
-Plot bar and boxplots of test metrics (against target) for different data soures
-The script is personalized my different purposes
+Plot bar and boxplots of test metrics (against target) for different data soures.
+
+The script is personalized my different purposes.
 
 date: 16/07/2025
 author: Zoé GARCIA

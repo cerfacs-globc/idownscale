@@ -7,10 +7,12 @@ author : Zoé GARCIA
 '''
 
 import sys
-sys.path.append('.')
+from pathlib import Path
 
-import xarray as xr
 import numpy as np
+import xarray as xr
+
+sys.path.append('.')
 import argparse
 import datetime
 from typing import Tuple

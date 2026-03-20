@@ -6,19 +6,20 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import sys
-sys.path.append('.')
-
-import numpy as np
 import glob
 import json
-import torch
-import xarray as xr
-import torch.nn.functional as F
-from typing import Tuple, Union, List, Optional
+import sys
 from pathlib import Path
+from typing import List, Optional, Tuple, Union
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+import xarray as xr
 
 from iriscc.settings import IMERG_MASK
+
+sys.path.append('.')
 
 class StandardNormalisation():
     """
@@ -198,10 +199,8 @@ class UnPad():
         return unpadded_array
 
     def __call__(self, sample: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
-        y = sample
-        y = [self.unpad_func(y[C]) for C in range(len(y))]
-        y = torch.stack(y)
-        return y
+        y = [self.unpad_func(sample[C]) for C in range(len(sample))]
+        return torch.stack(y)
     
     
 class DomainCrop:
@@ -219,7 +218,7 @@ class DomainCrop:
     def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
         if self.domain is not None:
-            coords_file = glob.glob(str(self.sample_dir / 'coordinates.npz'))[0]
+            coords_file = list(self.sample_dir.glob('coordinates.npz'))[0]
             coordinates = dict(np.load(coords_file, allow_pickle=True))
             self.lon = coordinates['lon']
             self.lat = coordinates['lat']

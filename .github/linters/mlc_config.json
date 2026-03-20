@@ -1,18 +1,18 @@
 {
-    "ignorePatterns": [
-        {
-            "pattern": "^https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml"
-        },
-        {
-            "pattern": "^https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GL038401"
-        }
-    ],
-    "httpHeaders": [
-      {
-        "urls": ["https://docs.github.com/"],
-        "headers": {
-          "Accept-Encoding": "zstd, br, gzip, deflate"
-        }
+  "ignorePatterns": [
+    {
+      "pattern": "^https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml"
+    },
+    {
+      "pattern": "^https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GL038401"
+    }
+  ],
+  "httpHeaders": [
+    {
+      "urls": ["https://docs.github.com/"],
+      "headers": {
+        "Accept-Encoding": "zstd, br, gzip, deflate"
       }
-    ]
+    }
+  ]
 }  
