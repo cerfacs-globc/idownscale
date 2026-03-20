@@ -34,6 +34,7 @@ from iriscc.settings import (
     RCM_RAW_DIR,
 )
 
+
 def compute_variability(data):
     var = [data[i,:,:] - data[i-1,:,:] for i in range(data.shape[0])]
     var_temporal = np.nanmean(np.abs(var), axis= (1,2))

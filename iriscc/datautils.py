@@ -7,6 +7,7 @@ author : Zoé GARCIA
 
 import datetime
 import glob
+import logging
 import sys
 from pathlib import Path
 
@@ -31,7 +32,6 @@ from iriscc.settings import (
     SAFRAN_REFORMAT_DIR,
     TARGET_SAFRAN_FILE,
 )
-
 
 
 
@@ -125,19 +125,19 @@ def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr
       """
       lon = ds["lon"]  
       lat = ds["lat"]
-      print(lon.shape, lat.shape)
+      logging.info(f"lon.shape: {lon.shape}, lat.shape: {lat.shape}")
 
       lon_b = 0.25 * (lon[:-1, :-1] + lon[1:, :-1] + lon[:-1, 1:] + lon[1:, 1:])
       lat_b = 0.25 * (lat[:-1, :-1] + lat[1:, :-1] + lat[:-1, 1:] + lat[1:, 1:])
-      print(lon_b.shape, lat_b.shape)
+      logging.info(f"lon_b.shape: {lon_b.shape}, lat_b.shape: {lat_b.shape}")
 
       nx_b = lon.shape[0] + 1
       ny_b = lon.shape[1] + 1
-      print(ny_b, nx_b)
+      logging.info(f"ny_b: {ny_b}, nx_b: {nx_b}")
 
       lon_b_full = np.full((nx_b, ny_b), np.nan)
       lat_b_full = np.full((nx_b, ny_b), np.nan)
-      print(lon_b_full.shape, lat_b_full.shape)
+      logging.info(f"lon_b_full.shape: {lon_b_full.shape}, lat_b_full.shape: {lat_b_full.shape}")
       lon_b_full[1:-2, 1:-2] = lon_b
       lat_b_full[1:-2, 1:-2] = lat_b
 
@@ -280,7 +280,7 @@ def remove_countries(array:np.ndarray) -> np.ndarray:
    return array
 
 
-def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> xr.Dataset:
+def apply_landseamask(ds: xr.Dataset, mask_type: str, variables) -> xr.Dataset:
    """
    Apply a land-sea mask to the dataset based on the specified mask type.
 
@@ -303,7 +303,8 @@ def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> x
       mask = standardize_dims_and_coords(mask)
       condition = mask['landseamask'].values == 1.  # Land-sea mask value
    else:
-      raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'.")
+      msg = "Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'."
+      raise ValueError(msg)
 
    # Align mask with the dataset's spatial domain
    mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),

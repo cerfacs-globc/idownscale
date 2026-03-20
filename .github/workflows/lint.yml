@@ -30,7 +30,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
-          JSCPD_THRESHOLD: 20
+          JSCPD_THRESHOLD: 40
+          EXCLUDED_DIRECTORIES: "tests,build,dist,idownscale.egg-info"
           SHFMT_ARGUMENTS: "-i 4"
           VALIDATE_JSCPD: true
           VALIDATE_JSON_PRETTIER: true

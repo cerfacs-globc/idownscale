@@ -12,10 +12,10 @@ import xarray as xr
 import numpy as np
 from scipy.spatial import cKDTree
 import glob
-import os
 from pathlib import Path
 
 from iriscc.settings import SAFRAN_RAW_DIR, SAFRAN_DIR
+
 
 def reformat_safran_xy(file):
 
