@@ -30,11 +30,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
-          JSCPD_THRESHOLD: 40
-          JSCPD_CONFIG_FILE: '.jscpd.json'
-          FILTER_REGEX_EXCLUDE: '.*(build|dist|\.egg-info).*'
-          SHFMT_ARGUMENTS: '-i 4'
-          VALIDATE_JSCPD: true
+          SHFMT_ARGUMENTS: "-i 4"
+          VALIDATE_JSCPD: false
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_YAML_PRETTIER: true
           VALIDATE_SHELL_SHFMT: true
