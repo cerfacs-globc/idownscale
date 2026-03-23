@@ -1,9 +1,4 @@
-'''
-Useful plot functions
-
-date : 16/07/2025
-author : Zoé GARCIA
-'''
+"""Useful plot functions."""
 
 import sys
 
@@ -16,15 +11,15 @@ import pandas as pd
 sys.path.append('.')
 
 def plot_map_image(var,
-                    var_desc: str = None,
+                    var_desc: str | None = None,
                     cmap: str = 'OrRd',
-                    vmin: float = None,
-                    vmax: float = None,
-                    domain: list = None,
+                    vmin: float | None = None,
+                    vmax: float | None = None,
+                    domain: list | None = None,
                     fig_projection = ccrs.PlateCarree(),
                     data_projection = ccrs.PlateCarree(),
-                    title: str = None,
-                    save_dir: str = None
+                    title: str | None = None,
+                    save_dir: str | None = None
                 ):
     """
     Plots a 2D map image using the provided data and configurations.
