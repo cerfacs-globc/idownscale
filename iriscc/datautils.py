@@ -188,8 +188,7 @@ def interpolation_target_grid(ds: xr.Dataset,
             ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
       regridder = xe.Regridder(ds, ds_target, method)
-   ds_out = regridder(ds)
-   return ds_out
+   return regridder(ds)
 
 
 def reformat_as_target(ds:xr.Dataset, 
@@ -214,12 +213,11 @@ def reformat_as_target(ds:xr.Dataset,
    if mask :
       if 'mask' not in list(ds_target.keys()):
          ds_target["mask"] = xr.where(~np.isnan(ds_target["tas"]), 1, 0)
-   ds = interpolation_target_grid(ds, 
+   return interpolation_target_grid(ds, 
                                   ds_target, 
                                   method, 
                                   input_projection,
                                   target_projection)
-   return ds
 
 
 def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
@@ -349,7 +347,8 @@ def datetime_period_to_string(dates):
       elif isinstance(date, datetime):
          return date
       else:
-         raise ValueError(f"Unsupported date format: {type(date)}")
+         msg = f"Unsupported date format: {type(date)}"
+         raise ValueError(msg)
 
    startdate = to_datetime(dates[0]).strftime('%d/%m/%Y')
    enddate = to_datetime(dates[-1]).strftime('%d/%m/%Y')

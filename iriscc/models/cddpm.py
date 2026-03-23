@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Aug 18 11:01:26 2024
-
-@author: elaabar
-"""
+"""Conditioned DDPM model implementation."""
 
 import sys
 
@@ -88,8 +84,7 @@ class CDDPM(nn.Module):
             eta = torch.randn(*x0.shape, device=self.device)
 
         # Add noise to the input image based on the calculated alpha bar
-        noisy = a_bar.sqrt() * x0 + (1 - a_bar).sqrt() * eta
-        return noisy
+        return a_bar.sqrt() * x0 + (1 - a_bar).sqrt() * eta
 
     def backward(self, x: torch.Tensor, t: int, conditioning_image: torch.Tensor) -> torch.Tensor:
         """
@@ -138,7 +133,7 @@ class CDDPM(nn.Module):
         if eta is None:
             eta = torch.randn((1,1,conditioning_image.shape[2], conditioning_image.shape[3]), device=self.device)
         x = eta
-        for idx, t in enumerate(list(range(start_t))[::-1]):
+        for _idx, t in enumerate(list(range(start_t))[::-1]):
             time_tensor = (t * torch.ones(x.shape[0], 1)).to(self.device).long()
             #time_tensor = (torch.ones(1, 1) * t).long()
             # Estimating noise to be removed
