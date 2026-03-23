@@ -11,7 +11,7 @@ from torchvision.transforms import v2
 
 sys.path.append('.')
 
-from iriscc.plotutils import plot_test
+from iriscc.plotutils import plot_test  # noqa: I001
 from iriscc.transforms import (
     FillMissingValue,
     LandSeaMask,
