@@ -1,10 +1,4 @@
-"""
-Useful functions for data processing and reformatting.
-
-date : 16/07/2025
-author : Zoé GARCIA
-"""
-
+import datetime
 import glob
 import logging
 import sys
@@ -14,11 +8,8 @@ sys.path.append(".")  # noqa: E402
 
 import numpy as np
 import pandas as pd
-import torch
 import xarray as xr
-from scipy.spatial import cKDTree
-
-logger = logging.getLogger(__name__)
+import xesmf as xe
 
 from iriscc.settings import (
     CONFIG,
@@ -34,6 +25,8 @@ from iriscc.settings import (
     SAFRAN_REFORMAT_DIR,
     TARGET_SAFRAN_FILE,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def standardize_dims_and_coords(ds) :

@@ -122,7 +122,7 @@ def plot_map_contour(var,
     else:
         plt.savefig(save_dir)
 
-def plot_test(var,  save_dir: str, title: str = None,vmin: float = None, vmax: float = None):
+def plot_test(var: np.ndarray, save_dir: str, title: str | None = None, vmin: float | None = None, vmax: float | None = None):
     '''
     Simple test plot function.
 
@@ -157,10 +157,10 @@ def plot_monthly_var_seasonal_cycle(
     var_desc: str,
     save_dir: str
     ) -> None:
-    """
-    Plots the seasonal cycle of a variable, showing the mean monthly values
-    and individual yearly trends, and saves the plot to a specified directory.
+    """Plots the seasonal cycle of a variable.
 
+    Shows the mean monthly values and individual yearly trends,
+    and saves the plot to a specified directory.
     The function accepts either daily or monthly data as input.
 
     Args:
