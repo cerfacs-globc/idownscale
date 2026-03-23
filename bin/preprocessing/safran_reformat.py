@@ -11,7 +11,6 @@ sys.path.append('.')
 import xarray as xr
 import numpy as np
 from scipy.spatial import cKDTree
-import glob
 from pathlib import Path
 
 from iriscc.settings import SAFRAN_RAW_DIR, SAFRAN_DIR
@@ -59,7 +58,7 @@ def reformat_safran_xy(file):
     new_ds.to_netcdf(SAFRAN_DIR / f'{Path(file).stem}_reformat.nc')
 
 if __name__=='__main__':
-    safran_files = glob.glob(str(SAFRAN_RAW_DIR/'SAFRAN*'))
+    safran_files = list(SAFRAN_RAW_DIR.glob('SAFRAN*'))
     for file in safran_files:
         reformat_safran_xy(file)
 

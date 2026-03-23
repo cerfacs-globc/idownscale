@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Generic script to crop a NetCDF file to a specific geographical domain.
 

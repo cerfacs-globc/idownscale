@@ -104,7 +104,8 @@ if __name__=='__main__':
     import datetime
     total = len(dates)
     for i, date in enumerate(dates):
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [INFERENCE] Processing {date.date()} ({i+1}/{total})", flush=True)
+        now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')
+        print(f"[{now_str}] [INFERENCE] Processing {date.date()} ({i+1}/{total})", flush=True)
         date_str = date.date().strftime('%Y%m%d')
         sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
         data = dict(np.load(sample), allow_pickle=True)

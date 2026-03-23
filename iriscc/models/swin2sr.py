@@ -598,13 +598,11 @@ class PatchUnEmbed(nn.Module):
         self.embed_dim = embed_dim
 
     def forward(self, x, x_size):
-        b, _hw, c = x.shape
-        x = x.transpose(1, 2).view(b, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
-        return x
+        b, _hw, _c = x.shape
+        return x.transpose(1, 2).view(b, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
 
     def flops(self):
-        flops = 0
-        return flops
+        return 0
 
 
 class Upsample(nn.Sequential):
