@@ -1,4 +1,4 @@
-''' U-NET FOR BRAIN MRI '''
+"""U-NET FOR BRAIN MRI."""
 
 import sys
 sys.path.append('.')

@@ -847,7 +847,7 @@ class Swin2SR(nn.Module):
             self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
                                                       nn.LeakyReLU(inplace=True))
             self.upsample = Upsample(upscale, num_feat)
-            self.upsample_hf = Upsample_hf(upscale, num_feat)
+            self.upsample_hf = UpsampleHF(upscale, num_feat)
             self.conv_last = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
             self.conv_first_hf = nn.Sequential(nn.Conv2d(num_feat, embed_dim, 3, 1, 1),
                                                       nn.LeakyReLU(inplace=True))
@@ -1001,7 +1001,7 @@ class Swin2SR(nn.Module):
         H, W = self.patches_resolution
         flops += H * W * 3 * self.embed_dim * 9
         flops += self.patch_embed.flops()
-        for i, layer in enumerate(self.layers):
+        for _i, layer in enumerate(self.layers):
             flops += layer.flops()
         flops += H * W * 3 * self.embed_dim * self.embed_dim
         flops += self.upsample.flops()
