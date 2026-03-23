@@ -6,12 +6,12 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
+import argparse
 import sys
+
 sys.path.append('.')
 
 import numpy as np
-import glob
-import argparse
 from scipy.stats import gamma
 
 from iriscc.settings import CONFIG, DATES_TRAIN

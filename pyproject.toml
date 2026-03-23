@@ -166,6 +166,10 @@ ignore = [
   "PLR2004", # Magic numbers are common in CLI scripts (argv length checks).
   "T201" # Path handling and comparison results are printed in scripts.
 ]
+"iriscc/models/**/*.py" = [
+  "S101", # Allow asserts for shape checking in models.
+  "PT018", # Allow combined asserts in models.
+]
 "bin/**/*.py" = [
   "INP001", # bin/ is a script folder, not a package.
   "T201",   # allow print statements in scripts.

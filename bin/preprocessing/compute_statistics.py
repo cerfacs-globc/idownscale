@@ -8,7 +8,6 @@ author : Zoé GARCIA
 """
 
 import argparse
-import glob
 import json
 from typing import Tuple
 

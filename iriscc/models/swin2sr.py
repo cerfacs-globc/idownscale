@@ -304,9 +304,7 @@ class SwinTransformerBlock(nn.Module):
         x = shortcut + self.drop_path(self.norm1(x))
 
         # FFN
-        x = x + self.drop_path(self.norm2(self.mlp(x)))
-
-        return x
+        return x + self.drop_path(self.norm2(self.mlp(x)))
 
     def extra_repr(self) -> str:
         return (
@@ -454,7 +452,8 @@ class BasicLayer(nn.Module):
             nn.init.constant_(blk.norm2.weight, 0)
             
 class PatchEmbed(nn.Module):
-    r""" Image to Patch Embedding
+    r"""Image to Patch Embedding.
+
     Args:
         img_size (int): Image size.  Default: 224.
         patch_size (int): Patch token size. Default: 4.
@@ -483,7 +482,7 @@ class PatchEmbed(nn.Module):
             self.norm = None
 
     def forward(self, x):
-        B, C, H, W = x.shape
+        _B, _C, H, W = x.shape
         # FIXME look at relaxing size constraints
         # assert H == self.img_size[0] and W == self.img_size[1],
         #     f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
