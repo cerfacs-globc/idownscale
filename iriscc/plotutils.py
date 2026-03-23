@@ -21,8 +21,8 @@ def plot_map_image(var,
                     title: str | None = None,
                     save_dir: str | None = None
                 ):
-    """
-    Plots a 2D map image using the provided data and configurations.
+    """Plots a 2D map image using the provided data and configurations.
+
     Args:
         var (Any): The 2D array-like data to be plotted.
         var_desc (str, optional): Description of the variable to be used as the colorbar label. Defaults to None.
@@ -34,6 +34,7 @@ def plot_map_image(var,
         data_projection (Any, optional): Cartopy projection for the data. Defaults to ccrs.PlateCarree().
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): Path to save the plot as an image file. If None, the function returns the figure and axis objects. Defaults to None.
+
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """

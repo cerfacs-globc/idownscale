@@ -12,8 +12,12 @@ from torchvision.transforms import v2
 sys.path.append('.')
 
 from iriscc.plotutils import plot_test
-from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
-                               Pad)
+from iriscc.transforms import (
+    FillMissingValue,
+    LandSeaMask,
+    MinMaxNormalisation,
+    Pad,
+)
 
 class UNet(nn.Module):
 
