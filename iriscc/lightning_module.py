@@ -6,25 +6,26 @@ Inspired by Météo-France segmentation Lightning Module https://github.com/mete
 Modified by Zoé GARCIA
 """
 
-import sys
-sys.path.append('.')
-
-from pathlib import Path
 import os
+import sys
 import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import numpy as np
-import pytorch_lightning as pl
-import pandas as pd
-import matplotlib.pyplot as plt
-from torchmetrics import PearsonCorrCoef
 from monai.networks.nets import SwinUNETR, UNet
+from torchmetrics import PearsonCorrCoef
 
+sys.path.append('.')
+
+from iriscc.loss import MaskedGammaMAELoss, MaskedMSELoss
 from iriscc.metrics import MaskedMAE, MaskedRMSE
-from iriscc.models.miniunet import MiniUNet
 from iriscc.models.miniswinunetr import MiniSwinUNETR
-from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
+from iriscc.models.miniunet import MiniUNet
 
 layout = {
     "Check Overfit": {

@@ -6,13 +6,14 @@ author : Zoé GARCIA
 """
 
 import sys
-sys.path.append('.')
+from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.distributions import Gamma
-from pathlib import Path
+
+sys.path.append('.')
 
 class MaskedMSELoss(nn.Module):
     """

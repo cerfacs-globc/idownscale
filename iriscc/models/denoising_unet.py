@@ -4,18 +4,23 @@ Adapted to diffusion purposes adding time embeddings by Zoé Garcia.
 """
 
 import sys
-sys.path.append('.')
-
 from collections import OrderedDict
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
-
-import numpy as np 
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.plotutils import plot_test
 from torchvision.transforms import v2
+
+sys.path.append('.')
+
+from iriscc.plotutils import plot_test
+from iriscc.transforms import (
+    FillMissingValue,
+    LandSeaMask,
+    MinMaxNormalisation,
+    Pad,
+)
 
 class TimeProcessing(nn.Module):
     def __init__(self, dim_in, dim_out):

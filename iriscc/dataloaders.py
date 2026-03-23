@@ -17,13 +17,15 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 
-from iriscc.settings import DATES_TRAIN
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import (MinMaxNormalisation, 
-                               LandSeaMask, 
-                               Pad, 
-                               FillMissingValue,
-                               Log10Transform)
+from iriscc.settings import DATES_TRAIN
+from iriscc.transforms import (
+    FillMissingValue,
+    LandSeaMask,
+    Log10Transform,
+    MinMaxNormalisation,
+    Pad,
+)
 
 class IRISCC(Dataset):
     def __init__(self,

@@ -352,8 +352,7 @@ def datetime_period_to_string(dates):
 
    startdate = to_datetime(dates[0]).strftime('%d/%m/%Y')
    enddate = to_datetime(dates[-1]).strftime('%d/%m/%Y')
-   period = f'{startdate}-{enddate}'
-   return period
+   return f"{startdate}-{enddate}"
 
 class Data(object):
    def __init__(self, domain=None):
@@ -362,15 +361,15 @@ class Data(object):
    def clean_data(self, data, var, data_type=None):
       if var == 'pr':
          data[data < 0] = 0.
-         if data_type == 'gcm' or data_type =='rcm': # kg/m2/s to mm/day
+         if data_type in {'gcm', 'rcm'}: # kg/m2/s to mm/day
             data = data * 3600 * 24
       if var == 'tas':
          if np.nanmean(data) < 100: # celsius to kelvin
             data = data + 273.15
       return data
    
-   def get_era5_dataset(self, var:str, date):
-      file = glob.glob(str(ERA5_DIR/f'{var}_1d/{var}*_{date.year}_*'))[0]
+   def get_era5_dataset(self, var: str, date):
+      file = next((ERA5_DIR / f"{var}_1d").glob(f"{var}*_{date.year}_*"))
       ds = xr.open_dataset(file)
       ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
@@ -380,11 +379,11 @@ class Data(object):
       ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
       return ds
    
-   def get_gcm_dataset(self, var:str, date, ssp:str=None):
-      if date is None or date < pd.Timestamp('2015-01-01'):
-         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/*/{var}*historical*r1i1p1f2*'))[0]
+   def get_gcm_dataset(self, var: str, date, ssp: str | None = None):
+      if date is None or date < pd.Timestamp("2015-01-01"):
+         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(f"*/{var}*historical*r1i1p1f2*"))
       else:
-         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/*/{var}*{ssp}*'))[0]
+         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(f"*/{var}*{ssp}*"))
       ds = xr.open_dataset(file)
       ds = standardize_longitudes(ds)
       ds = self.crop_time_dim(ds, date)
@@ -392,20 +391,20 @@ class Data(object):
       ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
       return ds
    
-   def get_rcm_dataset(self, var:str, date, ssp:str=None):
+   def get_rcm_dataset(self, var: str, date, ssp: str | None = None):
       if date is None:
-         file = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
+         file = next(RCM_RAW_DIR.glob(f"ALADIN/{var}*ssp585*r1i1p1f2*"))
          ds = xr.open_dataset(file).isel(time=0)
       else :
          if date < pd.Timestamp('2015-01-01'):
-            file_for_xy = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
+            file_for_xy = next(RCM_RAW_DIR.glob(f'ALADIN/{var}*ssp585*r1i1p1f2*'))
             ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
             xref = ds_for_xy['x'].values
             yref = ds_for_xy['y'].values
             ds_for_xy.close()
-            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*historical*r1i1p1f2*')))
+            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(f"ALADIN/{var}*historical*r1i1p1f2*"))]
          else :
-            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*{ssp}*r1i1p1f2*')))
+            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(f"ALADIN/{var}*{ssp}*r1i1p1f2*"))]
          for file in files:
             if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
                ds = xr.open_dataset(file)

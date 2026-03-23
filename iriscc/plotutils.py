@@ -80,8 +80,8 @@ def plot_map_contour(var,
                     title: str = None,
                     save_dir: str = None
                     ):
-    """
-    Plots a contour map using the provided data and configurations.
+    """Plots a contour map using the provided data and configurations.
+
     Args:
         var: The data to be plotted, typically a 2D array or similar structure.
         var_desc (str, optional): Description of the variable to be used as the colorbar label.
@@ -92,6 +92,7 @@ def plot_map_contour(var,
         domain (list, optional): The geographical extent of the plot in the format [min_lon, max_lon, min_lat, max_lat].
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): File path to save the plot. If None, the function returns the figure and axis objects.
+
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
