@@ -1,6 +1,5 @@
-import os
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 src = '/archive2/globc/garcia/idownscale/rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc'
 dst = '/scratch/globc/page/idownscale_active/rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc'

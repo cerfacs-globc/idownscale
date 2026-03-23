@@ -26,11 +26,11 @@ class StandardNormalisation():
     """
     def __init__(self, sample_dir: Union[str, Path]) -> None:
         statistics_file = Path(sample_dir) / 'statistics.json'
-        with open(statistics_file) as f:
+        with statistics_file.open() as f:
             stats = json.load(f)
         mean = []
         std = []
-        for channel in stats.keys():
+        for channel in stats:
             mean.append(stats[channel]['mean'])
             std.append(stats[channel]['std'])
         self.mean = mean
@@ -53,10 +53,10 @@ class MinMaxNormalisation():
     """
     def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
         statistics_file = Path(sample_dir) / 'statistics.json'
-        with open(statistics_file) as f:
+        with statistics_file.open() as f:
             stats = json.load(f)
-        self.min = [stats[channel]['min'] for channel in stats.keys()]
-        self.max = [stats[channel]['max'] for channel in stats.keys()]
+        self.min = [stats[channel]['min'] for channel in stats]
+        self.max = [stats[channel]['max'] for channel in stats]
         self.output_norm = output_norm
     
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -78,10 +78,10 @@ class DeMinMaxNormalisation:
     """
     def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
         statistics_file = Path(sample_dir) / 'statistics.json'
-        with open(statistics_file) as f:
+        with statistics_file.open() as f:
             stats = json.load(f)
-        self.min = [stats[channel]['min'] for channel in stats.keys()]
-        self.max = [stats[channel]['max'] for channel in stats.keys()]
+        self.min = [stats[channel]['min'] for channel in stats]
+        self.max = [stats[channel]['max'] for channel in stats]
         self.output_norm = output_norm
 
     def __call__(self, sample: Tuple[Union[bool, torch.Tensor], torch.Tensor]) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -159,8 +159,7 @@ class Pad:
         padding = (padding_W // 2, padding_W - padding_W // 2,
                    padding_H // 2, padding_H - padding_H // 2)
 
-        padded_array = F.pad(array, padding, mode='constant', value=self.fill_value)
-        return padded_array
+        return F.pad(array, padding, mode='constant', value=self.fill_value)
 
     def __call__(self, sample: Tuple[List[torch.Tensor], List[torch.Tensor]]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample

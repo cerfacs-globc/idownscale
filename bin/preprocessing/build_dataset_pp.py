@@ -1,5 +1,6 @@
 """
 Build dataset of corrected GCM data for network inference.
+
 This step is also performed by bias_correction_ibicus.py but can be usefull
 when an issue appears and don't want to run the whole bias correction process again.
 
@@ -18,7 +19,6 @@ import argparse
 from iriscc.settings import (DATES_BC_TEST_HIST, 
                              CONFIG,
                              DATASET_BC_DIR,
-                             CONFIG,
                              GCM_RAW_DIR,
                              DATES_BC_TRAIN_HIST, 
                              DATES_BC_TEST_FUTURE)

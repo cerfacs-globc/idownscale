@@ -1,7 +1,6 @@
-import zipfile
-import os
-from pathlib import Path
 import shutil
+import zipfile
+from pathlib import Path
 
 zip_path = '/scratch/globc/page/idownscale_active/6207c7b13d58afaec5f4a14b907de17e.zip'
 extract_dir = '/scratch/globc/page/idownscale_active/'

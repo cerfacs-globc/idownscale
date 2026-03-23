@@ -5,7 +5,8 @@ Test script to visualize maps for experiment 3
 import sys
 sys.path.append('.')
 
-import glob
+import shutil
+from pathlib import Path
 import pandas as pd
 import xarray as xr
 import numpy as np
@@ -105,7 +106,7 @@ plot_map_contour(tas_unet,
                 domain = CONFIG['exp3']['domain_xy'],
                 data_projection = CONFIG['exp3']['data_projection'],
                 fig_projection = CONFIG['exp3']['fig_projection'],
-                title = f'tas Unet 8km 2070-01-01',
+                title = 'tas Unet 8km 2070-01-01',
                 cmap='OrRd',
                 var_desc='K',
                 levels=levels,

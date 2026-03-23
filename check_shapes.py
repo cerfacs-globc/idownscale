@@ -1,5 +1,4 @@
 import xarray as xr
-import sys
 
 def check(name, path, var):
     try:

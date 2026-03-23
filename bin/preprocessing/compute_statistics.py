@@ -1,13 +1,11 @@
 """
 Compute statistics for a dataset and plot histograms for the inpus and target channels.
+
 Save the statistics in a JSON file and the histograms as PNG files.
 
 date : 16/07/2025
 author : Zoé GARCIA
 """
-
-import sys
-sys.path.append('.')
 
 import numpy as np
 import glob
@@ -18,25 +16,25 @@ import matplotlib.pyplot as plt
 from iriscc.settings import CONFIG, DATES_TRAIN
 from typing import Tuple
 
-def update_statistics(sum: float, 
+def update_statistics(current_sum: float, 
                       square_sum: float, 
                       n_total: int, 
-                      min: float, 
-                      max: float, 
+                      min_val: float, 
+                      max_val: float, 
                       x: np.ndarray) -> Tuple[float, float, int, float, float]:
     '''
     Compute and update sample statistics including sum, squared sum, total count,
     minimum, and maximum values for a given array, ignoring NaN values.
     '''
     x = x[~np.isnan(x)]  # Remove NaN values
-    sum += np.sum(x)  # Update sum
+    current_sum += np.sum(x)  # Update sum
     square_sum += np.sum(x**2)  # Update squared sum
     n_total += x.size  # Update total count
-    if np.min(x) < min:  # Update minimum value
-         min = np.min(x)
-    if np.max(x) > max:  # Update maximum value
-         max = np.max(x)
-    return sum, square_sum, n_total, min, max
+    if np.min(x) < min_val:  # Update minimum value
+         min_val = np.min(x)
+    if np.max(x) > max_val:  # Update maximum value
+         max_val = np.max(x)
+    return current_sum, square_sum, n_total, min_val, max_val
 
 
 def plot_histogram(data, 
@@ -76,7 +74,7 @@ if __name__=='__main__':
     dataset = np.sort(glob.glob(str(dataset_dir/'sample*')))
     channels = CONFIG[args.exp]['channels']
     ch = len(channels)
-    sum = np.zeros(ch)
+    total_sum = np.zeros(ch)
     square_sum = np.zeros(ch)
     n_total = np.zeros(ch)
 
@@ -111,24 +109,24 @@ if __name__=='__main__':
         if nb in range(train_start, val_start-1):
             y_data['train'].append(y.flatten())
             if nb == train_start:
-                min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
-                min = np.concatenate((min, np.nanmin(y, axis=(1, 2))))
-                max = np.concatenate((max, np.nanmax(y, axis=(1, 2))))
+                min_vals, max_vals = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
+                min_vals = np.concatenate((min_vals, np.nanmin(y, axis=(1, 2))))
+                max_vals = np.concatenate((max_vals, np.nanmax(y, axis=(1, 2))))
             
             for i in range(ch):
                 if i == ch-1:
-                    sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                    total_sum[i], square_sum[i], n_total[i], min_vals[i], max_vals[i] = update_statistics(total_sum[i], 
                                                                         square_sum[i], 
                                                                         n_total[i],
-                                                                        min[i],
-                                                                        max[i],
+                                                                        min_vals[i],
+                                                                        max_vals[i],
                                                                         y[0])
                 else:
-                    sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                    total_sum[i], square_sum[i], n_total[i], min_vals[i], max_vals[i] = update_statistics(total_sum[i], 
                                                                         square_sum[i], 
                                                                         n_total[i],
-                                                                        min[i],
-                                                                        max[i],
+                                                                        min_vals[i],
+                                                                        max_vals[i],
                                                                         x[i])
                 
 
@@ -139,15 +137,15 @@ if __name__=='__main__':
         elif nb >= test_start :
             y_data['test'].append(y.flatten())
         
-    mean = sum / n_total
+    mean = total_sum / n_total
     std = np.sqrt((square_sum / n_total) - (mean**2))
 
     stats = {}
     for i, chanel in enumerate(channels):
         stats[chanel] = {'mean': mean[i],
                          'std': std[i],
-                         'min': min[i].astype(np.float64),
-                         'max': max[i].astype(np.float64)}
+                         'min': min_vals[i].astype(np.float64),
+                         'max': max_vals[i].astype(np.float64)}
     
     with open(dataset_dir/'statistics.json', "w") as f: 
         json.dump(stats, f)
