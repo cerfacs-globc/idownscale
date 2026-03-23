@@ -7,14 +7,15 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import numpy as np
+import argparse
 import glob
 import json
-import argparse
+from typing import Tuple
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 from iriscc.settings import CONFIG, DATES_TRAIN
-from typing import Tuple
 
 def update_statistics(current_sum: float, 
                       square_sum: float, 
@@ -33,15 +34,15 @@ def update_statistics(current_sum: float,
 
 
 def plot_histogram(data, 
-                   min:float, 
-                   max:float, 
+                   min_val:float, 
+                   max_val:float, 
                    mean:float, 
                    std:float, 
                    var:str, 
                    title:str, 
                    save_dir:str):
     
-    hist, edges = np.histogram(data, bins=50, range=(min, max), density=True)
+    hist, edges = np.histogram(data, bins=50, range=(min_val, max_val), density=True)
     centers = 0.5 * (edges[:-1] + edges[1:])
 
     plt.figure(figsize=(10, 6))
@@ -66,7 +67,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     dataset_dir = CONFIG[args.exp]['dataset']
-    dataset = np.sort(glob.glob(str(dataset_dir/'sample*')))
+    dataset = np.sort([str(p) for p in dataset_dir.glob('sample*')])
     channels = CONFIG[args.exp]['channels']
     ch = len(channels)
     total_sum = np.zeros(ch)
@@ -142,7 +143,7 @@ if __name__=='__main__':
                          'min': min_vals[i].astype(np.float64),
                          'max': max_vals[i].astype(np.float64)}
     
-    with open(dataset_dir/'statistics.json', "w") as f: 
+    with (dataset_dir / 'statistics.json').open('w') as f: 
         json.dump(stats, f)
 
     for type, data in y_data.items():

@@ -11,10 +11,12 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-
-from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, SAFRAN_REFORMAT_DIR, ERA5_DIR
+from iriscc.datautils import (crop_domain_from_ds, interpolation_target_grid,
+                             remove_countries, standardize_dims_and_coords,
+                             standardize_longitudes)
 from iriscc.plotutils import plot_map_contour
-from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, remove_countries, standardize_dims_and_coords, interpolation_target_grid
+from iriscc.settings import (CONFIG, ERA5_DIR, GCM_RAW_DIR, PREDICTION_DIR,
+                             GRAPHS_DIR, SAFRAN_REFORMAT_DIR)
 
 date = pd.Timestamp('2014-12-31 00:00:00')
 safran = xr.open_mfdataset(sorted(SAFRAN_REFORMAT_DIR.glob('tas*reformat.nc')), combine='by_coords')
