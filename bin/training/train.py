@@ -1,5 +1,4 @@
-"""
-Train the model using PyTorch Lightning
+"""Train the model using PyTorch Lightning.
 
 date: 16/07/2025
 author: Zoé GARCIA

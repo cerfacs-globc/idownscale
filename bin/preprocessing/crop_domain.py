@@ -4,16 +4,17 @@ Generic script to crop a NetCDF file to a specific geographical domain.
 Can use predefined domains from settings.py or custom user-defined domains.
 """
 
-import sys
 import argparse
-from pathlib import Path
-import xarray as xr
 import datetime
+import sys
+from pathlib import Path
 
-# Add project root to sys.path
+import xarray as xr
+
 sys.path.append('.')
 
-from iriscc.datautils import crop_domain_from_ds, standardize_longitudes, standardize_dims_and_coords
+from iriscc.datautils import (crop_domain_from_ds, standardize_dims_and_coords,
+                             standardize_longitudes)
 from iriscc.settings import CONFIG
 
 def main():

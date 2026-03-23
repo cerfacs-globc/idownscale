@@ -5,25 +5,24 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
+import argparse
+import datetime
 import sys
+
 sys.path.append('.')
 
-import glob
-import xarray as xr
+import numpy as np
 import pandas as pd
 import torch
-import argparse
-import numpy as np
+import xarray as xr
 from torchvision.transforms import v2
 
+from iriscc.datautils import Data, remove_countries
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import (PREDICTION_DIR, 
-                             RUNS_DIR, 
-                             DATASET_BC_DIR, 
-                             CONFIG,)
-from iriscc.datautils import (remove_countries,
-                              Data)
+from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR,
+                             RUNS_DIR)
+from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
+                               Pad, UnPad)
 
 def get_target_format(exp:str, dates):
     get_data = Data(CONFIG[exp]['domain'])

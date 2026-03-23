@@ -6,14 +6,15 @@ author : Zoé GARCIA
 """
 
 import sys
-sys.path.append('.')
-
-import xarray as xr
-import numpy as np
-from scipy.spatial import cKDTree
 from pathlib import Path
 
-from iriscc.settings import SAFRAN_RAW_DIR, SAFRAN_DIR
+sys.path.append('.')
+
+import numpy as np
+import xarray as xr
+from scipy.spatial import cKDTree
+
+from iriscc.settings import SAFRAN_DIR, SAFRAN_RAW_DIR
 
 
 def reformat_safran_xy(file):

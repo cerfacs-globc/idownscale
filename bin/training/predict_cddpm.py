@@ -63,7 +63,7 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
-    checkpoint_dir = list(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))[0]
+    checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
     model = IRISCCCDDPMLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
     model.eval()
@@ -84,7 +84,7 @@ if __name__=='__main__':
         test_name = args.test_name
     device = 'cpu'
 
-    sample = list(sample_dir.glob(f'sample_{args.date}.npz'))[0]
+    sample = next(sample_dir.glob(f'sample_{args.date}.npz'))
     data = dict(np.load(sample), allow_pickle=True)
     conditioning_image_init, y = data['x'], data['y']
 
