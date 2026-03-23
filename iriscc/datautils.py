@@ -37,17 +37,13 @@ from iriscc.settings import (
 
 
 def standardize_dims_and_coords(ds) :
-    # Camille Le Gloannec script
-    # GCM models have inconsistent names of dimensions and coordinates, 
-    # this function fix that at the dataset level by naming dimensions (x,y) and coordinates (lon,lat).
+    dim_mapping = {'x': ['i', 'ni', 'xh', 'lon', 'nlon'],
+                   'y': ['j', 'nj', 'yh', 'lat', 'nlat'],
+                   'lev': ['olevel']}
+    coord_mapping = {'lon': ['longitude', 'nav_lon'],
+                     'lat': ['latitude', 'nav_lat']}
 
-    dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon'], 
-         'y' : ['j', 'nj', 'yh', 'lat', 'nlat'],
-         'lev' : ['olevel']}
-    coord_mapping = {'lon' : ['longitude', 'nav_lon'],
-         'lat' : ['latitude', 'nav_lat']}
-   
-    for standard_name, possible_names in dim_mapping.items() :
+    for standard_name, possible_names in dim_mapping.items():
         for name in possible_names :
             if name in ds.dims :
                 ds = ds.rename({name: standard_name})
@@ -97,69 +93,79 @@ def generate_bounds(coord: np.ndarray) -> np.ndarray:
 
 
 def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
-      y_b = generate_bounds(y)
+    """Adds longitude and latitude bounds to the dataset.
 
-      x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
+    Based on the coordinates of the cells using exact data projection.
+    """
+    if bounds_method == "1":
+        x = ds["x"].values
+        y = ds["y"].values
 
-      proj = projection 
+        x_b = generate_bounds(x)
+        y_b = generate_bounds(y)
 
-      lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
+        x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
 
-      ds = ds.assign_coords(
-         x_b=("x_b", x_b), 
-         y_b=("y_b", y_b),
-         lon_b=(["y_b", "x_b"], lon_b),
-         lat_b=(["y_b", "x_b"], lat_b)
-      )
+        proj = projection
 
-   if bounds_method == "2":
-      """
-      Adds longitude and latitude bounds to the dataset based on the coordinates of the cells.
-      """
-      lon = ds["lon"]  
-      lat = ds["lat"]
-      logger.info("lon.shape: %s, lat.shape: %s", lon.shape, lat.shape)
+        lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
 
-      lon_b = 0.25 * (lon[:-1, :-1] + lon[1:, :-1] + lon[:-1, 1:] + lon[1:, 1:])
-      lat_b = 0.25 * (lat[:-1, :-1] + lat[1:, :-1] + lat[:-1, 1:] + lat[1:, 1:])
-      logger.info("lon_b.shape: %s, lat_b.shape: %s", lon_b.shape, lat_b.shape)
+        ds = ds.assign_coords(
+            x_b=("x_b", x_b),
+            y_b=("y_b", y_b),
+            lon_b=(["y_b", "x_b"], lon_b),
+            lat_b=(["y_b", "x_b"], lat_b)
+        )
 
-      nx_b = lon.shape[0] + 1
-      ny_b = lon.shape[1] + 1
-      logger.info("ny_b: %s, nx_b: %s", ny_b, nx_b)
+    if bounds_method == "2":
+        """Adds longitude and latitude bounds to the dataset.
 
-      lon_b_full = np.full((nx_b, ny_b), np.nan)
-      lat_b_full = np.full((nx_b, ny_b), np.nan)
-      logger.info("lon_b_full.shape: %s, lat_b_full.shape: %s", lon_b_full.shape, lat_b_full.shape)
-      lon_b_full[1:-2, 1:-2] = lon_b
-      lat_b_full[1:-2, 1:-2] = lat_b
+        Based on the coordinates of the cells.
+        """
+        lon = ds["lon"]
+        lat = ds["lat"]
+        logger.info("lon.shape: %s, lat.shape: %s", lon.shape, lat.shape)
 
-      lon_b_full[0, 1:-1] = 2 * lon[0, :-1] - lon[1, :-1]
-      lon_b_full[-1, 1:-1] = 2 * lon[-1, :-1] - lon[-2, :-1]
-      lon_b_full[1:-1, 0] = 2 * lon[:-1, 0] - lon[:-1, 1]
-      lon_b_full[1:-1, -1] = 2 * lon[:-1, -1] - lon[:-1, -2]
+        lon_b = 0.25 * (lon[:-1, :-1] + lon[1:, :-1] + lon[:-1, 1:] + lon[1:, 1:])
+        lat_b = 0.25 * (lat[:-1, :-1] + lat[1:, :-1] + lat[:-1, 1:] + lat[1:, 1:])
+        logger.info("lon_b.shape: %s, lat_b.shape: %s", lon_b.shape, lat_b.shape)
 
-      lon_b_full[0, 0] = 2 * lon[0, 0] - lon[1, 1]
-      lon_b_full[0, -1] = 2 * lon[0, -1] - lon[1, -2]
-      lon_b_full[-1, 0] = 2 * lon[-1, 0] - lon[-2, 1]
-      lon_b_full[-1, -1] = 2 * lon[-1, -1] - lon[-2, -2]
+        nx_b = lon.shape[0] + 1
+        ny_b = lon.shape[1] + 1
+        logger.info("ny_b: %s, nx_b: %s", ny_b, nx_b)
 
-      lat_b_full[0, 1:-1] = 2 * lat[0, :-1] - lat[1, :-1]
-      lat_b_full[-1, 1:-1] = 2 * lat[-1, :-1] - lat[-2, :-1]
-      lat_b_full[1:-1, 0] = 2 * lat[:-1, 0] - lat[:-1, 1]
-      lat_b_full[1:-1, -1] = 2 * lat[:-1, -1] - lat[:-1, -2]
+        lon_b_full = np.full((nx_b, ny_b), np.nan)
+        lat_b_full = np.full((nx_b, ny_b), np.nan)
+        logger.info("lon_b_full.shape: %s, lat_b_full.shape: %s", lon_b_full.shape, lat_b_full.shape)
+        lon_b_full[1:-2, 1:-2] = lon_b
+        lat_b_full[1:-2, 1:-2] = lat_b
 
-      lat_b_full[0, 0] = 2 * lat[0, 0] - lat[1, 1]
-      lat_b_full[0, -1] = 2 * lat[0, -1] - lat[1, -2]
-      lat_b_full[-1, 0] = 2 * lat[-1, 0] - lat[-2, 1]
-      lat_b_full[-1, -1] = 2 * lat[-1, -1] - lat[-2, -2]
+        lon_b_full[0, 1:-1] = 2 * lon[0, :-1] - lon[1, :-1]
+        lon_b_full[-1, 1:-1] = 2 * lon[-1, :-1] - lon[-2, :-1]
+        lon_b_full[1:-1, 0] = 2 * lon[:-1, 0] - lon[:-1, 1]
+        lon_b_full[1:-1, -1] = 2 * lon[:-1, -1] - lon[:-1, -2]
 
-      ds = ds.assign_coords(
-         lon_b=(["y_b", "x_b"], lon_b_full),
-         lat_b=(["y_b", "x_b"], lat_b_full)
-      )
+        lon_b_full[0, 0] = 2 * lon[0, 0] - lon[1, 1]
+        lon_b_full[0, -1] = 2 * lon[0, -1] - lon[1, -2]
+        lon_b_full[-1, 0] = 2 * lon[-1, 0] - lon[-2, 1]
+        lon_b_full[-1, -1] = 2 * lon[-1, -1] - lon[-2, -2]
 
-   return ds
+        lat_b_full[0, 1:-1] = 2 * lat[0, :-1] - lat[1, :-1]
+        lat_b_full[-1, 1:-1] = 2 * lat[-1, :-1] - lat[-2, :-1]
+        lat_b_full[1:-1, 0] = 2 * lat[:-1, 0] - lat[:-1, 1]
+        lat_b_full[1:-1, -1] = 2 * lat[:-1, -1] - lat[:-1, -2]
+
+        lat_b_full[0, 0] = 2 * lat[0, 0] - lat[1, 1]
+        lat_b_full[0, -1] = 2 * lat[0, -1] - lat[1, -2]
+        lat_b_full[-1, 0] = 2 * lat[-1, 0] - lat[-2, 1]
+        lat_b_full[-1, -1] = 2 * lat[-1, -1] - lat[-2, -2]
+
+        ds = ds.assign_coords(
+            lon_b=(["y_b", "x_b"], lon_b_full),
+            lat_b=(["y_b", "x_b"], lat_b_full)
+        )
+
+    return ds
 
 
 def interpolation_target_grid(ds: xr.Dataset, 
@@ -454,28 +460,27 @@ class Data(object):
       return ds
    
 
-def return_unit(var:str):
-   """
-   Returns the unit of measurement for a given variable.
+def return_unit(var: str):
+    """Returns the unit of measurement for a given variable.
 
-   Parameters:
-      var (str): The variable name for which the unit is requested.
-               Accepted values are 'tas', 'pr', 'sfcWind', and 'psl'.
+    Parameters:
+        var (str): The variable name for which the unit is requested.
+                 Accepted values are 'tas', 'pr', 'sfcWind', and 'psl'.
 
-   Returns:
-      str: The unit of measurement corresponding to the variable.
+    Returns:
+        str: The unit of measurement corresponding to the variable.
 
-   Raises:
-      ValueError: If the variable name is not recognized.
-   """
-   match var:
-      case 'tas':
-         return 'K'
-      case 'pr':
-         return 'mm/day'
-      case 'sfcWind':
-         return 'm/s'
-      case 'psl':
-         return 'Pa'
-      case _:
-         raise ValueError(f"Unknown variable: {var}")
+    Raises:
+        ValueError: If the variable name is not recognized.
+    """
+    match var:
+        case 'tas':
+            return 'K'
+        case 'pr':
+            return 'mm/day'
+        case 'sfcWind':
+            return 'm/s'
+        case 'psl':
+            return 'Pa'
+        case _:
+            raise ValueError(f"Unknown variable: {var}")
