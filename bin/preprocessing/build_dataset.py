@@ -158,7 +158,8 @@ def str2bool(v):
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+        msg = 'Boolean value expected.'
+        raise argparse.ArgumentTypeError(msg)
 
 
 if __name__ == '__main__':
@@ -185,7 +186,7 @@ if __name__ == '__main__':
 
     total = len(DATES)
     for i, date in enumerate(DATES):
-        print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
         x, y = dataset_builder.process_date(date, 
                                             plot=args.plot, 
                                             baseline=args.baseline)

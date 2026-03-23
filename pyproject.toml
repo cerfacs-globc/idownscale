@@ -45,6 +45,10 @@ exclude = [
     "build",
     "dist",
     "*.egg-info",
+    ".venv",
+    "venv",
+    "env",
+    ".env",
 ]
 line-length = 165 # icclim allows line too long, but keeping a reasonable limit here if needed, or I can just drop it if E501 is ignored anyway.
 # Wait, icclim ruff config says E501 is ignored.

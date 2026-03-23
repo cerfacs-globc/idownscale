@@ -8,7 +8,7 @@ def check(name, path, var):
             ds = ds.isel(time=0)
         shape = ds[var].shape
         print(f"{name} ({var}): {shape}")
-    except Exception as e:
+    except Exception as e: # noqa: BLE001
         print(f"Error checking {name}: {e}")
 
 check("Orog v31", "/scratch/globc/page/idownscale_active/rawdata/eobs/elevation_ens_025deg_reg_v31_0e_france.nc", "elevation")
