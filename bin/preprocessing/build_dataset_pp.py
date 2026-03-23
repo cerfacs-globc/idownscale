@@ -9,20 +9,18 @@ author : Zoé GARCIA
 """
 
 
+import argparse
 import sys
+
 sys.path.append('.')
 
-import xarray as xr
 import numpy as np
-import argparse
+import xarray as xr
 
-from iriscc.settings import (DATES_BC_TEST_HIST, 
-                             CONFIG,
-                             DATASET_BC_DIR,
-                             GCM_RAW_DIR,
-                             DATES_BC_TRAIN_HIST, 
-                             DATES_BC_TEST_FUTURE)
-from iriscc.datautils import reformat_as_target, Data
+from iriscc.datautils import Data, reformat_as_target
+from iriscc.settings import (CONFIG, DATASET_BC_DIR, DATES_BC_TEST_FUTURE,
+                             DATES_BC_TEST_HIST, DATES_BC_TRAIN_HIST,
+                             GCM_RAW_DIR)
 
 if __name__=='__main__':
     

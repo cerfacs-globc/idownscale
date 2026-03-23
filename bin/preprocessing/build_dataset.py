@@ -7,26 +7,21 @@ date : 16/07/2025
 author : Zoé GARCIA
 '''
 
+import argparse
+import datetime
 import sys
+from typing import Tuple
+
+sys.path.append('.')
 
 import numpy as np
 import xarray as xr
 
-sys.path.append('.')
-import argparse
-import datetime
-from typing import Tuple
-
+from iriscc.datautils import (Data, crop_domain_from_ds,
+                             interpolation_target_grid, reformat_as_target,
+                             standardize_dims_and_coords)
 from iriscc.plotutils import plot_test
-from iriscc.datautils import (standardize_dims_and_coords, 
-                              interpolation_target_grid, 
-                              reformat_as_target,
-                              crop_domain_from_ds,
-                              Data)
-from iriscc.settings import (DATES,
-                             CONFIG,
-                             GRAPHS_DIR,
-                             DATASET_DIR)
+from iriscc.settings import CONFIG, DATASET_DIR, DATES, GRAPHS_DIR
 
    
 class DatasetBuilder:
