@@ -71,15 +71,15 @@ def plot_map_image(var,
         plt.savefig(save_dir)
 
 def plot_map_contour(var,
-                    var_desc: str = None,
-                    cmap: str = 'OrRd',
-                    fig_projection: ccrs.Projection = ccrs.PlateCarree(),
-                    data_projection: ccrs.Projection = ccrs.PlateCarree(),
-                    levels: list = None,
-                    domain: list = None,
-                    title: str = None,
-                    save_dir: str = None
-                    ):
+                     var_desc: str | None = None,
+                     cmap: str = "OrRd",
+                     fig_projection: ccrs.Projection = ccrs.PlateCarree(),
+                     data_projection: ccrs.Projection = ccrs.PlateCarree(),
+                     levels: list | None = None,
+                     domain: list | None = None,
+                     title: str | None = None,
+                     save_dir: str | None = None
+                     ):
     """Plots a contour map using the provided data and configurations.
 
     Args:

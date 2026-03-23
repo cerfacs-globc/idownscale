@@ -6,7 +6,6 @@ Inspired by Météo-France segmentation Lightning Module https://github.com/mete
 Modified by Zoé GARCIA
 """
 
-import os
 import sys
 import time
 from pathlib import Path

@@ -1,5 +1,4 @@
 import datetime
-import glob
 import logging
 import sys
 from pathlib import Path
@@ -474,4 +473,5 @@ def return_unit(var: str):
         case 'psl':
             return 'Pa'
         case _:
-            raise ValueError(f"Unknown variable: {var}")
+            msg = f"Unknown variable: {var}"
+            raise ValueError(msg)

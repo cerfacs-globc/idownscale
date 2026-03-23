@@ -7,22 +7,24 @@ Rachid Elmontassir script modified by Zoé Garcia
 
 
 import sys
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torchvision.transforms.v2 as v2
+import tqdm
+
 sys.path.append('.')
 
-from pathlib import Path
-import matplotlib.pyplot as plt
-import torch
-import numpy as np
-import tqdm
-from torchvision.transforms import v2
-
-from iriscc.models.cddpm import CDDPM
-from iriscc.transforms import UnPad, MinMaxNormalisation, FillMissingValue, LandSeaMask, Pad
 from iriscc.dataloaders import get_dataloaders
+from iriscc.models.cddpm import CDDPM
 from iriscc.plotutils import plot_test
 from iriscc.settings import GRAPHS_DIR
+from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
+                               Pad, UnPad)
 
-def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
+def show_forward(ddpm, loader, n_images=4, n_noise_steps=5):
     """
     Show the forward process of a DDPM model.
 
@@ -38,7 +40,7 @@ def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
         in the DDPM algorithm.
     """
     # Iterate over batches in the DataLoader
-    for condi, images in loader:
+    for _condi, images in loader:
         imgs = images[:n_images]  # Extract the input images from the batch
         mask = (imgs == 0)
 
@@ -149,7 +151,8 @@ if __name__ == '__main__':
                     in_ch=3)
 
     train_dataloader = get_dataloaders('train')
-    show_forward(cddpm, train_dataloader, 'cpu', n_images=4, n_noise_steps=8)
+    show_forward(cddpm, train_dataloader, n_images=4, n_noise_steps=8)
+ homescreen_path = GRAPHS_DIR / "test.png"
 
     data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
     conditioning_image, y = data['x'], data['y']
