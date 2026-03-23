@@ -6,22 +6,22 @@ Rachid Elmontassir script modified by Zoé Garcia
 """
 
 import sys
+
 sys.path.append('.')
 
-from pathlib import Path
-import os
 import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pandas as pd
-import numpy as np
-import pytorch_lightning as pl
-import matplotlib.pyplot as plt
 
-from iriscc.transforms import DeMinMaxNormalisation
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.cddpm import CDDPM
-from iriscc.loss import MaskedMSELoss
+from iriscc.transforms import DeMinMaxNormalisation
 
 layout = {
     "Check Overfit": {

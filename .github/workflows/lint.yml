@@ -30,9 +30,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
-          SHFMT_ARGUMENTS: "-i 4"
-          JSCPD_CONFIG_FILE: .jscpd.json
-          VALIDATE_JSCPD: true
+          SHFMT_ARGUMENTS: '-i 4'
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_YAML_PRETTIER: true
           VALIDATE_SHELL_SHFMT: true
