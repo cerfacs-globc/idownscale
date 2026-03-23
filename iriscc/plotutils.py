@@ -160,6 +160,7 @@ def plot_monthly_var_seasonal_cycle(
     """
     Plots the seasonal cycle of a variable, showing the mean monthly values
     and individual yearly trends, and saves the plot to a specified directory.
+
     The function accepts either daily or monthly data as input.
 
     Args:
@@ -169,7 +170,8 @@ def plot_monthly_var_seasonal_cycle(
     var_desc (str): Description of the variable (e.g., temperature).
     save_dir (str): File path to save the generated plot.
 
-    Returns:
+    Returns
+    -------
     None
     """
     df_var = pd.DataFrame({'date': dates, 'var_temporal': var_temporal})

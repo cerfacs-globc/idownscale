@@ -113,11 +113,10 @@ def get_dataloaders(data_type: str) -> DataLoader:
     else : 
         batch_size = 1
 
-    dataloader = DataLoader(training_data, 
-                            batch_size=batch_size, 
-                            shuffle=shuffle,
-                            num_workers=1)
-    return dataloader   
+    return DataLoader(training_data, 
+                      batch_size=batch_size, 
+                      shuffle=shuffle,
+                      num_workers=1)
 
 if __name__ == '__main__':
     train_dataloader = get_dataloaders('test')

@@ -5,7 +5,6 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import datetime
 import glob
 import logging
 import sys
@@ -15,8 +14,11 @@ sys.path.append(".")  # noqa: E402
 
 import numpy as np
 import pandas as pd
+import torch
 import xarray as xr
-import xesmf as xe
+from scipy.spatial import cKDTree
+
+logger = logging.getLogger(__name__)
 
 from iriscc.settings import (
     CONFIG,
@@ -95,14 +97,6 @@ def generate_bounds(coord: np.ndarray) -> np.ndarray:
 
 
 def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
-   """
-   Adds longitude and latitude bounds to the dataset based on the coordinates of the cells using exact data projection
-   """
-   if bounds_method == "1":
-      x = ds['x'].values
-      y = ds['y'].values
-
-      x_b = generate_bounds(x)
       y_b = generate_bounds(y)
 
       x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
@@ -124,19 +118,19 @@ def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr
       """
       lon = ds["lon"]  
       lat = ds["lat"]
-      logging.info(f"lon.shape: {lon.shape}, lat.shape: {lat.shape}")
+      logger.info("lon.shape: %s, lat.shape: %s", lon.shape, lat.shape)
 
       lon_b = 0.25 * (lon[:-1, :-1] + lon[1:, :-1] + lon[:-1, 1:] + lon[1:, 1:])
       lat_b = 0.25 * (lat[:-1, :-1] + lat[1:, :-1] + lat[:-1, 1:] + lat[1:, 1:])
-      logging.info(f"lon_b.shape: {lon_b.shape}, lat_b.shape: {lat_b.shape}")
+      logger.info("lon_b.shape: %s, lat_b.shape: %s", lon_b.shape, lat_b.shape)
 
       nx_b = lon.shape[0] + 1
       ny_b = lon.shape[1] + 1
-      logging.info(f"ny_b: {ny_b}, nx_b: {nx_b}")
+      logger.info("ny_b: %s, nx_b: %s", ny_b, nx_b)
 
       lon_b_full = np.full((nx_b, ny_b), np.nan)
       lat_b_full = np.full((nx_b, ny_b), np.nan)
-      logging.info(f"lon_b_full.shape: {lon_b_full.shape}, lat_b_full.shape: {lat_b_full.shape}")
+      logger.info("lon_b_full.shape: %s, lat_b_full.shape: %s", lon_b_full.shape, lat_b_full.shape)
       lon_b_full[1:-2, 1:-2] = lon_b
       lat_b_full[1:-2, 1:-2] = lat_b
 
