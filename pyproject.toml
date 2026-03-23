@@ -147,6 +147,7 @@ ignore = [
   "PLR2004",# Allow magic values in comparisons
   "SIM108", # Allow if/else blocks instead of ternary
   "ARG002", # Allow unused method arguments (required for PyTorch Lightning signatures)
+  "N812",   # Allow F for torch.nn.functional
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -22,18 +22,13 @@ def update_statistics(current_sum: float,
                       min_val: float, 
                       max_val: float, 
                       x: np.ndarray) -> Tuple[float, float, int, float, float]:
-    '''
-    Compute and update sample statistics including sum, squared sum, total count,
-    minimum, and maximum values for a given array, ignoring NaN values.
-    '''
+    """Compute and update sample statistics including sum, squared sum, total count, minimum, and maximum values for a given array, ignoring NaN values."""
     x = x[~np.isnan(x)]  # Remove NaN values
     current_sum += np.sum(x)  # Update sum
     square_sum += np.sum(x**2)  # Update squared sum
     n_total += x.size  # Update total count
-    if np.min(x) < min_val:  # Update minimum value
-         min_val = np.min(x)
-    if np.max(x) > max_val:  # Update maximum value
-         max_val = np.max(x)
+    min_val = min(min_val, np.min(x))
+    max_val = max(max_val, np.max(x))
     return current_sum, square_sum, n_total, min_val, max_val
 
 

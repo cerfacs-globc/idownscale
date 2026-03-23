@@ -3,14 +3,13 @@ Test script to visualize maps for experiment 3
 """
 
 import sys
+
 sys.path.append('.')
 
-import shutil
-from pathlib import Path
+import cartopy.crs as ccrs
+import numpy as np
 import pandas as pd
 import xarray as xr
-import numpy as np
-import cartopy.crs as ccrs
 
 
 from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, SAFRAN_REFORMAT_DIR, ERA5_DIR

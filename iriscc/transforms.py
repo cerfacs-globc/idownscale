@@ -1,6 +1,6 @@
-"""
-Transformations class for the IRISCC dataset.
-This module provides various transformations to preprocess the dataset for training and inference
+"""Transformations class for the IRISCC dataset.
+
+This module provides various transformations to preprocess the dataset for training and inference.
 
 date : 16/07/2025
 author : Zoé GARCIA
