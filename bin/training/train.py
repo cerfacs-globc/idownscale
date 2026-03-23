@@ -5,12 +5,13 @@ author: Zoé GARCIA
 """
 
 import sys
+
 sys.path.append('.')
 
-import torch
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
+import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 
 from iriscc.dataloaders import get_dataloaders
 from iriscc.hparams import IRISCCHyperParameters

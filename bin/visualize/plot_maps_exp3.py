@@ -1,6 +1,4 @@
-"""
-Test script to visualize maps for experiment 3
-"""
+"""Test script to visualize maps for experiment 3."""
 
 import sys
 

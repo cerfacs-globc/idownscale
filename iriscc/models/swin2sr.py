@@ -668,14 +668,14 @@ class UpsampleOneStep(nn.Sequential):
 
     def flops(self):
         H, W = self.input_resolution
-        flops = H * W * self.num_feat * 3 * 9
-        return flops
+        return H * W * self.num_feat * 3 * 9
     
     
 
 class Swin2SR(nn.Module):
-    r""" Swin2SR
-        A PyTorch impl of : `Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration`.
+    r"""Swin2SR.
+
+    A PyTorch impl of : `Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration`.
 
     Args:
         img_size (int | tuple(int)): Input image size. Default 64

@@ -1,5 +1,5 @@
-"""
-Dataloader for the IRISCC dataset.
+"""Dataloader for the IRISCC dataset.
+
 This module defines a custom PyTorch Dataset for loading and transforming the IRISCC dataset.
 
 date : 16/07/2025
@@ -80,9 +80,11 @@ class IRISCC(Dataset):
 def get_dataloaders(data_type: str) -> DataLoader:
     """
     Creates and returns a PyTorch DataLoader for the specified data type.
+
     Args:
         data_type (str): The type of data to load. Expected values are 'train' or other types
                             (e.g., 'validation', 'test'). Determines the shuffle behavior and batch size.
+
     Returns:
         DataLoader: A PyTorch DataLoader object configured with the appropriate dataset,
                     transformations, batch size, and shuffle settings.
