@@ -5,6 +5,7 @@
 # -----------------------------------------------------------------------------------
 
 import math
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -328,7 +329,8 @@ class SwinTransformerBlock(nn.Module):
         return flops
 
 class PatchMerging(nn.Module):
-    r""" Patch Merging Layer.
+    r"""Patch Merging Layer.
+
     Args:
         input_resolution (tuple[int]): Resolution of input feature.
         dim (int): Number of input channels.
@@ -344,7 +346,7 @@ class PatchMerging(nn.Module):
 
     def forward(self, x):
         """
-        x: B, H*W, C
+        Input x: B, H*W, C.
         """
         H, W = self.input_resolution
         B, L, C = x.shape

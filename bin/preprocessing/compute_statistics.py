@@ -146,16 +146,16 @@ if __name__=='__main__':
     with (dataset_dir / 'statistics.json').open('w') as f: 
         json.dump(stats, f)
 
-    for type, data in y_data.items():
-        data = np.concatenate(data)
-        plot_histogram(data, 
-                    np.nanmin(data), 
-                    np.nanmax(data), 
-                    np.nanmean(data), 
-                    np.nanstd(data), 
+    for data_type, data_list in y_data.items():
+        data_arr = np.concatenate(data_list)
+        plot_histogram(data_arr, 
+                    np.nanmin(data_arr), 
+                    np.nanmax(data_arr), 
+                    np.nanmean(data_arr), 
+                    np.nanstd(data_arr), 
                     CONFIG[args.exp]['target_vars'][0], 
-                    f'y {type} dataset histogram', 
-                    dataset_dir/f'hist_y_{type}.png')
+                    f'y {data_type} dataset histogram', 
+                    dataset_dir/f'hist_y_{data_type}.png')
  
     
 

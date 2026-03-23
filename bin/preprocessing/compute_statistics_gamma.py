@@ -1,6 +1,6 @@
-"""
-Compute alpha and beta statistics (Gamma distribution) on training historical period
-If target variable is precipitation
+"""Compute alpha and beta statistics (Gamma distribution) on training historical period.
+
+If target variable is precipitation.
 
 date : 16/07/2025
 author : Zoé GARCIA
