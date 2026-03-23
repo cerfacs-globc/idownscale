@@ -1,15 +1,15 @@
 ---
-name: Lint
+name: "Lint"
 
 on:
   push:
   pull_request:
 
-permissions: read-all
+permissions: "read-all"
 
 jobs:
   super-lint:
-    name: Lint with Super-Linter
+    name: "Lint with Super-Linter"
     runs-on: ubuntu-latest
 
     permissions:
@@ -26,11 +26,11 @@ jobs:
       - name: Run Super-Linter on new changes
         uses: github/super-linter/slim@v7
         env:
-          DEFAULT_BRANCH: master
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BRANCH: "master"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
-          SHFMT_ARGUMENTS: '-i 4'
+          SHFMT_ARGUMENTS: "-i 4"
           VALIDATE_JSON_PRETTIER: true
           VALIDATE_YAML_PRETTIER: true
           VALIDATE_SHELL_SHFMT: true
