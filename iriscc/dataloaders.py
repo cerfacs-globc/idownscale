@@ -7,15 +7,15 @@ author : Zoé GARCIA
 """
 
 import sys
+from typing import Optional
+
 sys.path.append('.')
 
-from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import v2
 import numpy as np
 import torch
-import glob
-from typing import Optional
 from torch import Tensor
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import v2
 
 from iriscc.settings import DATES_TRAIN
 from iriscc.hparams import IRISCCHyperParameters

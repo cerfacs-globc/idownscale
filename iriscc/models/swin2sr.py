@@ -623,10 +623,11 @@ class Upsample(nn.Sequential):
             m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
             m.append(nn.PixelShuffle(3))
         else:
-            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
+            msg = f"scale {scale} is not supported. Supported scales: 2^n and 3."
+            raise ValueError(msg)
         super(Upsample, self).__init__(*m)
-        
-class Upsample_hf(nn.Sequential):
+
+class UpsampleHF(nn.Sequential):
     """Upsample module.
 
     Args:
@@ -644,18 +645,20 @@ class Upsample_hf(nn.Sequential):
             m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
             m.append(nn.PixelShuffle(3))
         else:
-            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
-        super(Upsample_hf, self).__init__(*m)        
+            msg = f"scale {scale} is not supported. Supported scales: 2^n and 3."
+            raise ValueError(msg)
+        super(UpsampleHF, self).__init__(*m)
 
 
 class UpsampleOneStep(nn.Sequential):
-    """UpsampleOneStep module (the difference with Upsample is that it always only has 1conv + 1pixelshuffle)
-       Used in lightweight SR to save parameters.
+    """UpsampleOneStep module.
+
+    The difference with Upsample is that it always only has 1conv + 1pixelshuffle.
+    Used in lightweight SR to save parameters.
 
     Args:
         scale (int): Scale factor. Supported scales: 2^n and 3.
         num_feat (int): Channel number of intermediate features.
-
     """
 
     def __init__(self, scale, num_feat, num_out_ch, input_resolution=None):
@@ -701,13 +704,17 @@ class Swin2SR(nn.Module):
     """
 
     def __init__(self, img_size=64, patch_size=1, in_chans=3, out_chans=3,
-                 embed_dim=96, depths=[6, 6, 6, 6], num_heads=[6, 6, 6, 6],
+                 embed_dim=96, depths=None, num_heads=None,
                  window_size=7, mlp_ratio=4., qkv_bias=True, 
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
                  use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
                  **kwargs):
         super(Swin2SR, self).__init__()
+        if depths is None:
+            depths = [6, 6, 6, 6]
+        if num_heads is None:
+            num_heads = [6, 6, 6, 6]
         num_in_ch = in_chans
         num_out_ch = out_chans
         num_feat = 64
@@ -891,8 +898,7 @@ class Swin2SR(nn.Module):
         _, _, h, w = x.size()
         mod_pad_h = (self.window_size - h % self.window_size) % self.window_size
         mod_pad_w = (self.window_size - w % self.window_size) % self.window_size
-        x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
-        return x
+        return F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
 
     def forward_features(self, x):
         x_size = (x.shape[2], x.shape[3])
@@ -905,9 +911,7 @@ class Swin2SR(nn.Module):
             x = layer(x, x_size)
 
         x = self.norm(x)  # B L C
-        x = self.patch_unembed(x, x_size)
-
-        return x
+        return self.patch_unembed(x, x_size)
     
     def forward_features_hf(self, x):
         x_size = (x.shape[2], x.shape[3])
