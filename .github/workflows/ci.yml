@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 permissions:
   contents: read
@@ -62,8 +62,8 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=iriscc --cov-report=xml || true
-          coverage report --fail-under=50 || true
+          pytest --cov=iriscc --cov-report=xml
+          coverage report
 
   links:
     name: Check Markdown links
