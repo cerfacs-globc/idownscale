@@ -144,15 +144,14 @@ def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t
 
 if __name__ == '__main__':
 
-    cddpm = CDDPM(n_steps=100, 
-                    min_beta=1e-4, 
-                    max_beta=0.1, 
-                    encode_conditioning_image=False, 
+    cddpm = CDDPM(n_steps=100,
+                    min_beta=1e-4,
+                    max_beta=0.1,
+                    encode_conditioning_image=False,
                     in_ch=3)
 
     train_dataloader = get_dataloaders('train')
     show_forward(cddpm, train_dataloader, n_images=4, n_noise_steps=8)
- homescreen_path = GRAPHS_DIR / "test.png"
 
     data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
     conditioning_image, y = data['x'], data['y']

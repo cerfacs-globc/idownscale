@@ -19,13 +19,7 @@ sys.path.append('.')
 
 from iriscc.hparams import IRISCCHyperParameters
 from iriscc.settings import DATES_TRAIN
-from iriscc.transforms import (
-    FillMissingValue,
-    LandSeaMask,
-    Log10Transform,
-    MinMaxNormalisation,
-    Pad,
-)
+from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad
 
 class IRISCC(Dataset):
     def __init__(self,

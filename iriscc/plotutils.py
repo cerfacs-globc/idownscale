@@ -73,8 +73,8 @@ def plot_map_image(var,
 def plot_map_contour(var,
                      var_desc: str | None = None,
                      cmap: str = "OrRd",
-                     fig_projection: ccrs.Projection = ccrs.PlateCarree(),
-                     data_projection: ccrs.Projection = ccrs.PlateCarree(),
+                     fig_projection: ccrs.Projection | None = None,
+                     data_projection: ccrs.Projection | None = None,
                      levels: list | None = None,
                      domain: list | None = None,
                      title: str | None = None,
@@ -96,6 +96,11 @@ def plot_map_contour(var,
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
+    if fig_projection is None:
+        fig_projection = ccrs.PlateCarree()
+    if data_projection is None:
+        data_projection = ccrs.PlateCarree()
+
     fig, ax = plt.subplots(
         figsize=(6, 5),
         subplot_kw={"projection": fig_projection}
