@@ -55,13 +55,37 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
     parser.add_argument('--simu-test', type=str, help='gcm or gcm_bc, rcm, rcm_bc', default=None)
+    parser.add_argument('--force', action='store_true', help='Force prediction regeneration')
     args = parser.parse_args()
 
+    # Define output filename first to check for existence
+    startdate = args.startdate
+    enddate = args.enddate
+    if pd.to_datetime(enddate) <= pd.Timestamp('2014-12-31'):
+        period = 'historical'
+    else:
+        period = 'ssp585'
+
+    if args.simu_test.startswith('gcm'):
+        data_type = 'CNRM-CM6-1'
+    elif args.simu_test.startswith('rcm'):
+        data_type = 'ALADIN'
+    
+    test_name = args.test_name
+    if args.simu_test is not None:
+        test_name = f'{args.test_name}_{args.simu_test}'
+
+    output_file = PREDICTION_DIR/f'tas_day_{data_type}_{period}_r1i1p1f2_gr_{startdate}_{enddate}_{args.exp}_{test_name}.nc'
+    
+    if output_file.exists() and not args.force:
+        print(f"Skipping INFERENCE: {output_file} already exists. Use --force to overwrite.", flush=True)
+        sys.exit(0)
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
     checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
-    device = 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}", flush=True)
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
     model.eval()
     hparams = model.hparams['hparams']
@@ -75,24 +99,9 @@ if __name__=='__main__':
 
     sample_dir = hparams['sample_dir']
     if args.simu_test is not None:
-        test_name = f'{args.test_name}_{args.simu_test}'
         sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}' # bc or not
-    else:
-        test_name = args.test_name
 
-    
-    startdate = args.startdate
-    enddate = args.enddate
     dates = pd.date_range(start=startdate, end=enddate, freq='D')
-    if dates[-1] <= pd.Timestamp('2014-12-31'):
-        period = 'historical'
-    else:
-        period = 'ssp585'
-
-    if args.simu_test.startswith('gcm'):
-        data_type = 'CNRM-CM6-1'
-    elif args.simu_test.startswith('rcm'):
-        data_type = 'ALADIN'
     
     ds, y = get_target_format(args.exp, dates=dates)
     y = np.expand_dims(y, axis= 0)
@@ -121,5 +130,5 @@ if __name__=='__main__':
         y_hat[condition] = np.nan
         ds.tas[i] = y_hat
 
-    ds.to_netcdf(PREDICTION_DIR/f'tas_day_{data_type}_{period}_r1i1p1f2_gr_{startdate}_{enddate}_{args.exp}_{test_name}.nc')
+    ds.to_netcdf(output_file)
     

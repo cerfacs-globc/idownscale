@@ -12,6 +12,7 @@ import torch.nn as nn
 import numpy as np 
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
 from iriscc.plotutils import plot_test
+from iriscc.settings import GRAPHS_DIR
 from torchvision.transforms import v2
 
 class UNet(nn.Module):
@@ -129,6 +130,6 @@ if __name__=='__main__':
     x = torch.tensor(x)
     y_hat = model(x.float())
     print(y_hat)
-    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', '/gpfs-calypso/scratch/globc/garcia/graph/test4.png')
+    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', GRAPHS_DIR / 'test4.png')
     
 

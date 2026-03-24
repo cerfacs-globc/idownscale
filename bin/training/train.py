@@ -42,9 +42,8 @@ torch.set_float32_matmul_precision('high') # For hybrid partition
 trainer = pl.Trainer(max_epochs=hparams.max_epoch, 
                      default_root_dir=hparams.runs_dir,
                      log_every_n_steps=1,
-                     accelerator="gpu",
+                     accelerator="auto",
                      devices="auto",
-                     precision='16-mixed',
                      logger=logger,
                      callbacks=checkpoint_callback)
 

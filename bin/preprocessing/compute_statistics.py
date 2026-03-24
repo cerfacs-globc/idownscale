@@ -63,9 +63,15 @@ def plot_histogram(data,
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
     parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
+    parser.add_argument('--force', action='store_true', help='Force reconnection')
     args = parser.parse_args()
 
     dataset_dir = CONFIG[args.exp]['dataset']
+    stats_file = dataset_dir / 'statistics.json'
+    if stats_file.exists() and not args.force:
+        print(f"Skipping statistics computation: {stats_file} already exists.", flush=True)
+        exit(0)
+
     dataset = np.sort([str(p) for p in dataset_dir.glob('sample*')])
     channels = CONFIG[args.exp]['channels']
     ch = len(channels)

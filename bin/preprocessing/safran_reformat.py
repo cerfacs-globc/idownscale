@@ -14,13 +14,13 @@ import numpy as np
 import xarray as xr
 from scipy.spatial import cKDTree
 
-from iriscc.settings import SAFRAN_DIR, SAFRAN_RAW_DIR
+from iriscc.settings import DEFAULT_GRID_FILE, SAFRAN_DIR, SAFRAN_RAW_DIR
 
 
 def reformat_safran_xy(file):
 
     # target dataset
-    ds_grid = xr.open_dataset('/gpfs-calypso/scratch/globc/garcia/utils/tasmax_1d_21000101_21001231.nc')
+    ds_grid = xr.open_dataset(DEFAULT_GRID_FILE)
     lon_grid = ds_grid['lon'].values
     lat_grid = ds_grid['lat'].values
     dimx = np.shape(lon_grid)[1]

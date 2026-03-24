@@ -77,10 +77,17 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--ssp', type=str, help='Scenario name (e.g., ssp126, ssp585)')
     parser.add_argument('--simu', type=str, help='Simulation type (e.g., gcm, rcm)', default='gcm') 
+    parser.add_argument('--force', action='store_true', help='Force evaluation regeneration')
     args = parser.parse_args()
     exp = args.exp
     ssp = args.ssp
     simu = args.simu
+
+    # Check for existing output plot to skip
+    output_plot = GRAPHS_DIR/f'metrics/{exp}/{exp}_spatial_futur_trend_{ssp}_{simu}.png'
+    if output_plot.exists() and not args.force:
+        print(f"Skipping EVALUATION: {output_plot} already exists. Use --force to overwrite.", flush=True)
+        sys.exit(0)
 
     periods = ['2015', '2040', '2070', '2100']   
 
@@ -229,7 +236,7 @@ if __name__=='__main__':
     
     fig1.suptitle(f'Temperature changes for {ssp} (Reference : 1980-2010)', fontsize=16)
     fig1.tight_layout(rect=[0.05, 0, 1, 1], pad = 2)
-    fig1.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_spatial_futur_trend_{ssp}_{simu}.png')
+    fig1.savefig(output_plot)
 
     fig2.suptitle(f'Daily temperature ditribution for {ssp} {periods[0]} - {periods[-1]} [UNet]', fontsize=16)
     fig2.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_hist_futur_trend_{ssp}_unet_{simu}.png')

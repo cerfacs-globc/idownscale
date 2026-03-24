@@ -35,6 +35,8 @@ LANDSEAMASK_GCM = GCM_RAW_DIR / 'sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
 LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR / 'landseamask/CNTR_RG_10M_2024_4326.nc'
+UTILS_DIR = Path('/scratch/globc/garcia/utils/')
+DEFAULT_GRID_FILE = UTILS_DIR / 'tasmax_1d_21000101_21001231.nc'
 
 DATASET_DIR = Path('/scratch/globc/page/idownscale_active/datasets/')
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
@@ -209,7 +211,7 @@ SAFRAN_PROJ_PYPROJ = pyproj.Proj(
 
 # Phase 1 settings
 DATES = pd.date_range(start='19850101', end='2004-12-31', freq='D')
-# DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
+DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
 # DATES_TRAIN = ['1985', '2004', '2010'] # train, valid, test start
 DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
 

@@ -25,13 +25,21 @@ export PYTHONUNBUFFERED=1
 
 # --- Modular execution control ---
 # Use START_PHASE and STOP_PHASE to skip ranges (e.g. START_PHASE=4 ./run_exp5_full.sh)
-# Use FORCE=1 to ignore existing .done markers and re-run all requested phases.
+# Use FORCE=1 to ignore existing .done markers and run the step.
+# Use REGENERATE=1 to force regeneration from 0 (bypass resumability within scripts).
 START_PHASE=${START_PHASE:-1}
 STOP_PHASE=${STOP_PHASE:-6}
 FORCE=${FORCE:-0}
+REGENERATE=${REGENERATE:-0}
 MARKER_DIR=".markers"
 PROGRESS_LOG="PROGRESS.log"
 mkdir -p "$MARKER_DIR"
+
+FORCE_FLAG=""
+if [[ $REGENERATE -eq 1 ]]; then
+    FORCE_FLAG="--force"
+    FORCE=1  # Always bypass markers when regenetating
+fi
 
 log_progress() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$PROGRESS_LOG"
@@ -61,22 +69,22 @@ complete_phase() {
 
 if run_phase 1; then
     log_progress "--- Phase 1: Preprocessing START ---"
-    $PYTHON bin/preprocessing/build_dataset.py --exp exp5
-    $PYTHON bin/preprocessing/build_dataset.py --exp exp5 --baseline
-    $PYTHON bin/preprocessing/compute_statistics.py --exp exp5
-    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp exp5
+    $PYTHON bin/preprocessing/build_dataset.py --exp exp5 $FORCE_FLAG
+    $PYTHON bin/preprocessing/build_dataset.py --exp exp5 --baseline $FORCE_FLAG
+    $PYTHON bin/preprocessing/compute_statistics.py --exp exp5 $FORCE_FLAG
+    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp exp5 $FORCE_FLAG
     complete_phase 1
 fi
 
 if run_phase 2; then
     log_progress "--- Phase 2: Bias Correction Preprocessing START ---"
-    $PYTHON bin/preprocessing/build_dataset_bc.py --simu gcm --ssp ssp585 --var tas
+    $PYTHON bin/preprocessing/build_dataset_bc.py --simu gcm --ssp ssp585 --var tas $FORCE_FLAG
     complete_phase 2
 fi
 
 if run_phase 3; then
     log_progress "--- Phase 3: Bias Correction (Ibicus) START ---"
-    $PYTHON bin/preprocessing/bias_correction_ibicus.py --exp exp5 --ssp ssp585 --simu gcm --var tas
+    $PYTHON bin/preprocessing/bias_correction_ibicus.py --exp exp5 --ssp ssp585 --simu gcm --var tas $FORCE_FLAG
     complete_phase 3
 fi
 
@@ -88,13 +96,13 @@ fi
 
 if run_phase 5; then
     log_progress "--- Phase 5: Inference START ---"
-    $PYTHON bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc
+    $PYTHON bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc $FORCE_FLAG
     complete_phase 5
 fi
 
 if run_phase 6; then
     log_progress "--- Phase 6: Evaluation START ---"
-    $PYTHON bin/evaluation/evaluate_futur_trend.py --exp exp5 --ssp ssp585 --simu gcm
+    $PYTHON bin/evaluation/evaluate_futur_trend.py --exp exp5 --ssp ssp585 --simu gcm $FORCE_FLAG
     complete_phase 6
 fi
 
