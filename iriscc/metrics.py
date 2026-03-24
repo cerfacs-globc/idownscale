@@ -66,5 +66,4 @@ class MaskedMAE(Metric):
         self.total_weight += effective_weight.sum()
 
     def compute(self):
-        mean_absolute_error = self.sum_absolute_error / (self.total_weight + 1e-8)
-        return mean_absolute_error
+        return self.sum_absolute_error / (self.total_weight + 1e-8)

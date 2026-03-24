@@ -1,5 +1,5 @@
 """
-Evaluate input data x against target data y for raw, prediction and baseline data
+Evaluate input data x against target data y for raw, prediction and baseline data.
 
 date = 16/07/2025
 author = Zoé GARCIA
@@ -37,11 +37,13 @@ def get_config(exp: str,
                simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
     """
     Configure the model, transforms, and sample directory based on the experiment and test parameters.
+
     Args:
         exp (str): Experiment name.
         test_name (str): Test name (e.g., unet, baseline, gcm_raw).
         predict (bool): Whether to use a pretrained model.
         simu_test (Optional[str]): GCM test type (e.g., gcm or gcm_bc).
+
     Returns:
         Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]
     """
@@ -57,7 +59,7 @@ def get_config(exp: str,
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
     else:
         run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
-        checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
+        checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
         model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
         model.eval()
         hparams = model.hparams['hparams']
@@ -70,24 +72,24 @@ def get_config(exp: str,
             Pad(hparams['fill_value'])
         ])
         
-        if simu_test:
-            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
-        else:
-            sample_dir = hparams['sample_dir']
+        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}' if simu_test else hparams['sample_dir']
     return model, transforms, sample_dir
 
 def preprocess(year:int,
                 month:int,
+                group: pd.DataFrame,
                 sample_dir: Path,
                 model: Optional[nn.Module],
                 transforms: Optional[Compose]) -> Tuple[np.ndarray, np.ndarray]:
     """
     Preprocesses input data and generates predictions using a given model.
+
     Args:
         date (datetime.date): The date corresponding to the sample to process.
         sample_dir (Path): Directory containing the sample `.npz` files.
         model (Optional[nn.Module]): PyTorch model used for predictions or None.
         transforms (Optional[Compose]): Transformations to apply to the input data (x, y).
+
     Returns:
         Tuple[np.ndarray, np.ndarray]
     """
@@ -96,7 +98,7 @@ def preprocess(year:int,
     for day in group['day']:
         date_str = f'{year}{month:02d}{day:02d}'
         print(date_str)
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
         data = dict(np.load(sample), allow_pickle=True)
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
@@ -146,8 +148,8 @@ if __name__=='__main__':
         test_name = f'{test_name}_{simu_test}'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
-    os.makedirs(graph_dir, exist_ok=True)
-    os.makedirs(metric_dir, exist_ok=True)
+    graph_dir.mkdir(parents=True, exist_ok=True)
+    metric_dir.mkdir(parents=True, exist_ok=True)
 
     device = 'cpu'
     rmse = MeanSquaredError(squared=False).to(device)
@@ -181,7 +183,7 @@ if __name__=='__main__':
         if month in [1,2,12]:
             i_winter.append(i)
 
-        y, y_hat = preprocess(year, month, sample_dir, model, transforms)
+        y, y_hat = preprocess(year, month, group, sample_dir, model, transforms)
 
         ## spatial metrics
         error = (y_hat - y)
@@ -219,16 +221,16 @@ if __name__=='__main__':
         y_hat_temporal.append(y_hat_flat)
 
 
-    dT = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
-    dT_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
-    dT, dT_hat = np.stack(dT), np.stack(dT_hat)
-    dT_summer = np.stack([dT[i-1,:] for i in i_summer])
-    dT_hat_summer = np.stack([dT_hat[i-1,:] for i in i_summer])
-    dT_winter = np.stack([dT[i-1,:] for i in i_winter])
-    dT_hat_winter = np.stack([dT_hat[i-1,:] for i in i_winter])
-    var = np.mean(np.abs(dT_hat), axis=0) - np.mean(np.abs(dT), axis=0)
-    var_summer = np.mean(np.abs(dT_hat_summer), axis=0) - np.mean(np.abs(dT_summer), axis=0)
-    var_winter = np.mean(np.abs(dT_hat_winter), axis=0) - np.mean(np.abs(dT_winter), axis=0)
+    dt = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
+    dt_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
+    dt, dt_hat = np.stack(dt), np.stack(dt_hat)
+    dt_summer = np.stack([dt[i-1,:] for i in i_summer])
+    dt_hat_summer = np.stack([dt_hat[i-1,:] for i in i_summer])
+    dt_winter = np.stack([dt[i-1,:] for i in i_winter])
+    dt_hat_winter = np.stack([dt_hat[i-1,:] for i in i_winter])
+    var = np.mean(np.abs(dt_hat), axis=0) - np.mean(np.abs(dt), axis=0)
+    var_summer = np.mean(np.abs(dt_hat_summer), axis=0) - np.mean(np.abs(dt_summer), axis=0)
+    var_winter = np.mean(np.abs(dt_hat_winter), axis=0) - np.mean(np.abs(dt_winter), axis=0)
 
     y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
     corr_temporal = [corr(y_hat_temporal[:,j], y_temporal[:,j]).cpu() for j in range(y_temporal.size(dim=1))]

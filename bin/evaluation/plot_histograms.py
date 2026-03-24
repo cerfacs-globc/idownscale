@@ -22,7 +22,7 @@ args = parser.parse_args()
 simu = args.simu
 
 if args.exp == 'exp3':
-    safran = xr.open_mfdataset(np.sort(glob.glob(str(SAFRAN_REFORMAT_DIR/f'tas*reformat.nc'))), combine='by_coords').sel(time=slice('2000', '2015'))
+    safran = xr.open_mfdataset(sorted(SAFRAN_REFORMAT_DIR.glob('tas*reformat.nc')), combine='by_coords').sel(time=slice('2000', '2015'))
     tas = safran.tas.values.flatten()
     target_name = 'SAFRAN 8km'
     safran.close()
@@ -34,22 +34,22 @@ if args.exp == 'exp5':
 
 
 if simu == 'gcm':
-    data = xr.open_dataset(glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/tas*historical_r1i1p1f2*.nc'))[0]).sel(time=slice('2000', '2015'))
+    data = xr.open_dataset(next(GCM_RAW_DIR.glob('CNRM-CM6-1/tas*historical_r1i1p1f2*.nc'))).sel(time=slice('2000', '2015'))
     data = standardize_longitudes(data)
     data = crop_domain_from_ds(data, CONFIG[args.exp]['domain'])
     name = 'GCM 1°'
 
 elif simu == 'rcm':
-    data = xr.open_dataset(glob.glob(str(RCM_RAW_DIR/f'ALADIN_reformat/tas*historical_r1i1p1f2*.nc'))[0]).sel(time=slice('2000', '2015'))
+    data = xr.open_dataset(next(RCM_RAW_DIR.glob('ALADIN_reformat/tas*historical_r1i1p1f2*.nc'))).sel(time=slice('2000', '2015'))
     simu_name = 'RCM 12km'
 tas_data = data.tas.values.flatten()
 data.close()
 
-data_unet = xr.open_dataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{args.exp}_unet_all_{simu}_bc.nc'))[0]).sel(time=slice('2000', '2015'))
+data_unet = xr.open_dataset(next(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{args.exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('2000', '2015'))
 tas_unet = data_unet.tas.values.flatten()
 data_unet.close()
 
-data_swinunet = xr.open_dataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{args.exp}_swinunet_all_{simu}_bc.nc'))[0]).sel(time=slice('2000', '2015'))
+data_swinunet = xr.open_dataset(next(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{args.exp}_swinunet_all_{simu}_bc.nc'))).sel(time=slice('2000', '2015'))
 tas_swinunet = data_swinunet.tas.values.flatten()
 data_swinunet.close()
 

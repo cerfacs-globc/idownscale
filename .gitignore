@@ -13,3 +13,20 @@ PET0.ESMF_LogFile
 garcia.code-workspace
 __pycache__
 *.pyc
+
+# Ignore run outputs and logs
+*.out
+*.err
+*.log
+
+# Ignore data and output directories
+runs/
+rawdata/
+datasets/
+graph/
+
+# Ignore large data files
+*.nc
+*.npz
+*.zip
+*.egg-info/

@@ -1,0 +1,101 @@
+#!/bin/bash
+#SBATCH -p grace
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=exp5_full
+#SBATCH --output=/scratch/globc/page/idownscale_active/exp5_full_%j.out
+#SBATCH --error=/scratch/globc/page/idownscale_active/exp5_full_%j.err
+#SBATCH --time=12:00:00
+
+set -e
+cd /scratch/globc/page/idownscale_active || exit 1
+
+module load python/anaconda3.11_arm
+
+CONDA_PREFIX="/scratch/globc/page/conda/envs/idownscale_env"
+PYTHON="$CONDA_PREFIX/bin/python"
+
+# Isolate from system Anaconda (PYTHONHOME) and stale ~/.local packages
+unset PYTHONHOME
+unset PYTHONPATH
+export PYTHONNOUSERSITE=1
+
+# Required for xesmf
+export ESMFMKFILE="$CONDA_PREFIX/lib/esmf.mk"
+export PYTHONUNBUFFERED=1
+
+# --- Modular execution control ---
+# Use START_PHASE and STOP_PHASE to skip ranges (e.g. START_PHASE=4 ./run_exp5_full.sh)
+# Use FORCE=1 to ignore existing .done markers and re-run all requested phases.
+START_PHASE=${START_PHASE:-1}
+STOP_PHASE=${STOP_PHASE:-6}
+FORCE=${FORCE:-0}
+MARKER_DIR=".markers"
+PROGRESS_LOG="PROGRESS.log"
+mkdir -p "$MARKER_DIR"
+
+log_progress() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$PROGRESS_LOG"
+}
+
+run_phase() {
+    local phase_num=$1
+    local marker="$MARKER_DIR/phase$phase_num.done"
+
+    if [[ $phase_num -lt $START_PHASE || $phase_num -gt $STOP_PHASE ]]; then
+        return 1 # Skip due to range
+    fi
+
+    if [[ -f "$marker" && $FORCE -ne 1 ]]; then
+        log_progress "Phase $phase_num: SKIPPING (marker found)"
+        return 1 # Skip due to marker
+    fi
+
+    return 0 # Should run
+}
+
+complete_phase() {
+    local phase_num=$1
+    touch "$MARKER_DIR/phase$phase_num.done"
+    log_progress "Phase $phase_num: COMPLETED"
+}
+
+if run_phase 1; then
+    log_progress "--- Phase 1: Preprocessing START ---"
+    $PYTHON bin/preprocessing/build_dataset.py --exp exp5
+    $PYTHON bin/preprocessing/build_dataset.py --exp exp5 --baseline
+    $PYTHON bin/preprocessing/compute_statistics.py --exp exp5
+    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp exp5
+    complete_phase 1
+fi
+
+if run_phase 2; then
+    log_progress "--- Phase 2: Bias Correction Preprocessing START ---"
+    $PYTHON bin/preprocessing/build_dataset_bc.py --simu gcm --ssp ssp585 --var tas
+    complete_phase 2
+fi
+
+if run_phase 3; then
+    log_progress "--- Phase 3: Bias Correction (Ibicus) START ---"
+    $PYTHON bin/preprocessing/bias_correction_ibicus.py --exp exp5 --ssp ssp585 --simu gcm --var tas
+    complete_phase 3
+fi
+
+if run_phase 4; then
+    log_progress "--- Phase 4: Training START ---"
+    $PYTHON bin/training/train.py
+    complete_phase 4
+fi
+
+if run_phase 5; then
+    log_progress "--- Phase 5: Inference START ---"
+    $PYTHON bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc
+    complete_phase 5
+fi
+
+if run_phase 6; then
+    log_progress "--- Phase 6: Evaluation START ---"
+    $PYTHON bin/evaluation/evaluate_futur_trend.py --exp exp5 --ssp ssp585 --simu gcm
+    complete_phase 6
+fi
+
+log_progress "=== Workflow Sequence COMPLETE ==="

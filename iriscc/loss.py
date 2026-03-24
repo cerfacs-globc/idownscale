@@ -6,18 +6,19 @@ author : Zoé GARCIA
 """
 
 import sys
-sys.path.append('.')
+from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.distributions import Gamma
-from pathlib import Path
+
+sys.path.append('.')
 
 class MaskedMSELoss(nn.Module):
-    """
-    MaskedMSELoss is a custom loss function that computes the Mean Squared Error (MSE)
-    while ignoring specific target values.
+    """MaskedMSELoss is a custom loss function that computes the Mean Squared Error (MSE).
+
+    It computess the MSE while ignoring specific target values.
 
     Attributes:
         ignore_value (float): The value in the target tensor `y` to be ignored during
@@ -29,8 +30,10 @@ class MaskedMSELoss(nn.Module):
 
     def forward(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
-        Computes the masked mean squared error loss between the predicted values (y_hat)
-        and the target values (y), ignoring a specific value.
+        Computes the masked mean squared error loss.
+
+        Computes the loss between the predicted values (y_hat) and the target
+        values (y), ignoring a specific value.
 
         Args:
             y_hat (torch.Tensor): Predicted values with shape (N, ...), where N is the batch size.
@@ -49,8 +52,11 @@ class MaskedMSELoss(nn.Module):
 
 class MaskedGammaMAELoss(nn.Module):
     """
-    MaskedGammaMAELoss is a PyTorch loss function that computes the masked mean absolute error
-    between predicted values and target values, incorporating a Gamma distribution for modeling.
+    Masked mean absolute error loss using a Gamma distribution.
+
+    Computes the masked mean absolute error between predicted values and
+    target values, incorporating a Gamma distribution for modeling.
+
     Attributes:
         ignore_value (float): The value to ignore in the loss computation.
         alpha (torch.Tensor): Concentration parameter for the Gamma distribution.
@@ -84,8 +90,7 @@ class MaskedGammaMAELoss(nn.Module):
         cdf_values = gamma_dist.cdf(y_copy)
         loss_2D = torch.abs(y_copy - y_hat) + cdf_values**2 * torch.max(torch.zeros_like(y_copy), y_copy - y_hat)
         masked_loss_2D = loss_2D * mask  # Apply mask to the loss
-        loss = masked_loss_2D.sum() / mask.sum() # Mean over non-masked values
-        return loss
+        return masked_loss_2D.sum() / mask.sum() # Mean over non-masked values
 
 if __name__ == '__main__':
     alpha = torch.nan * torch.ones(64,64)

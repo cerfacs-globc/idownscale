@@ -1,5 +1,6 @@
 '''
 Data preprocessing for bias correction, for RCM or GCM data.
+
 NPZ files are saved with predictors (simu), predictants (ERA5) and dates for training, validation and test
 
 date : 16/07/2025
@@ -11,6 +12,7 @@ sys.path.append('.')
 import numpy as np
 import argparse
 
+import datetime
 from bin.preprocessing.build_dataset import Data
 from iriscc.datautils import (interpolation_target_grid, 
                               crop_domain_from_ds)
@@ -34,8 +36,9 @@ if __name__=='__main__':
     #### TRAIN HISTORIQUE DATASET
     era5_train_hist = []
     simu_train_hist = []
+    total_train_hist = len(DATES_BC_TRAIN_HIST)
     for i, date in enumerate(DATES_BC_TRAIN_HIST):
-        print(date)
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [TRAIN HIST] Processing {date.date()} ({i+1}/{total_train_hist})", flush=True)
         ds_era5 = get_data.get_era5_dataset(args.var, date)
 
         if args.simu == 'gcm':
@@ -69,8 +72,9 @@ if __name__=='__main__':
     #### TEST HISTORIQUE DATASET
     era5_test_hist = []
     simu_test_hist = []
-    for date in DATES_BC_TEST_HIST:    
-        print(date)
+    total_test_hist = len(DATES_BC_TEST_HIST)
+    for i, date in enumerate(DATES_BC_TEST_HIST):    
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [TEST HIST] Processing {date.date()} ({i+1}/{total_test_hist})", flush=True)
         ds_era5 = get_data.get_era5_dataset(args.var, date)
 
         if args.simu == 'gcm':
@@ -104,8 +108,9 @@ if __name__=='__main__':
 
     #### TEST FUTUR DATASET
     simu_test_future = []
-    for date in DATES_BC_TEST_FUTURE:    
-        print(date)
+    total_test_future = len(DATES_BC_TEST_FUTURE)
+    for i, date in enumerate(DATES_BC_TEST_FUTURE):    
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [TEST FUTURE] Processing {date.date()} ({i+1}/{total_test_future})", flush=True)
         if args.simu == 'gcm':
             ds_simu = get_data.get_gcm_dataset(args.var, date, args.ssp) # 1er membre
         else :

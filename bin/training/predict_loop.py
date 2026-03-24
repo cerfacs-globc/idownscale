@@ -5,25 +5,24 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
+import argparse
+import datetime
 import sys
+
 sys.path.append('.')
 
-import glob
-import xarray as xr
+import numpy as np
 import pandas as pd
 import torch
-import argparse
-import numpy as np
+import xarray as xr
 from torchvision.transforms import v2
 
+from iriscc.datautils import Data, remove_countries
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import (PREDICTION_DIR, 
-                             RUNS_DIR, 
-                             DATASET_BC_DIR, 
-                             CONFIG,)
-from iriscc.datautils import (remove_countries,
-                              Data)
+from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR,
+                             RUNS_DIR)
+from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
+                               Pad, UnPad)
 
 def get_target_format(exp:str, dates):
     get_data = Data(CONFIG[exp]['domain'])
@@ -60,7 +59,7 @@ if __name__=='__main__':
 
 
     run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
-    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
     device = 'cpu'
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
@@ -98,10 +97,15 @@ if __name__=='__main__':
     ds, y = get_target_format(args.exp, dates=dates)
     y = np.expand_dims(y, axis= 0)
     
+    # Ensure output directory exists
+    PREDICTION_DIR.mkdir(parents=True, exist_ok=True)
+    
+    total = len(dates)
     for i, date in enumerate(dates):
-        print(date)
+        now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')
+        print(f"[{now_str}] [INFERENCE] Processing {date.date()} ({i+1}/{total})", flush=True)
         date_str = date.date().strftime('%Y%m%d')
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
         data = dict(np.load(sample), allow_pickle=True)
 
         x = data['x']

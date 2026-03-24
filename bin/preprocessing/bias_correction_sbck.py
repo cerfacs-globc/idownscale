@@ -8,7 +8,7 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
-import SBCK as bc
+import SBCK
 import numpy as np
 import matplotlib.pyplot as plt
 from iriscc.settings import DATASET_BC_DIR, GRAPHS_DIR
@@ -39,7 +39,7 @@ X2 = X2.reshape(X2.shape[0], -1)
 
 
 ############ HISTORICAL DEBIAS 
-cdft = bc.CDFt(version=2, normalize_cdf=True)
+cdft = SBCK.CDFt(version=2, normalize_cdf=True)
 Z0 = np.zeros(Y0.shape)
 Z1 = np.zeros(Y0.shape)
 Z2 = np.zeros(Y0.shape)

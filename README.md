@@ -24,6 +24,7 @@ iriscc/
 │   │   ├── build_dataset.py                    # Build training samples dataset
 │   │   ├── build_dataset_bc.py                 # Build bias correction samples dataset
 │   │   ├── bias_correction_ibicus.py           # Build corrected training samples dataset
+│   │   ├── crop_domain.py                      # Generic spatial cropping utility [NEW]
 │   │   ├── compute_statistics.py               # Compute min, max, mean and std
 │   │   ├── compute_statistics_gamma.py         # Compute alpha and beta
 │   ├── training/                               # Training and prediction folder
@@ -90,8 +91,17 @@ python3 bin/preprocessing/build_dataset.py --exp exp5
 python3 bin/preprocessing/build_dataset.py --exp exp5 --baseline True
 ```
 
-To normalize the data, the `compute_statistics.py --exp` script computes statistics for each channel and saves them in a `statistics.json` file in the experiment directory. 
 WARNING: If you wish to apply a mask to the inputs, remember to do this step before normalizing.
+
+#### Generic Domain Cropping
+
+`bin/preprocessing/crop_domain.py` can be used to subset any NetCDF file to a specific area. It supports predefined experiment domains from `settings.py` or custom coordinates.
+
+```bash
+# Crop to the France domain using exp5 settings
+python bin/preprocessing/crop_domain.py --input large_file.nc --output cropped.nc --exp exp5 --standardize
+```
+- `--standardize`: Automatically fixes longitude conventions (-180 to 180) and standardizes dimension names before cropping.
 
 ---
 

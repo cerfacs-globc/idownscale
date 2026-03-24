@@ -1,25 +1,24 @@
-"""
-Transformations class for the IRISCC dataset.
-This module provides various transformations to preprocess the dataset for training and inference
+"""Transformations class for the IRISCC dataset.
+
+This module provides various transformations to preprocess the dataset for training and inference.
 
 date : 16/07/2025
 author : Zoé GARCIA
 """
 
+import json
 import sys
-sys.path.append('.')
+from pathlib import Path
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import glob
-import json
 import torch
-import numpy as np
-import xarray as xr
 import torch.nn.functional as F
-from typing import Tuple, Union, List, Optional
-from pathlib import Path
+import xarray as xr
 
 from iriscc.settings import IMERG_MASK
+
+sys.path.append('.')
 
 class StandardNormalisation():
     """
@@ -27,11 +26,11 @@ class StandardNormalisation():
     """
     def __init__(self, sample_dir: Union[str, Path]) -> None:
         statistics_file = Path(sample_dir) / 'statistics.json'
-        with open(statistics_file) as f:
+        with statistics_file.open() as f:
             stats = json.load(f)
         mean = []
         std = []
-        for channel in stats.keys():
+        for channel in stats:
             mean.append(stats[channel]['mean'])
             std.append(stats[channel]['std'])
         self.mean = mean
@@ -54,10 +53,10 @@ class MinMaxNormalisation():
     """
     def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
         statistics_file = Path(sample_dir) / 'statistics.json'
-        with open(statistics_file) as f:
+        with statistics_file.open() as f:
             stats = json.load(f)
-        self.min = [stats[channel]['min'] for channel in stats.keys()]
-        self.max = [stats[channel]['max'] for channel in stats.keys()]
+        self.min = [stats[channel]['min'] for channel in stats]
+        self.max = [stats[channel]['max'] for channel in stats]
         self.output_norm = output_norm
     
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -79,10 +78,10 @@ class DeMinMaxNormalisation:
     """
     def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
         statistics_file = Path(sample_dir) / 'statistics.json'
-        with open(statistics_file) as f:
+        with statistics_file.open() as f:
             stats = json.load(f)
-        self.min = [stats[channel]['min'] for channel in stats.keys()]
-        self.max = [stats[channel]['max'] for channel in stats.keys()]
+        self.min = [stats[channel]['min'] for channel in stats]
+        self.max = [stats[channel]['max'] for channel in stats]
         self.output_norm = output_norm
 
     def __call__(self, sample: Tuple[Union[bool, torch.Tensor], torch.Tensor]) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -160,8 +159,7 @@ class Pad:
         padding = (padding_W // 2, padding_W - padding_W // 2,
                    padding_H // 2, padding_H - padding_H // 2)
 
-        padded_array = F.pad(array, padding, mode='constant', value=self.fill_value)
-        return padded_array
+        return F.pad(array, padding, mode='constant', value=self.fill_value)
 
     def __call__(self, sample: Tuple[List[torch.Tensor], List[torch.Tensor]]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
@@ -195,14 +193,11 @@ class UnPad():
 
         pad_top = padding_H // 2
         pad_left = padding_W // 2
-        unpadded_array = array[pad_top:pad_top + H, pad_left:pad_left + W]
-        return unpadded_array
+        return array[pad_top:pad_top + H, pad_left:pad_left + W]
 
     def __call__(self, sample: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
-        y = sample
-        y = [self.unpad_func(y[C]) for C in range(len(y))]
-        y = torch.stack(y)
-        return y
+        y = [self.unpad_func(sample[C]) for C in range(len(sample))]
+        return torch.stack(y)
     
     
 class DomainCrop:
@@ -220,7 +215,7 @@ class DomainCrop:
     def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
         if self.domain is not None:
-            coords_file = glob.glob(str(self.sample_dir / 'coordinates.npz'))[0]
+            coords_file = next(self.sample_dir.glob('coordinates.npz'))
             coordinates = dict(np.load(coords_file, allow_pickle=True))
             self.lon = coordinates['lon']
             self.lat = coordinates['lat']
@@ -237,7 +232,7 @@ class Log10Transform:
     """
     Applies a logarithmic transformation to the input data, specifically for the precipitations channel.
     """
-    def __init__(self, channels:List[str]):
+    def __init__(self, channels: List[str]):
         self.channels = channels
 
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:

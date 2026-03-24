@@ -1,35 +1,33 @@
 '''
-Build dataset for training purpuse in Phase 1.
-This script processes input data (ERA5) and target data (ex : SAFRAN or EOBS) for a given experiment.
+Build dataset for training purposes in Phase 1.
+
+This script processes input data (ERA5) and target data (e.g., SAFRAN or EOBS) for a given experiment.
 
 date : 16/07/2025
 author : Zoé GARCIA
 '''
 
-import sys
-sys.path.append('.')
-
-import xarray as xr
-import numpy as np
 import argparse
 import datetime
+import sys
 from typing import Tuple
 
+sys.path.append('.')
+
+import numpy as np
+import xarray as xr
+
+from iriscc.datautils import (Data, crop_domain_from_ds,
+                             interpolation_target_grid, reformat_as_target,
+                             standardize_dims_and_coords)
 from iriscc.plotutils import plot_test
-from iriscc.datautils import (standardize_dims_and_coords, 
-                              interpolation_target_grid, 
-                              reformat_as_target,
-                              crop_domain_from_ds,
-                              Data)
-from iriscc.settings import (DATES,
-                             CONFIG,
-                             GRAPHS_DIR,
-                             DATASET_DIR)
+from iriscc.settings import CONFIG, DATASET_DIR, DATES, GRAPHS_DIR
 
    
 class DatasetBuilder:
     """
     DatasetBuilder is a class responsible for building datasets for a given experiment.
+
     It processes input and target data based on specified configurations and dates.
     Attributes:
         exp (str): The experiment identifier.
@@ -67,9 +65,9 @@ class DatasetBuilder:
                      plot: bool = False, 
                      baseline: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         if baseline:
-            y_hat = self.baseline_data(date)
-            y =self.target_data(date)
-            sample = {'y_hat': y_hat,
+            x = self.baseline_data(date)
+            y = self.target_data(date)
+            sample = {'x': x,
                       'y': y}
             dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
         else:
@@ -107,8 +105,7 @@ class DatasetBuilder:
                                         crop_target=True, mask=True)
             data = ds[var].values
             x.append(data)
-        x = np.stack(x, axis=0)
-        return x
+        return np.stack(x, axis=0)
 
     def target_data(self, 
                     date: datetime.date) -> np.ndarray:
@@ -124,14 +121,13 @@ class DatasetBuilder:
                 ds = get_data.get_eobs_dataset(var, date)
                 data = ds[var].values
                 y.append(data)
-        y = np.stack(y, axis=0)
-        return y
+        return np.stack(y, axis=0)
     
     def baseline_data(self, 
                       date: datetime.date) -> np.ndarray:
         get_data = Data(self.domain)
         y_hat = []
-        for var in self.input_vars:
+        for var in self.target_vars:
             ds_era5 = get_data.get_era5_dataset(var, date)
             ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp)
             ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
@@ -144,22 +140,47 @@ class DatasetBuilder:
                                     crop_target=True, mask=True)
             data = ds[var].values
             y_hat.append(data)
-        y_hat = np.stack(y_hat, axis=0)
-        return y_hat
+        return np.stack(y_hat, axis=0)
 
     
 
-if __name__=='__main__':
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        msg = 'Boolean value expected.'
+        raise argparse.ArgumentTypeError(msg)
+
+
+if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Build dataset for experiment ")
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
-    parser.add_argument('--plot', action='store_true', help='Plot the data', default=False)
-    parser.add_argument('--baseline', action='store_true', help='Use baseline data instead of input data', default=False) 
+
+    parser.add_argument(
+        '--plot', type=str2bool, nargs='?', const=True,
+        help='Plot the data', default=False
+    )
+    parser.add_argument(
+        '--baseline', type=str2bool, nargs='?', const=True,
+        help='Use baseline data instead of input data', default=False
+    )
     args = parser.parse_args()
     exp = args.exp
 
     dataset_builder = DatasetBuilder(exp)
+    
+    # Ensure dataset directories exist
+    dataset_builder.dataset.mkdir(parents=True, exist_ok=True)
+    (DATASET_DIR / f'dataset_{exp}_baseline').mkdir(parents=True, exist_ok=True)
+
+    total = len(DATES)
     for i, date in enumerate(DATES):
+        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
         x, y = dataset_builder.process_date(date, 
                                             plot=args.plot, 
                                             baseline=args.baseline)

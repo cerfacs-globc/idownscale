@@ -40,19 +40,148 @@ dependencies = [
 
 # Ruff configuration: https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
-line-length = 165
 exclude = [
-  ".git", "__pycache__", "docs/conf.py", "use-cases", "tutorials",
-  "tests", "old", "build", "dist", ".venv*", "envAI*", "env-files", ".vscode"
+    ".git",
+    "build",
+    "dist",
+    "*.egg-info",
+    ".venv",
+    "venv",
+    "env",
+    ".env",
+    "iriscc/lightning_module.py",
+    "iriscc/lightning_module_ddpm.py",
+    "iriscc/models/",
 ]
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "W"]
-ignore = ["E203"]
-fixable = ["ALL"]
+line-length = 165 # icclim allows line too long, but keeping a reasonable limit here if needed, or I can just drop it if E501 is ignored anyway.
+# Wait, icclim ruff config says E501 is ignored.
 
 [tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
+# Enable reformatting of code snippets in docstrings.
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+  "F", # Pyflakes
+  "E", # pycodestyle error
+  "W", # pycodestyle warn
+  "C90", # mccabe
+  "I", # isort
+  "N", # pep8-naming
+  "D", # pydocstyle
+  "UP", # pyupgrade
+  "YTT", # flake8-2020
+  "ANN", # flake8-annotations
+  "ASYNC", # flake8-async
+  "S", # flake8-bandit
+  "BLE", # flake8-blind-except
+  # "FBT", # flake8-boolean-trap, to add
+  "B", # flake8-bugbear
+  "A", # flake8-builtins
+  "COM", # flake8-commas
+  "C4", # flake8-comprehensions
+  "DTZ", # flake8-datetimez
+  "T10", # flake8-debugger
+  "DJ", # flake8-django
+  "EM", # flake8-errmsg
+  "EXE", # flake8-executable
+  "FA", # flake8-future-annotations
+  "ISC", # flake8-implicit-str-concat
+  "ICN", # flake8-import-conventions
+  "G", # flake8-logging-format
+  "INP", # flake8-no-pep420
+  "PIE", # flake8-pie
+  "T20", # flake8-print
+  "PYI", # flake8-pyi
+  "PT", # flake8-pytest-style
+  "Q", # flake8-quotes
+  "RSE", # flake8-raise
+  "RET", # flake8-return
+  "SLF", # flake8-self
+  "SLOT", # flake8-slots
+  "SIM", # flake8-simplify
+  "TID", # flake8-tidy-imports
+  "TCH", # flake8-type-checking
+  "INT", # flake8-gettext
+  "ARG", # flake8-unused-arguments
+  "PTH", # flake8-use-pathlib
+  "TD", # flake8-todos
+  "ERA", # eradicate
+  "PGH", # pygrep-hooks
+  "PL", # Pylint
+  "TRY", # tryceratops
+  "FLY", # flynt
+  "NPY", # NumPy-specific rules
+  "AIR", # Airflow
+  "PERF", # Perflint
+  # "FURB", # refurb, preview
+  "LOG", # flake8-logging
+  "RUF" # Ruff-specific rules
+]
+ignore = [
+  # -- Rules to add
+  "PLR0913", # too many arguments in function, to add
+  "PLR0915", # Too many statement, to add
+  "PLR0912", # Too many branches
+  # -- True ignore
+  "ISC001", # String concat on same line, Managed by ruff format
+  "COM812", # No comma at the end, Managed by ruff format
+  "SIM102", # Allow nexted if
+  "E501", # Allow line too long
+  "D200", # Allow one-line docstring on several lines
+  "UP007", # Ignore Use `X | Y` for type annotations
+  "D401", # Allow docstrings to have non-imperative mood.
+  "ANN002", # Allow no typing for `*args`
+  "ANN003", # Allow no typing for `**kwargs`
+  "N803", # Allow non-lowercase argument names
+  "D100", # Missing docstring in public module
+  "D101", # Missing docstring in public class
+  "D102", # Missing docstring in public method
+  "D103", # Missing docstring in public function
+  "D104", # Missing docstring in public package
+  "ANN001", # Missing type annotation for function argument
+  "ANN201", # Missing return type annotation for public function
+  "ANN202", # Missing return type annotation for private function
+  "I001",   # Ignore import sorting to prevent local sys.path conflicts
+  "ANN204", # Missing return type annotation for special method `__init__`
+  "ERA001", # Found commented-out code (too noisy for research scripts)
+  "T201",   # Allow print statements globally
+  "C408",   # Allow dict() calls (often used in dataset creation)
+  "N806",   # Allow uppercase variables (H, W for image shapes)
+  "B905",   # Allow zip without strict
+  "PLR2004",# Allow magic values in comparisons
+  "SIM108", # Allow if/else blocks instead of ternary
+  "ARG002", # Allow unused method arguments (required for PyTorch Lightning signatures)
+  "N812",   # Allow F for torch.nn.functional
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "S101", # Allow asserts allowed in tests.
+  "S307", # Allow eval in tests.
+  "ARG", # Allow unused function args for tests fixtures.
+  "FBT", # Allow booleans as positional arguments in tests.
+  "D", # Disable docstring check for tests.
+  "ANN", # Disable type check for tests.
+  "F821", # Allow _empty.
+  "SLF001", # Allow access to private values from tests.
+  "PLR2004" # Magic numbers are expected in test assertions.
+]
+"scripts/*.py" = [
+  "PLR2004", # Magic numbers are common in CLI scripts (argv length checks).
+  "T201" # Path handling and comparison results are printed in scripts.
+]
+"iriscc/models/**/*.py" = [
+  "S101", # Allow asserts for shape checking in models.
+  "PT018", # Allow combined asserts in models.
+]
+"bin/**/*.py" = [
+  "INP001", # bin/ is a script folder, not a package.
+  "T201",   # allow print statements in scripts.
+  "PLR2004" # allow magic numbers in scripts.
+]
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+

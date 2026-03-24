@@ -31,10 +31,7 @@ dates = pd.date_range(start='2000-01-01',
 target= CONFIG[args.exp]['target']
 
 h, w  = CONFIG[args.exp]['shape']
-if CONFIG[args.exp]['target'] == 'safran':
-    domain = CONFIG[args.exp]['domain_xy']
-else: 
-     domain = CONFIG[args.exp]['domain']
+domain = CONFIG[args.exp]['domain_xy'] if CONFIG[args.exp]['target'] == 'safran' else CONFIG[args.exp]['domain']
 if args.test_name.endswith('pp'):
     target = 'rcm'
 rmse_spatial = rmse_spatial.reshape(h, w)

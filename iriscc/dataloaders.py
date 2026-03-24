@@ -1,5 +1,5 @@
-"""
-Dataloader for the IRISCC dataset.
+"""Dataloader for the IRISCC dataset.
+
 This module defines a custom PyTorch Dataset for loading and transforming the IRISCC dataset.
 
 date : 16/07/2025
@@ -7,23 +7,19 @@ author : Zoé GARCIA
 """
 
 import sys
-sys.path.append('.')
-
-from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import v2
-import numpy as np
-import torch
-import glob
 from typing import Optional
-from torch import Tensor
 
-from iriscc.settings import DATES_TRAIN
+sys.path.append('.')  # noqa: E402
+
+import numpy as np  # noqa: I001
+import torch
+from torch import Tensor
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import v2
+
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import (MinMaxNormalisation, 
-                               LandSeaMask, 
-                               Pad, 
-                               FillMissingValue,
-                               Log10Transform)
+from iriscc.settings import DATES_TRAIN
+from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad
 
 class IRISCC(Dataset):
     def __init__(self,
@@ -42,17 +38,17 @@ class IRISCC(Dataset):
         self.transform = transform
         self.data_type = data_type
 
-        list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        train_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
-        val_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
-        test_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
+        self.samples = sorted(map(str, self.sample_dir.glob('sample*')))
+        train_start = self.samples.index(str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))
+        val_start = self.samples.index(str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))
+        test_start = self.samples.index(str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))
 
         if self.data_type == 'train':
-            self.samples = list_data[train_start:val_start-1]
+            self.samples = self.samples[train_start:val_start-1]
         elif self.data_type == 'val':
-            self.samples = list_data[val_start:test_start-1]
+            self.samples = self.samples[val_start:test_start-1]
         elif self.data_type == 'test':
-            self.samples = list_data[test_start:]
+            self.samples = self.samples[test_start:]
 
     def __len__(self) -> int:
         """
@@ -80,9 +76,11 @@ class IRISCC(Dataset):
 def get_dataloaders(data_type: str) -> DataLoader:
     """
     Creates and returns a PyTorch DataLoader for the specified data type.
+
     Args:
         data_type (str): The type of data to load. Expected values are 'train' or other types
                             (e.g., 'validation', 'test'). Determines the shuffle behavior and batch size.
+
     Returns:
         DataLoader: A PyTorch DataLoader object configured with the appropriate dataset,
                     transformations, batch size, and shuffle settings.
@@ -111,11 +109,10 @@ def get_dataloaders(data_type: str) -> DataLoader:
     else : 
         batch_size = 1
 
-    dataloader = DataLoader(training_data, 
-                            batch_size=batch_size, 
-                            shuffle=shuffle,
-                            num_workers=1)
-    return dataloader   
+    return DataLoader(training_data, 
+                      batch_size=batch_size, 
+                      shuffle=shuffle,
+                      num_workers=1)
 
 if __name__ == '__main__':
     train_dataloader = get_dataloaders('test')

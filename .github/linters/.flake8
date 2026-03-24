@@ -1,4 +1,5 @@
 [flake8]
 # https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html#flake8
-extend-ignore = E203,W503,E402,E262,W293,E302,W391,E261,W291,E305,E303,E266,E111,W292,E128
+exclude = .git,__pycache__,docs/conf.py,old,build,dist,.venv*,.pytest_cache,*lightning_module*,*models*
+extend-ignore = E203,W503,E402,E262,W293,E302,W391,E261,W291,E305,E303,E266,E111,W292,E128,E231,E252,E251,E225,E265,E127
 max-line-length = 165

@@ -1,23 +1,20 @@
 """
-Reformat RCM data to match target format for comparison
+Reformat RCM data to match target format for comparison.
 
 date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import sys
-sys.path.append('.')
-
 import argparse
+import sys
+
 import pandas as pd
 
+sys.path.append('.')
 
-from iriscc.settings import (CONFIG, 
-                             RCM_RAW_DIR,
-                             DATES_BC_TEST_HIST)
-
-from iriscc.datautils import reformat_as_target, Data
 from bin.training.predict_loop import get_target_format
+from iriscc.datautils import Data, reformat_as_target
+from iriscc.settings import CONFIG, RCM_RAW_DIR
 
 if __name__ == '__main__':
 
@@ -37,10 +34,7 @@ if __name__ == '__main__':
     target = CONFIG[exp]['target']  
     
     dates = pd.date_range(start=startdate, end=enddate, freq='D')
-    if dates[-1] < pd.Timestamp('2014-12-31 00:00:00'):
-        period = 'historical'
-    else:
-        period = CONFIG[exp]['ssp']
+    period = 'historical' if dates[-1] < pd.Timestamp('2014-12-31 00:00:00') else CONFIG[exp]['ssp']
     ds_test_future, _ = get_target_format(exp, dates)
     for i, date in enumerate(dates):
         print(date)

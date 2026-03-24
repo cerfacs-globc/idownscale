@@ -7,22 +7,24 @@ Rachid Elmontassir script modified by Zoé Garcia
 
 
 import sys
-sys.path.append('.')
-
 from pathlib import Path
-import matplotlib.pyplot as plt
-import torch
-import numpy as np
-import tqdm
-from torchvision.transforms import v2
 
-from iriscc.models.cddpm import CDDPM
-from iriscc.transforms import UnPad, MinMaxNormalisation, FillMissingValue, LandSeaMask, Pad
+sys.path.append('.')  # noqa: E402
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torchvision.transforms.v2 as v2
+import tqdm
+
 from iriscc.dataloaders import get_dataloaders
+from iriscc.models.cddpm import CDDPM
 from iriscc.plotutils import plot_test
 from iriscc.settings import GRAPHS_DIR
+from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
+                               Pad, UnPad)
 
-def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
+def show_forward(ddpm, loader, n_images=4, n_noise_steps=5):
     """
     Show the forward process of a DDPM model.
 
@@ -38,12 +40,12 @@ def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
         in the DDPM algorithm.
     """
     # Iterate over batches in the DataLoader
-    for condi, images in loader:
+    for _condi, images in loader:
         imgs = images[:n_images]  # Extract the input images from the batch
         mask = (imgs == 0)
 
         percentages = np.linspace(0,1,n_noise_steps + 1)[1:]
-        noisy_images = torch.ones(imgs.shape + (n_noise_steps + 1,))
+        noisy_images = torch.ones((*imgs.shape, n_noise_steps + 1))
         noisy_images[...,0] = imgs
 
         unpad = UnPad(initial_size=[134,143])
@@ -69,7 +71,7 @@ def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
                 axes[i,ts].axis("off")  # Turn off axis labels
                 if i==0 and ts>0:
                     axes[i,ts].set_title(f"{int(percentages[ts-1] * ddpm.n_steps)} steps ")
-        axes[0,0].set_title(f"Original")
+        axes[0,0].set_title("Original")
 
         # Set the title
         fig.suptitle("DDPM forward steps", fontsize=16)
@@ -81,7 +83,7 @@ def show_forward(ddpm, loader, device, n_images=4, n_noise_steps=5):
         break
 
 
-def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t: int=None, clamp=None, device='cpu'):
+def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t: int | None = None, clamp=None, device='cpu'):
     """
     Generates new images using the CDDPM model.
 
@@ -115,7 +117,7 @@ def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t
     # Generate images
     n_steps = n_steps if start_t is None else start_t
     intermediate_images = [x.cpu().detach().numpy()]
-    for idx, t in tqdm.tqdm(enumerate(reversed(range(n_steps))), total=n_steps, desc="Sampling ..", colour="#ffff00"):
+    for _idx, t in tqdm.tqdm(enumerate(reversed(range(n_steps))), total=n_steps, desc="Sampling ..", colour="#ffff00"):
         time_tensor = torch.ones(b, 1).long().to(device) * t
         eta_theta = cddpm.backward(x, time_tensor, inputs)
         # detaching the eta_theta to make sure that the gradient is not propagated through the DDPM backward pass
@@ -142,14 +144,14 @@ def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t
 
 if __name__ == '__main__':
 
-    cddpm = CDDPM(n_steps=100, 
-                    min_beta=1e-4, 
-                    max_beta=0.1, 
-                    encode_conditioning_image=False, 
+    cddpm = CDDPM(n_steps=100,
+                    min_beta=1e-4,
+                    max_beta=0.1,
+                    encode_conditioning_image=False,
                     in_ch=3)
 
     train_dataloader = get_dataloaders('train')
-    show_forward(cddpm, train_dataloader, 'cpu', n_images=4, n_noise_steps=8)
+    show_forward(cddpm, train_dataloader, n_images=4, n_noise_steps=8)
 
     data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
     conditioning_image, y = data['x'], data['y']

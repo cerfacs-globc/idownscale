@@ -1,9 +1,4 @@
-'''
-Useful plot functions
-
-date : 16/07/2025
-author : Zoé GARCIA
-'''
+"""Useful plot functions."""
 
 import sys
 
@@ -16,18 +11,18 @@ import pandas as pd
 sys.path.append('.')
 
 def plot_map_image(var,
-                    var_desc: str = None,
+                    var_desc: str | None = None,
                     cmap: str = 'OrRd',
-                    vmin: float = None,
-                    vmax: float = None,
-                    domain: list = None,
-                    fig_projection = ccrs.PlateCarree(),
-                    data_projection = ccrs.PlateCarree(),
-                    title: str = None,
-                    save_dir: str = None
+                    vmin: float | None = None,
+                    vmax: float | None = None,
+                    domain: list | None = None,
+                    fig_projection: ccrs.Projection | None = None,
+                    data_projection: ccrs.Projection | None = None,
+                    title: str | None = None,
+                    save_dir: str | None = None
                 ):
-    """
-    Plots a 2D map image using the provided data and configurations.
+    """Plots a 2D map image using the provided data and configurations.
+
     Args:
         var (Any): The 2D array-like data to be plotted.
         var_desc (str, optional): Description of the variable to be used as the colorbar label. Defaults to None.
@@ -39,10 +34,15 @@ def plot_map_image(var,
         data_projection (Any, optional): Cartopy projection for the data. Defaults to ccrs.PlateCarree().
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): Path to save the plot as an image file. If None, the function returns the figure and axis objects. Defaults to None.
+
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
 
+    if fig_projection is None:
+        fig_projection = ccrs.PlateCarree()
+    if data_projection is None:
+        data_projection = ccrs.PlateCarree()
 
     fig, ax = plt.subplots(
         figsize=(6,5),
@@ -73,19 +73,20 @@ def plot_map_image(var,
         return fig, ax
     else:
         plt.savefig(save_dir)
+        return None
 
 def plot_map_contour(var,
-                    var_desc: str = None,
-                    cmap: str = 'OrRd',
-                    fig_projection: ccrs.Projection = ccrs.PlateCarree(),
-                    data_projection: ccrs.Projection = ccrs.PlateCarree(),
-                    levels: list = None,
-                    domain: list = None,
-                    title: str = None,
-                    save_dir: str = None
-                    ):
-    """
-    Plots a contour map using the provided data and configurations.
+                     var_desc: str | None = None,
+                     cmap: str = "OrRd",
+                     fig_projection: ccrs.Projection | None = None,
+                     data_projection: ccrs.Projection | None = None,
+                     levels: list | None = None,
+                     domain: list | None = None,
+                     title: str | None = None,
+                     save_dir: str | None = None
+                     ):
+    """Plots a contour map using the provided data and configurations.
+
     Args:
         var: The data to be plotted, typically a 2D array or similar structure.
         var_desc (str, optional): Description of the variable to be used as the colorbar label.
@@ -96,9 +97,15 @@ def plot_map_contour(var,
         domain (list, optional): The geographical extent of the plot in the format [min_lon, max_lon, min_lat, max_lat].
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): File path to save the plot. If None, the function returns the figure and axis objects.
+
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
+    if fig_projection is None:
+        fig_projection = ccrs.PlateCarree()
+    if data_projection is None:
+        data_projection = ccrs.PlateCarree()
+
     fig, ax = plt.subplots(
         figsize=(6, 5),
         subplot_kw={"projection": fig_projection}
@@ -125,8 +132,9 @@ def plot_map_contour(var,
         return fig, ax
     else:
         plt.savefig(save_dir)
+        return None
 
-def plot_test(var,  save_dir: str, title: str = None,vmin: float = None, vmax: float = None):
+def plot_test(var: np.ndarray, save_dir: str, title: str | None = None, vmin: float | None = None, vmax: float | None = None):
     '''
     Simple test plot function.
 
@@ -161,9 +169,10 @@ def plot_monthly_var_seasonal_cycle(
     var_desc: str,
     save_dir: str
     ) -> None:
-    """
-    Plots the seasonal cycle of a variable, showing the mean monthly values
-    and individual yearly trends, and saves the plot to a specified directory.
+    """Plots the seasonal cycle of a variable.
+
+    Shows the mean monthly values and individual yearly trends,
+    and saves the plot to a specified directory.
     The function accepts either daily or monthly data as input.
 
     Args:
@@ -173,7 +182,8 @@ def plot_monthly_var_seasonal_cycle(
     var_desc (str): Description of the variable (e.g., temperature).
     save_dir (str): File path to save the generated plot.
 
-    Returns:
+    Returns
+    -------
     None
     """
     df_var = pd.DataFrame({'date': dates, 'var_temporal': var_temporal})

@@ -1,33 +1,43 @@
 """
-Plot the future trend of temperature changes using netcdf predictions and raw data
+Plot the future trend of temperature changes using netcdf predictions and raw data.
 
 date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import sys
-sys.path.append('.')
-
-import glob
-import pandas as pd
-import xarray as xr
 import argparse
-import numpy as np
-import matplotlib.colors as mcolors
-import seaborn as sns
-import matplotlib.pyplot as plt
+import datetime
+import glob
+import sys
+
+# noqa: E402
+sys.path.append(".")
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import xarray as xr
 
 
-from iriscc.settings import GCM_RAW_DIR, PREDICTION_DIR, CONFIG, GRAPHS_DIR, COLORS, RCM_RAW_DIR
+from iriscc.datautils import crop_domain_from_ds, return_unit, standardize_longitudes
 from iriscc.plotutils import plot_histogram
-from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, return_unit
+from iriscc.settings import (
+    COLORS,
+    CONFIG,
+    GCM_RAW_DIR,
+    GRAPHS_DIR,
+    PREDICTION_DIR,
+    RCM_RAW_DIR,
+)
+
 
 def compute_variability(data):
     var = [data[i,:,:] - data[i-1,:,:] for i in range(data.shape[0])]
-    var_temporal = np.nanmean(np.abs(var), axis= (1,2))
-    return var_temporal
+    return np.nanmean(np.abs(var), axis= (1,2))
 
 def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     sns.boxplot(x='period', y='Variability', hue='label', data=df_var_temporal, ax=axes[0], palette=colors, gap=0.1)
@@ -88,10 +98,10 @@ if __name__=='__main__':
                     CONFIG[exp]['domain']]
     if simu == 'rcm':
         simu_name = 'RCM 12km'
-        dir = RCM_RAW_DIR / 'ALADIN_reformat'
+        simu_dir = RCM_RAW_DIR / 'ALADIN_reformat'
     else:
         simu_name = 'GCM 1°'
-        dir = GCM_RAW_DIR / 'CNRM-CM6-1'
+        simu_dir = GCM_RAW_DIR / 'CNRM-CM6-1'
     labels = [simu_name, 'UNet', 'SwinUNETR']
     colors = [COLORS[i] for i in labels]
     colors_map = ['white', 'yellow', 'orange', 'red', 'black']
@@ -100,6 +110,9 @@ if __name__=='__main__':
 
     var_spatial = []
     var_temporal = []
+
+    # Ensure output directories exist
+    GRAPHS_DIR.joinpath(f'metrics/{exp}').mkdir(parents=True, exist_ok=True)
 
     fig1, axes1 = plt.subplots(
         3, 3,
@@ -117,39 +130,47 @@ if __name__=='__main__':
     )
 
     ## Reference 1980-2010
-    data_ref = xr.open_mfdataset(glob.glob(str(dir/f'tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    data_ref = xr.open_mfdataset(list(simu_dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
     tas_ref = data_ref.tas.values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    unet_ref = xr.open_mfdataset(
+        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+    ).sel(time=slice('1980', '2010'))
     unet_ref = unet_ref.mean(dim='time')
     tas_unet_ref = unet_ref.tas.values
     unet_ref.close()
 
-    swinunet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR/f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    swinunet_ref = xr.open_mfdataset(
+        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+    ).sel(time=slice('1980', '2010'))
     swinunet_ref = swinunet_ref.mean(dim='time')
     tas_swinunet_ref = swinunet_ref.tas.values
     swinunet_ref.close()
 
-    for i in range(len(periods)-1):
+    total_periods = len(periods) - 1
+    for i in range(total_periods):
+        now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')
+        log_msg = f"[{now_str}] [EVALUATION] Processing period {periods[i]} - {periods[i+1]} ({i+1}/{total_periods})"
+        print(log_msg, flush=True)
 
         # GET DATA
-        file = glob.glob(str(dir/f'tas*{ssp}_r1i1p1f2*.nc'))[0]
+        file = next(simu_dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
         data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         data = standardize_longitudes(data)
         data = crop_domain_from_ds(data, CONFIG[exp]['domain'])
         tas_data = data.tas.values
         data.close()
         
-        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))[0]
+        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
         unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         tas_unet = unet.tas.values
         unet.close()
 
-        file = glob.glob(str(PREDICTION_DIR/f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))[0]
+        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
         swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         tas_swinunet = swinunet.tas.values
         swinunet.close()
@@ -202,7 +223,7 @@ if __name__=='__main__':
                        [colors[0], colors[2]], 
                        f'{periods[i]} - {periods[i+1]}')
 
-    for ax, col in zip(axes1[0], labels):
+    for ax, col in zip(axes1[0], labels, strict=True):
         ax.set_title(col, fontsize=14)
 
     
