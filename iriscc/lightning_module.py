@@ -7,24 +7,24 @@ Modified by Zoé GARCIA
 """
 
 import sys
-import time
-from pathlib import Path
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import pytorch_lightning as pl
-import torch
-import torch.nn as nn
-from monai.networks.nets import SwinUNETR, UNet
-from torchmetrics import PearsonCorrCoef
-
 sys.path.append('.')
 
-from iriscc.loss import MaskedGammaMAELoss, MaskedMSELoss
+from pathlib import Path
+import os
+import time
+import torch
+import torch.nn as nn
+import numpy as np
+import pytorch_lightning as pl
+import pandas as pd
+import matplotlib.pyplot as plt
+from torchmetrics import PearsonCorrCoef
+from monai.networks.nets import SwinUNETR, UNet
+
 from iriscc.metrics import MaskedMAE, MaskedRMSE
-from iriscc.models.miniswinunetr import MiniSwinUNETR
 from iriscc.models.miniunet import MiniUNet
+from iriscc.models.miniswinunetr import MiniSwinUNETR
+from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
 
 layout = {
     "Check Overfit": {
@@ -64,7 +64,7 @@ class IRISCCLightningModule(pl.LightningModule):
         self.in_channels = hparams['in_channels']
         self.img_size = hparams['img_size']
         self.dropout = hparams['dropout']
-        Path(self.runs_dir).mkdir(parents=True, exist_ok=True)
+        os.makedirs(self.runs_dir, exist_ok=True)
 
         self.loss_name = hparams['loss']
         if self.loss_name == 'masked_gamma_mae':
@@ -108,7 +108,7 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        _y_hat, loss = self.common_step(x, y)
+        y_hat, loss = self.common_step(x, y)
         self.train_step_outputs.append(loss)
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
@@ -122,7 +122,7 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        _y_hat, loss = self.common_step(x, y)
+        y_hat, loss = self.common_step(x, y)
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         self.val_step_outputs.append(loss)
         return loss
@@ -185,11 +185,11 @@ class IRISCCLightningModule(pl.LightningModule):
             
     def build_metrics_dataframe(self):
         data = []
-        first_sample = next(iter(self.test_metrics.keys()))
+        first_sample = list(self.test_metrics.keys())[0]
         metrics = list(self.test_metrics[first_sample].keys())
         for name_sample, metrics_dict in self.test_metrics.items():
-            data.append([name_sample, *(metrics_dict[m].item() for m in metrics)])
-        return pd.DataFrame(data, columns=["Name", *metrics])
+            data.append([name_sample] + [metrics_dict[m].item() for m in metrics])
+        return pd.DataFrame(data, columns=["Name"] + metrics)
 
     def save_test_metrics_as_csv(self, df):
         path_csv = Path(self.logger.log_dir) / "metrics_test_set.csv"

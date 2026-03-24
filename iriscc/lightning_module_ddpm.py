@@ -6,22 +6,22 @@ Rachid Elmontassir script modified by Zoé Garcia
 """
 
 import sys
-
 sys.path.append('.')
 
-import time
 from pathlib import Path
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import pytorch_lightning as pl
+import os
+import time
 import torch
 import torch.nn as nn
+import pandas as pd
+import numpy as np
+import pytorch_lightning as pl
+import matplotlib.pyplot as plt
 
+from iriscc.transforms import DeMinMaxNormalisation
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.cddpm import CDDPM
-from iriscc.transforms import DeMinMaxNormalisation
+from iriscc.loss import MaskedMSELoss
 
 layout = {
     "Check Overfit": {
@@ -42,7 +42,7 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         self.scheduler_step_size = hparams['scheduler_step_size']
         self.scheduler_gamma = hparams['scheduler_gamma']
         self.output_norm = hparams['output_norm']
-        Path(self.runs_dir).mkdir(parents=True, exist_ok=True)
+        os.makedirs(self.runs_dir, exist_ok=True)
 
         self.loss = nn.MSELoss()  
         #self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
@@ -91,7 +91,8 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
 
     def common_step(self, x, y):
         eta, eta_theta = self(x, y)
-        return torch.sqrt(self.loss(eta_theta, eta))
+        loss = torch.sqrt(self.loss(eta_theta, eta))
+        return loss
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -169,11 +170,11 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
             
     def build_metrics_dataframe(self):
         data = []
-        first_sample = next(iter(self.test_metrics.keys()))
+        first_sample = list(self.test_metrics.keys())[0]
         metrics = list(self.test_metrics[first_sample].keys())
         for name_sample, metrics_dict in self.test_metrics.items():
-            data.append([name_sample, *(metrics_dict[m].item() for m in metrics)])
-        return pd.DataFrame(data, columns=["Name", *metrics])
+            data.append([name_sample] + [metrics_dict[m].item() for m in metrics])
+        return pd.DataFrame(data, columns=["Name"] + metrics)
 
     def save_test_metrics_as_csv(self, df):
         path_csv = Path(self.logger.log_dir) / "metrics_test_set.csv"

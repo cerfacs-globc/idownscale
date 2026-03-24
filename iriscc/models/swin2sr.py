@@ -5,7 +5,6 @@
 # -----------------------------------------------------------------------------------
 
 import math
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -304,13 +303,13 @@ class SwinTransformerBlock(nn.Module):
         x = shortcut + self.drop_path(self.norm1(x))
 
         # FFN
-        return x + self.drop_path(self.norm2(self.mlp(x)))
+        x = x + self.drop_path(self.norm2(self.mlp(x)))
+
+        return x
 
     def extra_repr(self) -> str:
-        return (
-            f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, "
-            f"window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
-        )
+        return f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, " \
+               f"window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
 
     def flops(self):
         flops = 0
@@ -327,8 +326,7 @@ class SwinTransformerBlock(nn.Module):
         return flops
 
 class PatchMerging(nn.Module):
-    r"""Patch Merging Layer.
-
+    r""" Patch Merging Layer.
     Args:
         input_resolution (tuple[int]): Resolution of input feature.
         dim (int): Number of input channels.
@@ -344,7 +342,7 @@ class PatchMerging(nn.Module):
 
     def forward(self, x):
         """
-        Input x: B, H*W, C.
+        x: B, H*W, C
         """
         H, W = self.input_resolution
         B, L, C = x.shape
@@ -452,8 +450,7 @@ class BasicLayer(nn.Module):
             nn.init.constant_(blk.norm2.weight, 0)
             
 class PatchEmbed(nn.Module):
-    r"""Image to Patch Embedding.
-
+    r""" Image to Patch Embedding
     Args:
         img_size (int): Image size.  Default: 224.
         patch_size (int): Patch token size. Default: 4.
@@ -482,7 +479,7 @@ class PatchEmbed(nn.Module):
             self.norm = None
 
     def forward(self, x):
-        _B, _C, H, W = x.shape
+        B, C, H, W = x.shape
         # FIXME look at relaxing size constraints
         # assert H == self.img_size[0] and W == self.img_size[1],
         #     f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
@@ -492,10 +489,10 @@ class PatchEmbed(nn.Module):
         return x
 
     def flops(self):
-        ho, wo = self.patches_resolution
-        flops = ho * wo * self.embed_dim * self.in_chans * (self.patch_size[0] * self.patch_size[1])
+        Ho, Wo = self.patches_resolution
+        flops = Ho * Wo * self.embed_dim * self.in_chans * (self.patch_size[0] * self.patch_size[1])
         if self.norm is not None:
-            flops += ho * wo * self.embed_dim
+            flops += Ho * Wo * self.embed_dim
         return flops           
 
 class RSTB(nn.Module):
@@ -565,15 +562,15 @@ class RSTB(nn.Module):
     def flops(self):
         flops = 0
         flops += self.residual_group.flops()
-        h, w = self.input_resolution
-        flops += h * w * self.dim * self.dim * 9
+        H, W = self.input_resolution
+        flops += H * W * self.dim * self.dim * 9
         flops += self.patch_embed.flops()
         flops += self.patch_unembed.flops()
 
         return flops
 
 class PatchUnEmbed(nn.Module):
-    r""" Image to Patch Unembedding.
+    r""" Image to Patch Unembedding
 
     Args:
         img_size (int): Image size.  Default: 224.
@@ -584,7 +581,6 @@ class PatchUnEmbed(nn.Module):
     """
 
     def __init__(self, img_size=224, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
-        _ = norm_layer  # Unused
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
@@ -598,11 +594,13 @@ class PatchUnEmbed(nn.Module):
         self.embed_dim = embed_dim
 
     def forward(self, x, x_size):
-        b, _hw, _c = x.shape
-        return x.transpose(1, 2).view(b, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
+        B, HW, C = x.shape
+        x = x.transpose(1, 2).view(B, self.embed_dim, x_size[0], x_size[1])  # B Ph*Pw C
+        return x
 
     def flops(self):
-        return 0
+        flops = 0
+        return flops
 
 
 class Upsample(nn.Sequential):
@@ -623,11 +621,10 @@ class Upsample(nn.Sequential):
             m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
             m.append(nn.PixelShuffle(3))
         else:
-            msg = f"scale {scale} is not supported. Supported scales: 2^n and 3."
-            raise ValueError(msg)
+            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
         super(Upsample, self).__init__(*m)
-
-class UpsampleHF(nn.Sequential):
+        
+class Upsample_hf(nn.Sequential):
     """Upsample module.
 
     Args:
@@ -645,20 +642,18 @@ class UpsampleHF(nn.Sequential):
             m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
             m.append(nn.PixelShuffle(3))
         else:
-            msg = f"scale {scale} is not supported. Supported scales: 2^n and 3."
-            raise ValueError(msg)
-        super(UpsampleHF, self).__init__(*m)
+            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
+        super(Upsample_hf, self).__init__(*m)        
 
 
 class UpsampleOneStep(nn.Sequential):
-    """UpsampleOneStep module.
-
-    The difference with Upsample is that it always only has 1conv + 1pixelshuffle.
-    Used in lightweight SR to save parameters.
+    """UpsampleOneStep module (the difference with Upsample is that it always only has 1conv + 1pixelshuffle)
+       Used in lightweight SR to save parameters.
 
     Args:
         scale (int): Scale factor. Supported scales: 2^n and 3.
         num_feat (int): Channel number of intermediate features.
+
     """
 
     def __init__(self, scale, num_feat, num_out_ch, input_resolution=None):
@@ -671,14 +666,14 @@ class UpsampleOneStep(nn.Sequential):
 
     def flops(self):
         H, W = self.input_resolution
-        return H * W * self.num_feat * 3 * 9
+        flops = H * W * self.num_feat * 3 * 9
+        return flops
     
     
 
 class Swin2SR(nn.Module):
-    r"""Swin2SR.
-
-    A PyTorch impl of : `Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration`.
+    r""" Swin2SR
+        A PyTorch impl of : `Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration`.
 
     Args:
         img_size (int | tuple(int)): Input image size. Default 64
@@ -704,17 +699,13 @@ class Swin2SR(nn.Module):
     """
 
     def __init__(self, img_size=64, patch_size=1, in_chans=3, out_chans=3,
-                 embed_dim=96, depths=None, num_heads=None,
+                 embed_dim=96, depths=[6, 6, 6, 6], num_heads=[6, 6, 6, 6],
                  window_size=7, mlp_ratio=4., qkv_bias=True, 
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
                  use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
-                 **kwargs) -> None:
+                 **kwargs):
         super(Swin2SR, self).__init__()
-        if depths is None:
-            depths = [6, 6, 6, 6]
-        if num_heads is None:
-            num_heads = [6, 6, 6, 6]
         num_in_ch = in_chans
         num_out_ch = out_chans
         num_feat = 64
@@ -847,7 +838,7 @@ class Swin2SR(nn.Module):
             self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
                                                       nn.LeakyReLU(inplace=True))
             self.upsample = Upsample(upscale, num_feat)
-            self.upsample_hf = UpsampleHF(upscale, num_feat)
+            self.upsample_hf = Upsample_hf(upscale, num_feat)
             self.conv_last = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
             self.conv_first_hf = nn.Sequential(nn.Conv2d(num_feat, embed_dim, 3, 1, 1),
                                                       nn.LeakyReLU(inplace=True))
@@ -898,7 +889,8 @@ class Swin2SR(nn.Module):
         _, _, h, w = x.size()
         mod_pad_h = (self.window_size - h % self.window_size) % self.window_size
         mod_pad_w = (self.window_size - w % self.window_size) % self.window_size
-        return F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
+        x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
+        return x
 
     def forward_features(self, x):
         x_size = (x.shape[2], x.shape[3])
@@ -911,7 +903,9 @@ class Swin2SR(nn.Module):
             x = layer(x, x_size)
 
         x = self.norm(x)  # B L C
-        return self.patch_unembed(x, x_size)
+        x = self.patch_unembed(x, x_size)
+
+        return x
     
     def forward_features_hf(self, x):
         x_size = (x.shape[2], x.shape[3])
@@ -924,8 +918,9 @@ class Swin2SR(nn.Module):
             x = layer(x, x_size)
 
         x = self.norm(x)  # B L C
-        return self.patch_unembed(x, x_size)
+        x = self.patch_unembed(x, x_size)
 
+        return x    
 
     def forward(self, x):
         H, W = x.shape[2:]
@@ -1000,7 +995,7 @@ class Swin2SR(nn.Module):
         H, W = self.patches_resolution
         flops += H * W * 3 * self.embed_dim * 9
         flops += self.patch_embed.flops()
-        for _i, layer in enumerate(self.layers):
+        for i, layer in enumerate(self.layers):
             flops += layer.flops()
         flops += H * W * 3 * self.embed_dim * self.embed_dim
         flops += self.upsample.flops()

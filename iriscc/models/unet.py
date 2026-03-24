@@ -1,23 +1,18 @@
-"""U-NET FOR BRAIN MRI."""
+''' U-NET FOR BRAIN MRI '''
 
 import sys
+sys.path.append('.')
+
 from collections import OrderedDict
 from pathlib import Path
 
-import numpy as np
 import torch
 import torch.nn as nn
+
+import numpy as np 
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
+from iriscc.plotutils import plot_test
 from torchvision.transforms import v2
-
-sys.path.append('.')
-
-from iriscc.plotutils import plot_test  # noqa: I001
-from iriscc.transforms import (
-    FillMissingValue,
-    LandSeaMask,
-    MinMaxNormalisation,
-    Pad,
-)
 
 class UNet(nn.Module):
 
@@ -84,7 +79,7 @@ class UNet(nn.Module):
 
 
     @staticmethod
-    def _block(in_channels, features, name) -> nn.Sequential:
+    def _block(in_channels, features, name):
         return nn.Sequential(
             OrderedDict(
                 [

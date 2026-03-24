@@ -49,6 +49,9 @@ exclude = [
     "venv",
     "env",
     ".env",
+    "iriscc/lightning_module.py",
+    "iriscc/lightning_module_ddpm.py",
+    "iriscc/models/",
 ]
 line-length = 165 # icclim allows line too long, but keeping a reasonable limit here if needed, or I can just drop it if E501 is ignored anyway.
 # Wait, icclim ruff config says E501 is ignored.
@@ -119,6 +122,7 @@ ignore = [
   # -- Rules to add
   "PLR0913", # too many arguments in function, to add
   "PLR0915", # Too many statement, to add
+  "PLR0912", # Too many branches
   # -- True ignore
   "ISC001", # String concat on same line, Managed by ruff format
   "COM812", # No comma at the end, Managed by ruff format
