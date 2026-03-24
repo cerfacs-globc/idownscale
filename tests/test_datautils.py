@@ -1,6 +1,9 @@
 import numpy as np
 import xarray as xr
 import pytest
+
+pytest.importorskip("esmpy")
+
 from iriscc.datautils import (
     standardize_longitudes,
     generate_bounds,
