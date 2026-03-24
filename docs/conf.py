@@ -1,9 +1,9 @@
-import os
+from pathlib import Path
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, str(Path('..').resolve()))
 
 project = 'idownscale'
-copyright = '2026, Zoé GARCIA'
+copyright = '2026, Zoé GARCIA'  # noqa: A001
 author = 'Zoé GARCIA'
 release = '0.1.1'
 

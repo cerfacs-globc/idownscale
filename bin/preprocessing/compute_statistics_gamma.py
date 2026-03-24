@@ -42,7 +42,7 @@ if __name__=='__main__':
     gamma_file = dataset_dir / 'gamma_params.npz'
     if gamma_file.exists() and not args.force:
         print(f"Skipping Gamma statistics computation: {gamma_file} already exists.", flush=True)
-        exit(0)
+        sys.exit(0)
 
     input_vars = CONFIG[args.exp]['input_vars']
 

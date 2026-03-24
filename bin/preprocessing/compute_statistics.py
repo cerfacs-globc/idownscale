@@ -9,6 +9,7 @@ author : Zoé GARCIA
 
 import argparse
 import json
+import sys
 from typing import Tuple
 
 import matplotlib.pyplot as plt
@@ -70,7 +71,7 @@ if __name__=='__main__':
     stats_file = dataset_dir / 'statistics.json'
     if stats_file.exists() and not args.force:
         print(f"Skipping statistics computation: {stats_file} already exists.", flush=True)
-        exit(0)
+        sys.exit(0)
 
     dataset = np.sort([str(p) for p in dataset_dir.glob('sample*')])
     channels = CONFIG[args.exp]['channels']
