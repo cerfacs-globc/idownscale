@@ -64,7 +64,6 @@ class IRISCCLightningModule(pl.LightningModule):
         self.in_channels = hparams['in_channels']
         self.img_size = hparams['img_size']
         self.dropout = hparams['dropout']
-        from pathlib import Path
         Path(self.runs_dir).mkdir(parents=True, exist_ok=True)
 
         self.loss_name = hparams['loss']

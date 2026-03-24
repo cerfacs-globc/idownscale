@@ -127,6 +127,7 @@ def plot_map_contour(var,
         return fig, ax
     else:
         plt.savefig(save_dir)
+        return None
 
 def plot_test(var: np.ndarray, save_dir: str, title: str | None = None, vmin: float | None = None, vmax: float | None = None):
     '''

@@ -17,7 +17,7 @@ import tqdm
 
 sys.path.append('.')
 
-from iriscc.dataloaders import get_dataloaders
+from iriscc.dataloaders import get_dataloaders  # noqa: I001
 from iriscc.models.cddpm import CDDPM
 from iriscc.plotutils import plot_test
 from iriscc.settings import GRAPHS_DIR
@@ -45,7 +45,7 @@ def show_forward(ddpm, loader, n_images=4, n_noise_steps=5):
         mask = (imgs == 0)
 
         percentages = np.linspace(0,1,n_noise_steps + 1)[1:]
-        noisy_images = torch.ones(imgs.shape + (n_noise_steps + 1,))
+        noisy_images = torch.ones((*imgs.shape, n_noise_steps + 1))
         noisy_images[...,0] = imgs
 
         unpad = UnPad(initial_size=[134,143])
@@ -71,7 +71,7 @@ def show_forward(ddpm, loader, n_images=4, n_noise_steps=5):
                 axes[i,ts].axis("off")  # Turn off axis labels
                 if i==0 and ts>0:
                     axes[i,ts].set_title(f"{int(percentages[ts-1] * ddpm.n_steps)} steps ")
-        axes[0,0].set_title(f"Original")
+        axes[0,0].set_title("Original")
 
         # Set the title
         fig.suptitle("DDPM forward steps", fontsize=16)
@@ -83,7 +83,7 @@ def show_forward(ddpm, loader, n_images=4, n_noise_steps=5):
         break
 
 
-def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t: int=None, clamp=None, device='cpu'):
+def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t: int | None = None, clamp=None, device='cpu'):
     """
     Generates new images using the CDDPM model.
 
@@ -117,7 +117,7 @@ def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t
     # Generate images
     n_steps = n_steps if start_t is None else start_t
     intermediate_images = [x.cpu().detach().numpy()]
-    for idx, t in tqdm.tqdm(enumerate(reversed(range(n_steps))), total=n_steps, desc="Sampling ..", colour="#ffff00"):
+    for _idx, t in tqdm.tqdm(enumerate(reversed(range(n_steps))), total=n_steps, desc="Sampling ..", colour="#ffff00"):
         time_tensor = torch.ones(b, 1).long().to(device) * t
         eta_theta = cddpm.backward(x, time_tensor, inputs)
         # detaching the eta_theta to make sure that the gradient is not propagated through the DDPM backward pass

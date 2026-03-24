@@ -17,7 +17,7 @@ from torchvision.transforms import v2
 
 sys.path.append('.')
 
-from iriscc.hparams import IRISCCHyperParameters
+from iriscc.hparams import IRISCCHyperParameters  # noqa: I001
 from iriscc.settings import DATES_TRAIN
 from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad
 
