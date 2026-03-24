@@ -144,14 +144,17 @@ if __name__=='__main__':
     tas_unet_ref = unet_ref.tas.values
     unet_ref.close()
 
-    swinunet_ref = xr.open_mfdataset(list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    swinunet_ref = xr.open_mfdataset(
+        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+    ).sel(time=slice('1980', '2010'))
     swinunet_ref = swinunet_ref.mean(dim='time')
     tas_swinunet_ref = swinunet_ref.tas.values
     swinunet_ref.close()
 
     total_periods = len(periods) - 1
     for i in range(total_periods):
-        log_msg = f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [EVALUATION] Processing period {periods[i]} - {periods[i+1]} ({i+1}/{total_periods})"
+        now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')
+        log_msg = f"[{now_str}] [EVALUATION] Processing period {periods[i]} - {periods[i+1]} ({i+1}/{total_periods})"
         print(log_msg, flush=True)
 
         # GET DATA
