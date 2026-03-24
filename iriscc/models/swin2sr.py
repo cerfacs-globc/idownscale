@@ -709,7 +709,7 @@ class Swin2SR(nn.Module):
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
                  use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
-                 **kwargs):
+                 **kwargs) -> None:
         super(Swin2SR, self).__init__()
         if depths is None:
             depths = [6, 6, 6, 6]
@@ -924,9 +924,8 @@ class Swin2SR(nn.Module):
             x = layer(x, x_size)
 
         x = self.norm(x)  # B L C
-        x = self.patch_unembed(x, x_size)
+        return self.patch_unembed(x, x_size)
 
-        return x    
 
     def forward(self, x):
         H, W = x.shape[2:]

@@ -90,8 +90,7 @@ class MaskedGammaMAELoss(nn.Module):
         cdf_values = gamma_dist.cdf(y_copy)
         loss_2D = torch.abs(y_copy - y_hat) + cdf_values**2 * torch.max(torch.zeros_like(y_copy), y_copy - y_hat)
         masked_loss_2D = loss_2D * mask  # Apply mask to the loss
-        loss = masked_loss_2D.sum() / mask.sum() # Mean over non-masked values
-        return loss
+        return masked_loss_2D.sum() / mask.sum() # Mean over non-masked values
 
 if __name__ == '__main__':
     alpha = torch.nan * torch.ones(64,64)

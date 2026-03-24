@@ -134,7 +134,7 @@ class CUNet(nn.Module):
         return embedding
 
     @staticmethod
-    def _block(in_channels, features, name):
+    def _block(in_channels, features, name) -> nn.Sequential:
         return nn.Sequential(
             OrderedDict(
                 [

@@ -138,6 +138,7 @@ ignore = [
   "ANN001", # Missing type annotation for function argument
   "ANN201", # Missing return type annotation for public function
   "ANN202", # Missing return type annotation for private function
+  "I001",   # Ignore import sorting to prevent local sys.path conflicts
   "ANN204", # Missing return type annotation for special method `__init__`
   "ERA001", # Found commented-out code (too noisy for research scripts)
   "T201",   # Allow print statements globally
