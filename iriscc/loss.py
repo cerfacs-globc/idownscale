@@ -16,9 +16,9 @@ from torch.distributions import Gamma
 sys.path.append('.')
 
 class MaskedMSELoss(nn.Module):
-    """
-    MaskedMSELoss is a custom loss function that computes the Mean Squared Error (MSE)
-    while ignoring specific target values.
+    """MaskedMSELoss is a custom loss function that computes the Mean Squared Error (MSE).
+
+    It computess the MSE while ignoring specific target values.
 
     Attributes:
         ignore_value (float): The value in the target tensor `y` to be ignored during
@@ -32,7 +32,7 @@ class MaskedMSELoss(nn.Module):
         """
         Computes the masked mean squared error loss.
 
-        Computes the loss between the predicted values (y_hat) and the target 
+        Computes the loss between the predicted values (y_hat) and the target
         values (y), ignoring a specific value.
 
         Args:
@@ -54,7 +54,7 @@ class MaskedGammaMAELoss(nn.Module):
     """
     Masked mean absolute error loss using a Gamma distribution.
 
-    Computes the masked mean absolute error between predicted values and 
+    Computes the masked mean absolute error between predicted values and
     target values, incorporating a Gamma distribution for modeling.
 
     Attributes:

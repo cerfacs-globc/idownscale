@@ -38,7 +38,6 @@ def plot_map_image(var,
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
-    """
 
     if fig_projection is None:
         fig_projection = ccrs.PlateCarree()

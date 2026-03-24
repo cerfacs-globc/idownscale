@@ -11,7 +11,7 @@ from typing import Optional
 
 sys.path.append('.')  # noqa: E402
 
-import numpy as np
+import numpy as np  # noqa: I001
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
