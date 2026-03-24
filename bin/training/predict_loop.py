@@ -100,7 +100,6 @@ if __name__=='__main__':
     # Ensure output directory exists
     PREDICTION_DIR.mkdir(parents=True, exist_ok=True)
     
-    import datetime
     total = len(dates)
     for i, date in enumerate(dates):
         now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')

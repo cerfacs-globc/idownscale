@@ -137,7 +137,9 @@ if __name__=='__main__':
     tas_ref = data_ref.tas.values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))).sel(time=slice('1980', '2010'))
+    unet_ref = xr.open_mfdataset(
+        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+    ).sel(time=slice('1980', '2010'))
     unet_ref = unet_ref.mean(dim='time')
     tas_unet_ref = unet_ref.tas.values
     unet_ref.close()
