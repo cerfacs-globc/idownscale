@@ -9,15 +9,15 @@ Rachid Elmontassir script modified by Zoé Garcia
 import sys
 from pathlib import Path
 
+sys.path.append('.')  # noqa: E402
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision.transforms.v2 as v2
 import tqdm
 
-sys.path.append('.')
-
-from iriscc.dataloaders import get_dataloaders  # noqa: I001
+from iriscc.dataloaders import get_dataloaders
 from iriscc.models.cddpm import CDDPM
 from iriscc.plotutils import plot_test
 from iriscc.settings import GRAPHS_DIR

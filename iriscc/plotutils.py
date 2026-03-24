@@ -16,8 +16,8 @@ def plot_map_image(var,
                     vmin: float | None = None,
                     vmax: float | None = None,
                     domain: list | None = None,
-                    fig_projection = ccrs.PlateCarree(),
-                    data_projection = ccrs.PlateCarree(),
+                    fig_projection: ccrs.Projection | None = None,
+                    data_projection: ccrs.Projection | None = None,
                     title: str | None = None,
                     save_dir: str | None = None
                 ):
@@ -38,7 +38,12 @@ def plot_map_image(var,
     Returns:
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
+    """
 
+    if fig_projection is None:
+        fig_projection = ccrs.PlateCarree()
+    if data_projection is None:
+        data_projection = ccrs.PlateCarree()
 
     fig, ax = plt.subplots(
         figsize=(6,5),
@@ -69,6 +74,7 @@ def plot_map_image(var,
         return fig, ax
     else:
         plt.savefig(save_dir)
+        return None
 
 def plot_map_contour(var,
                      var_desc: str | None = None,

@@ -172,8 +172,8 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         first_sample = next(iter(self.test_metrics.keys()))
         metrics = list(self.test_metrics[first_sample].keys())
         for name_sample, metrics_dict in self.test_metrics.items():
-            data.append([name_sample] + [metrics_dict[m].item() for m in metrics])
-        return pd.DataFrame(data, columns=["Name"] + metrics)
+            data.append([name_sample, *(metrics_dict[m].item() for m in metrics)])
+        return pd.DataFrame(data, columns=["Name", *metrics])
 
     def save_test_metrics_as_csv(self, df):
         path_csv = Path(self.logger.log_dir) / "metrics_test_set.csv"

@@ -122,7 +122,7 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat, loss = self.common_step(x, y)
+        _y_hat, loss = self.common_step(x, y)
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         self.val_step_outputs.append(loss)
         return loss
@@ -185,11 +185,11 @@ class IRISCCLightningModule(pl.LightningModule):
             
     def build_metrics_dataframe(self):
         data = []
-        first_sample = list(self.test_metrics.keys())[0]
+        first_sample = next(iter(self.test_metrics.keys()))
         metrics = list(self.test_metrics[first_sample].keys())
         for name_sample, metrics_dict in self.test_metrics.items():
-            data.append([name_sample] + [metrics_dict[m].item() for m in metrics])
-        return pd.DataFrame(data, columns=["Name"] + metrics)
+            data.append([name_sample, *(metrics_dict[m].item() for m in metrics)])
+        return pd.DataFrame(data, columns=["Name", *metrics])
 
     def save_test_metrics_as_csv(self, df):
         path_csv = Path(self.logger.log_dir) / "metrics_test_set.csv"

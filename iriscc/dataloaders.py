@@ -9,15 +9,15 @@ author : Zoé GARCIA
 import sys
 from typing import Optional
 
+sys.path.append('.')  # noqa: E402
+
 import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 
-sys.path.append('.')
-
-from iriscc.hparams import IRISCCHyperParameters  # noqa: I001
+from iriscc.hparams import IRISCCHyperParameters
 from iriscc.settings import DATES_TRAIN
 from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad
 
