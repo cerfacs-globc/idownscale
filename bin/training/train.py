@@ -14,6 +14,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from iriscc.dataloaders import get_dataloaders
+from iriscc.hparams import IRISCCHyperParameters
+from iriscc.lightning_module import IRISCCLightningModule
+from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+from iriscc.settings import CONFIG
 import argparse
 
 if __name__ == '__main__':

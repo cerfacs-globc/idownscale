@@ -11,26 +11,36 @@ import argparse
 import glob
 import matplotlib.pyplot as plt
 
-from iriscc.datautils import standardize_longitudes, crop_domain_from_ds
+from iriscc.datautils import standardize_longitudes, crop_domain_from_ds, Data
 from iriscc.settings import CONFIG, GRAPHS_DIR, GCM_RAW_DIR, PREDICTION_DIR, COLORS, SAFRAN_REFORMAT_DIR, EOBS_RAW_DIR, RCM_RAW_DIR
 from iriscc.plotutils import plot_histogram
 
 parser = argparse.ArgumentParser(description="Predict and plot results")
-parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)') 
+parser.add_argument('--exp', type=str, default='exp5', help='Experiment name (e.g., exp5)') 
 parser.add_argument('--simu', type=str, help='Simulation name (e.g., rcm, gcm)')  
 args = parser.parse_args()
 simu = args.simu
 
-if args.exp == 'exp3':
-    safran = xr.open_mfdataset(sorted(SAFRAN_REFORMAT_DIR.glob('tas*reformat.nc')), combine='by_coords').sel(time=slice('2000', '2015'))
-    tas = safran.tas.values.flatten()
+exp = args.exp
+var = CONFIG[exp]['target_vars'][0]
+get_data = Data(CONFIG[exp]['domain'])
+
+# Load target data dynamically
+ds_target = get_data.get_target_dataset(target=CONFIG[exp]['target'], var=var, date=None, exp=exp)
+# Select specific period for histogram
+ds_target = ds_target.sel(time=slice('2000', '2014'))
+tas = ds_target[var].values.flatten()
+
+if CONFIG[exp]['target'] == 'safran':
     target_name = 'SAFRAN 8km'
-    safran.close()
-if args.exp == 'exp5':
-    eobs = xr.open_dataset(EOBS_RAW_DIR/'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc').sel(time=slice('2000', '2015'))
-    tas = eobs.tas.values.flatten() + 273.15
+elif CONFIG[exp]['target'] == 'eobs':
     target_name = 'E-OBS 25km'
-    eobs.close()
+elif CONFIG[exp]['target'] == 'cerra':
+    target_name = 'CERRA 5km'
+else:
+    target_name = CONFIG[exp]['target'].upper()
+
+ds_target.close()
 
 
 if simu == 'gcm':

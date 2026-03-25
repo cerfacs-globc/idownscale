@@ -111,7 +111,8 @@ CONFIG = {
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
-            'remove_countries': True
+            'remove_countries': True,
+            'domain_name': 'france'
         },
 
     'exp4': # obsolete, use exp5 
@@ -135,7 +136,8 @@ CONFIG = {
             'dataset' : DATASET_EXP4_30Y_DIR,
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
-            'channels': ['elevation', 'tas input', 'tas target']
+            'channels': ['elevation', 'tas input', 'tas target'],
+            'domain_name': 'france'
         },
     'exp5':
         {'target':'eobs',
@@ -153,7 +155,8 @@ CONFIG = {
             'ssp': 'ssp585',
             'debiaser': 'cdft',
             'model': 'unet',
-            'ai_step': True
+            'ai_step': True,
+            'domain_name': 'france'
         },
     'exp6':
         {'target':'eobs',
@@ -173,7 +176,8 @@ CONFIG = {
             'model': 'unet',
             'ai_step': True,
             'input_source': 'era5',
-            'remove_countries': False
+            'remove_countries': False,
+            'domain_name': 'france'
         },
     'exp7':
         {'target':'eobs',
@@ -190,7 +194,8 @@ CONFIG = {
             'channels': ['elevation', 'huss input', 'psl input', 'tas input', 'pr target'], # to not get lost for normalization
             'ssp': 'ssp585',
             'input_source': 'era5',
-            'remove_countries': False
+            'remove_countries': False,
+            'domain_name': 'france'
         },
     'exp8':
         {'target':'eobs',
@@ -232,7 +237,8 @@ CONFIG = {
                         'pr target'], # to not get lost for normalization
             'ssp': 'ssp585',
             'input_source': 'era5',
-            'remove_countries': False
+            'remove_countries': False,
+            'domain_name': 'france'
         },
 
     'exp_cerra_test': {
@@ -253,7 +259,8 @@ CONFIG = {
         'model': 'unet',
         'ai_step': True,
         'input_source': 'era5',
-        'remove_countries': False
+        'remove_countries': False,
+        'domain_name': 'france'
     }
 }
 

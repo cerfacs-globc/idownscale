@@ -74,7 +74,7 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
 if __name__=='__main__':
 
     parser = argparse.ArgumentParser(description="Predict and plot results")
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
+    parser.add_argument('--exp', type=str, default='exp5', help='Experiment name (e.g., exp5)')   
     parser.add_argument('--ssp', type=str, help='Scenario name (e.g., ssp126, ssp585)')
     parser.add_argument('--simu', type=str, help='Simulation type (e.g., gcm, rcm)', default='gcm') 
     parser.add_argument('--force', action='store_true', help='Force evaluation regeneration')

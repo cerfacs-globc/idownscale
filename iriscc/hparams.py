@@ -27,8 +27,8 @@ class IRISCCHyperParameters():
         self.runs_dir = RUNS_DIR / self.exp
         self.sample_dir = conf['dataset']
         self.fill_value = -1.
-        self.domain = 'france'
-        self.domain_crop = None
+        self.domain = conf.get('domain_name', 'france')
+        self.domain_crop = conf.get('domain_crop', None)
         self.channels = conf['channels']
         self.loss = conf.get('loss', 'masked_gamma_mae') # masked_mse or masked_gamma_mae
         self.dropout = conf.get('dropout', 0.0)

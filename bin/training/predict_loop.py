@@ -58,7 +58,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Predict and plot results for full period")
     parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
     parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
+    parser.add_argument('--exp', type=str, default='exp5', help='Experiment name (e.g., exp5)')
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
     parser.add_argument('--simu-test', type=str, help='gcm or gcm_bc, rcm, rcm_bc', default=None)
     parser.add_argument('--force', action='store_true', help='Force prediction regeneration')

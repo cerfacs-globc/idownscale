@@ -173,7 +173,7 @@ def str2bool(v):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Build dataset for experiment ")
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
+    parser.add_argument('--exp', type=str, default='exp5', help='Experiment name (e.g., exp5)')
 
     parser.add_argument(
         '--plot', type=str2bool, nargs='?', const=True,

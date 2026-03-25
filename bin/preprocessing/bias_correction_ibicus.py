@@ -148,7 +148,7 @@ def monthly_mean(y: Optional[np.ndarray],
 if __name__=='__main__':
     
     parser = argparse.ArgumentParser(description="Predict and plot results")
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)') 
+    parser.add_argument('--exp', type=str, default='exp5', help='Experiment name (e.g., exp5)') 
     parser.add_argument('--ssp', type=str, help='SSP scenario (e.g., ssp585)')
     parser.add_argument('--simu', type=str, help='gcm or rcm', default='gcm')
     parser.add_argument('--var', type=str, help='tas, pr', default='tas')
