@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
+from iriscc.settings import OUTPUT_DIR
+
 def main():
     parser = argparse.ArgumentParser(description="Generate PDF evaluation report")
     parser.add_argument('--exp', type=str, default='exp5', help='Experiment name')
@@ -21,7 +23,11 @@ def main():
 
     graph_dir = Path('graph') / 'metrics' / args.exp
     metric_dir = Path('metrics') / args.exp
-    output_pdf = graph_dir / f'evaluation_report_{args.exp}_{args.test_name}_{args.ssp}.pdf'
+    
+    # Use centralized output directory
+    final_output_dir = OUTPUT_DIR / args.exp
+    final_output_dir.mkdir(parents=True, exist_ok=True)
+    output_pdf = final_output_dir / f'evaluation_report_{args.exp}_{args.test_name}_{args.ssp}.pdf'
 
     print(f"Generating report: {output_pdf}")
 

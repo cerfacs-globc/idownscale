@@ -135,6 +135,13 @@ if run_phase 6; then
     log_progress "--- Phase 6.3: Generating PDF Evaluation Report ---"
     srun $PYTHON bin/evaluation/generate_report.py --exp "$EXP" --test-name "$TEST_NAME" --simu "$SIMU" --ssp "$SSP"
     
+    # 6.4 Consolidate plots in output directory
+    log_progress "--- Phase 6.4: Consolidating plots in output directory ---"
+    OUTPUT_EXP_DIR="/scratch/globc/page/idownscale_active/output/$EXP"
+    mkdir -p "$OUTPUT_EXP_DIR"
+    cp graph/metrics/"$EXP"/*.png "$OUTPUT_EXP_DIR/" 2>/dev/null || true
+    cp metrics/"$EXP"/*.csv "$OUTPUT_EXP_DIR/" 2>/dev/null || true
+    
     complete_phase 6
 fi
 

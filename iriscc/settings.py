@@ -63,6 +63,7 @@ RUNS_DIR = Path('/scratch/globc/page/idownscale_active/runs/')
 GRAPHS_DIR = Path('/scratch/globc/page/idownscale_active/graph/')
 METRICS_DIR = Path('/scratch/globc/page/idownscale_active/metrics/')
 PREDICTION_DIR = Path('/scratch/globc/page/idownscale_active/prediction/')
+OUTPUT_DIR = Path('/scratch/globc/page/idownscale_active/output/')
 
 CONFIG = {
     'exp3':
