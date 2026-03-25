@@ -67,7 +67,10 @@ class IRISCC(Dataset):
             tuple[Tensor, Tensor]: Transformed input (x) and target (y) tensors.
         """
         data = dict(np.load(self.samples[idx], allow_pickle=True))
-        x, y = data['x'], data['y']
+        x = data['x']
+        y = data.get('y')
+        if y is None:
+            y = np.zeros((1, x.shape[1], x.shape[2]))
         if self.transform:
             x, y = self.transform((x, y))
         return x.float(), y.float()
