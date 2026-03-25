@@ -6,6 +6,18 @@
 #SBATCH --error=/scratch/globc/page/idownscale_active/exp5_full_%j.err
 #SBATCH --time=12:00:00
 
+# --- Configuration ---
+# You can override these via the environment if needed
+EXP=${EXP:-exp5}
+VAR=${VAR:-tas}
+SSP=${SSP:-ssp585}
+SIMU=${SIMU:-gcm}
+TEST_NAME=${TEST_NAME:-unet_all}
+SIMU_TEST=${SIMU_TEST:-gcm_bc}
+START_DATE_INF=${START_DATE_INF:-20150101}
+END_DATE_INF=${END_DATE_INF:-21001231}
+# ---------------------
+
 set -e
 cd /scratch/globc/page/idownscale_active || exit 1
 
@@ -69,25 +81,27 @@ complete_phase() {
 
 if run_phase 1; then
     log_progress "--- Phase 1: Preprocessing START ---"
-    $PYTHON bin/preprocessing/build_dataset.py --exp exp5 $FORCE_FLAG
-    $PYTHON bin/preprocessing/build_dataset.py --exp exp5 --baseline $FORCE_FLAG
-    $PYTHON bin/preprocessing/compute_statistics.py --exp exp5 $FORCE_FLAG
-    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp exp5 $FORCE_FLAG
+    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" $FORCE_FLAG
+    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline $FORCE_FLAG
+    $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" $FORCE_FLAG
+    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" $FORCE_FLAG
     complete_phase 1
 fi
 
 if run_phase 2; then
     log_progress "--- Phase 2: Bias Correction Preprocessing START ---"
-    $PYTHON bin/preprocessing/build_dataset_bc.py --simu gcm --ssp ssp585 --var tas $FORCE_FLAG
+    $PYTHON bin/preprocessing/build_dataset_bc.py --simu "$SIMU" --ssp "$SSP" --var "$VAR" $FORCE_FLAG
     complete_phase 2
 fi
 
 if run_phase 3; then
     log_progress "--- Phase 3: Bias Correction (Ibicus) START ---"
-    $PYTHON bin/preprocessing/bias_correction_ibicus.py --exp exp5 --ssp ssp585 --simu gcm --var tas $FORCE_FLAG
+    $PYTHON bin/preprocessing/bias_correction_ibicus.py --exp "$EXP" --ssp "$SSP" --simu "$SIMU" --var "$VAR" $FORCE_FLAG
     # After bias correction, we MUST compute statistics for the new dataset before training
-    $PYTHON bin/preprocessing/compute_statistics.py --exp exp5 --dataset_dir datasets/dataset_bc/dataset_exp5_test_gcm_bc $FORCE_FLAG
-    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp exp5 --dataset_dir datasets/dataset_bc/dataset_exp5_test_gcm_bc $FORCE_FLAG
+    # Note: Using the naming convention datasets/dataset_bc/dataset_EXP_test_SIMU_bc
+    BC_DATASET_DIR="datasets/dataset_bc/dataset_${EXP}_test_${SIMU}_bc"
+    $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" --dataset_dir "$BC_DATASET_DIR" $FORCE_FLAG
+    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" --dataset_dir "$BC_DATASET_DIR" $FORCE_FLAG
     complete_phase 3
 fi
 
@@ -99,13 +113,13 @@ fi
 
 if run_phase 5; then
     log_progress "--- Phase 5: Inference START ---"
-    srun $PYTHON bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc $FORCE_FLAG
+    srun $PYTHON bin/training/predict_loop.py --startdate "$START_DATE_INF" --enddate "$END_DATE_INF" --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" $FORCE_FLAG
     complete_phase 5
 fi
 
 if run_phase 6; then
     log_progress "--- Phase 6: Evaluation START ---"
-    srun $PYTHON bin/evaluation/evaluate_futur_trend.py --exp exp5 --ssp ssp585 --simu gcm $FORCE_FLAG
+    srun $PYTHON bin/evaluation/evaluate_futur_trend.py --exp "$EXP" --ssp "$SSP" --simu "$SIMU" $FORCE_FLAG
     complete_phase 6
 fi
 
