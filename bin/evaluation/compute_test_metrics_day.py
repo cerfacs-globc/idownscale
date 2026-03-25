@@ -31,6 +31,10 @@ from iriscc.settings import (CONFIG,
                              DATASET_BC_DIR,
                              DATASET_DIR)
 
+if hasattr(torch.serialization, 'add_safe_globals'):
+    import pathlib
+    torch.serialization.add_safe_globals([pathlib.PosixPath, pathlib.PurePosixPath])
+
 
 def get_config(exp: str, 
                test_name: str, 

@@ -6,6 +6,8 @@ import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib
+matplotlib.use('Agg')
 
 from iriscc.settings import CONFIG,METRICS_DIR, GRAPHS_DIR
 from iriscc.plotutils import plot_map_contour, plot_monthly_var_seasonal_cycle
@@ -19,6 +21,7 @@ args = parser.parse_args()
 print('oks')
 metrics_file = METRICS_DIR / f'{args.exp}/mean_metrics/metrics_test_{args.scale}_{args.exp}_{args.test_name}.npz'
 graph_dir = GRAPHS_DIR/f'metrics/{args.exp}/{args.test_name}/'
+graph_dir.mkdir(parents=True, exist_ok=True)
 
 metrics_dict = dict(np.load(metrics_file, allow_pickle=True))
 rmse_temporal = metrics_dict['rmse_temporal']

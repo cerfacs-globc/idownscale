@@ -120,6 +120,12 @@ fi
 if run_phase 6; then
     log_progress "--- Phase 6: Evaluation START ---"
     
+    # 6.0 Original Master Evaluation (Legacy - Optimized)
+    log_progress "--- Phase 6.0: Original Master Evaluation (Legacy) ---"
+    mkdir -p "graph/metrics/$EXP/$TEST_NAME_$SIMU_TEST"
+    srun $PYTHON bin/evaluation/compute_test_metrics_day_fast.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST"
+    srun $PYTHON bin/evaluation/plot_test_metrics.py --exp "$EXP" --test-name "${TEST_NAME}_${SIMU_TEST}" --scale daily
+    
     # 6.1 Future Trend Analysis (Qualitative)
     srun $PYTHON bin/evaluation/evaluate_futur_trend.py --exp "$EXP" --ssp "$SSP" --simu "$SIMU" $FORCE_FLAG
     
@@ -139,8 +145,16 @@ if run_phase 6; then
     log_progress "--- Phase 6.4: Consolidating plots in output directory ---"
     OUTPUT_EXP_DIR="/scratch/globc/page/idownscale_active/output/$EXP"
     mkdir -p "$OUTPUT_EXP_DIR"
+    # Copy new SOTA plots
     cp graph/metrics/"$EXP"/*.png "$OUTPUT_EXP_DIR/" 2>/dev/null || true
+    # Copy VALUE CSV
     cp metrics/"$EXP"/*.csv "$OUTPUT_EXP_DIR/" 2>/dev/null || true
+    # Copy Legacy plots (from subdirectories like unet_all_gcm_bc)
+    find graph/metrics/"$EXP" -name "*.png" -exec cp {} "$OUTPUT_EXP_DIR/" \; 2>/dev/null || true
+    # Copy Legacy CSVs (from mean_metrics)
+    find metrics/"$EXP" -name "*.csv" -exec cp {} "$OUTPUT_EXP_DIR/" \; 2>/dev/null || true
+    # Copy PDF report (ensure it's in the root of output dir)
+    cp "$OUTPUT_EXP_DIR"/*.pdf "$OUTPUT_EXP_DIR/" 2>/dev/null || true
     
     complete_phase 6
 fi
