@@ -30,3 +30,4 @@ graph/
 *.npz
 *.zip
 *.egg-info/
+*~

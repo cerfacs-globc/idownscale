@@ -110,7 +110,21 @@ if __name__=='__main__':
         simu_name = 'GCM 1°'
         simu_dir = GCM_RAW_DIR / 'CNRM-CM6-1'
     labels = [simu_name, 'UNet', 'SwinUNETR']
+    available_indices = [0] # Simulation is always available
+    
+    # Check UNet
+    unet_glob = list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+    if unet_glob:
+        available_indices.append(1)
+    
+    # Check SwinUNETR
+    swin_glob = list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+    if swin_glob:
+        available_indices.append(2)
+
+    active_labels = [labels[i] for i in available_indices]
     colors = [COLORS[i] for i in labels]
+    active_colors = [COLORS[labels[i]] for i in available_indices]
     colors_map = ['white', 'yellow', 'orange', 'red', 'black']
     custom_cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', colors_map, N=12)
     unit = return_unit(CONFIG[exp]['target_vars'][0])
@@ -144,19 +158,19 @@ if __name__=='__main__':
     tas_ref = data_ref.tas.values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(
-        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
-    ).sel(time=slice('1980', '2010'))
-    unet_ref = unet_ref.mean(dim='time')
-    tas_unet_ref = unet_ref.tas.values
-    unet_ref.close()
+    tas_unet_ref = None
+    if 1 in available_indices:
+        unet_ref = xr.open_mfdataset(unet_glob).sel(time=slice('1980', '2010'))
+        unet_ref = unet_ref.mean(dim='time')
+        tas_unet_ref = unet_ref.tas.values
+        unet_ref.close()
 
-    swinunet_ref = xr.open_mfdataset(
-        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
-    ).sel(time=slice('1980', '2010'))
-    swinunet_ref = swinunet_ref.mean(dim='time')
-    tas_swinunet_ref = swinunet_ref.tas.values
-    swinunet_ref.close()
+    tas_swinunet_ref = None
+    if 2 in available_indices:
+        swinunet_ref = xr.open_mfdataset(swin_glob).sel(time=slice('1980', '2010'))
+        swinunet_ref = swinunet_ref.mean(dim='time')
+        tas_swinunet_ref = swinunet_ref.tas.values
+        swinunet_ref.close()
 
     total_periods = len(periods) - 1
     for i in range(total_periods):
@@ -172,21 +186,25 @@ if __name__=='__main__':
         tas_data = data.tas.values
         data.close()
         
-        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
-        unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        tas_unet = unet.tas.values
-        unet.close()
+        tas_unet = None
+        if 1 in available_indices:
+            file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+            unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            tas_unet = unet.tas.values
+            unet.close()
 
-        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
-        swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        tas_swinunet = swinunet.tas.values
-        swinunet.close()
+        tas_swinunet = None
+        if 2 in available_indices:
+            file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+            swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            tas_swinunet = swinunet.tas.values
+            swinunet.close()
 
         tas_list = [tas_data, tas_unet, tas_swinunet]
         tref = [tas_ref, tas_unet_ref, tas_swinunet_ref]
 
         ## PLOT CHANGES MAPS
-        for col in range(3):
+        for col in available_indices:
             ax1 = axes1[i, col]
             data_proj = inputs_projections[col]
             cs = ax1.contourf(
@@ -219,16 +237,19 @@ if __name__=='__main__':
             
         
         ## PLOT HISTOGRAMS 
-        plot_histogram([tas_data.flatten(), tas_unet.flatten()], 
-                       axes2[i], 
-                       [labels[0], labels[1]], 
-                       [colors[0], colors[1]], 
-                       f'{periods[i]} - {periods[i+1]}')
-        plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], 
-                       axes3[i], 
-                       [labels[0], labels[2]], 
-                       [colors[0], colors[2]], 
-                       f'{periods[i]} - {periods[i+1]}')
+        ## PLOT HISTOGRAMS 
+        if 1 in available_indices:
+            plot_histogram([tas_data.flatten(), tas_unet.flatten()], 
+                           axes2[i], 
+                           [labels[0], labels[1]], 
+                           [colors[0], colors[1]], 
+                           f'{periods[i]} - {periods[i+1]}')
+        if 2 in available_indices:
+            plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], 
+                           axes3[i], 
+                           [labels[0], labels[2]], 
+                           [colors[0], colors[2]], 
+                           f'{periods[i]} - {periods[i+1]}')
 
     for ax, col in zip(axes1[0], labels, strict=True):
         ax.set_title(col, fontsize=14)
