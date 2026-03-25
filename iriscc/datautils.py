@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import xesmf as xe
+from iriscc.settings import (
     CERRA_RAW_DIR,
     CONFIG,
     COUNTRIES_MASK,
@@ -483,7 +484,7 @@ class Data(object):
       ds = apply_landseamask(ds, 'eobs', variables=[var])
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='eobs')
-      return ds
+   return ds
    
    def crop_time_dim(self, ds, date=None):
       if date is not None:
@@ -499,7 +500,7 @@ class Data(object):
       elif target == 'cerra':
          ds = self.get_cerra_dataset(var, date)
       return ds
-   
+
 
 def return_unit(var: str):
     """Returns the unit of measurement for a given variable.
