@@ -54,20 +54,33 @@ def main():
     obs_list = []
     pred_list = []
     
-    print(f"Loading {len(samples)} samples and predictions...", flush=True)
-    for sample_path in tqdm(samples):
-        data = np.load(sample_path)
-        date_str = sample_path.stem.split('_')[1]
-        date = pd.to_datetime(date_str)
+    # 3. Load Target Data (ERA5)
+    # We only load samples that match the prediction time range
+    pred_dates = pd.to_datetime(ds_pred.time.values)
+    
+    dates = []
+    obs_list = []
+    pred_list = []
+    
+    print(f"Loading samples and predictions for {len(pred_dates)} dates...", flush=True)
+    for date in tqdm(pred_dates):
+        date_str = date.strftime('%Y%m%d')
+        sample_path = sample_dir / f'sample_{date_str}.npz'
         
-        # Get target from sample
-        y = data['y'][0] # Target is typically the first channel
-        obs_list.append(y)
-        
-        # Get prediction from netcdf for the same date
-        y_hat = ds_pred.tas.sel(time=date, method='nearest').values
-        pred_list.append(y_hat)
-        dates.append(date)
+        if sample_path.exists():
+            data = np.load(sample_path)
+            # Get target from sample
+            y = data['y'][0] # Target is typically the first channel
+            obs_list.append(y)
+            
+            # Get prediction from netcdf for the same date
+            y_hat = ds_pred.tas.sel(time=date, method='nearest').values
+            pred_list.append(y_hat)
+            dates.append(date)
+
+    if not obs_list:
+        print("Error: No matching samples found for the prediction period.")
+        sys.exit(1)
 
     obs = np.stack(obs_list)
     pred = np.stack(pred_list)
@@ -107,9 +120,13 @@ def main():
     output_path = metric_dir / f'value_metrics_{args.exp}_{args.test_name}.csv'
     df.to_csv(output_path, index=False)
     
-    print("\nVALUE Summary Table:")
-    print(df.to_markdown())
-    print(f"\nResults saved to {output_path}")
+    print("\nVALUE Summary Table:", flush=True)
+    try:
+        print(df.to_markdown(index=False), flush=True)
+    except ImportError:
+        print(df.to_string(index=False), flush=True)
+    
+    print(f"\nResults saved to {output_path}", flush=True)
 
 if __name__ == '__main__':
     main()

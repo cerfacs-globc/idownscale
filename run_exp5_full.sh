@@ -131,6 +131,10 @@ if run_phase 6; then
     # Second, compute VALUE metrics for the historical period
     srun $PYTHON bin/evaluation/compute_value_metrics.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST"
     
+    # 6.3 Automated PDF Reporting
+    log_progress "--- Phase 6.3: Generating PDF Evaluation Report ---"
+    srun $PYTHON bin/evaluation/generate_report.py --exp "$EXP" --test-name "$TEST_NAME" --simu "$SIMU" --ssp "$SSP"
+    
     complete_phase 6
 fi
 
