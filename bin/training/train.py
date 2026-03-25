@@ -8,10 +8,16 @@ import sys
 
 sys.path.append('.')
 
+import pathlib
+
 import pytorch_lightning as pl
 import torch
+
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+
+# REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
+torch.serialization.add_safe_globals([pathlib.PosixPath])
 
 from iriscc.dataloaders import get_dataloaders
 from iriscc.hparams import IRISCCHyperParameters

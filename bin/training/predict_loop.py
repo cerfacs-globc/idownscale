@@ -13,9 +13,13 @@ sys.path.append('.')
 
 import numpy as np
 import pandas as pd
+import pathlib
 import torch
 import xarray as xr
 from torchvision.transforms import v2
+
+# REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
+torch.serialization.add_safe_globals([pathlib.PosixPath])
 
 from iriscc.datautils import Data, remove_countries
 from iriscc.lightning_module import IRISCCLightningModule
