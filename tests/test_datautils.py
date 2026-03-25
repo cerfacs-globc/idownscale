@@ -30,3 +30,16 @@ def test_generate_bounds():
     assert bounds[1] == 15
     assert bounds[0] == 5
     assert bounds[3] == 35
+
+from iriscc.datautils import Data
+from iriscc.settings import DATASET_METADATA
+
+def test_data_class_metadata_lookup():
+    # Test if metadata is correctly loaded for a known source
+    assert 'era5' in DATASET_METADATA
+    assert DATASET_METADATA['era5']['var_map']['tas'] == 't2m'
+
+def test_data_init():
+    domain = [-6., 10., 38, 54]
+    data = Data(domain)
+    assert data.domain == domain
