@@ -149,6 +149,7 @@ if __name__=='__main__':
         y_hat = model(x.to(device)).to(device)
         y_hat = y_hat.detach().cpu()
 
+        unpad_func = UnPad(hparams['fill_value'])
         y_hat = unpad_func(y_hat[0])[0].numpy()
         y_hat[condition] = np.nan
         var = CONFIG[args.exp]['target_vars'][0]

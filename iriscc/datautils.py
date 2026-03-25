@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 import xesmf as xe
 from iriscc.settings import (
+    COUNTRIES_MASK,
     DATASET_METADATA,
     EOBS_RAW_DIR,
     ERA5_DIR,
@@ -457,7 +458,7 @@ class Data(object):
       ds[var].values = self.clean_data(ds[var].values, var, data_type='cerra')
       return ds
    
-   def get_safran_dataset(self, var:str, date, exp:str=None):
+   def get_safran_dataset(self, var:str, date, exp:str | None = None):
       meta = DATASET_METADATA['safran']
       src_var = meta['var_map'].get(var, var)
       pattern = meta['file_pattern'].format(var=src_var, year=date.year)
@@ -490,7 +491,7 @@ class Data(object):
          ds = ds.isel(time=0)
       return ds
    
-   def get_target_dataset(self, target:str, var:str='tas', date=None, exp:str=None) -> xr.Dataset:
+   def get_target_dataset(self, target:str, var:str="tas", date=None, exp:str | None = None) -> xr.Dataset:
       if target == 'safran':
          ds = self.get_safran_dataset(var, date, exp=exp)
       elif target == 'eobs':

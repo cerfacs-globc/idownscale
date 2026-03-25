@@ -1,7 +1,7 @@
 """
 Algorithm Registry for Bias Correction (Debiasers) and AI Models.
 
-This module provides a unified interface to load different algorithms based on 
+This module provides a unified interface to load different algorithms based on
 configuration strings, enabling experiment modularity.
 """
 import importlib
@@ -10,10 +10,10 @@ from typing import Any, Type
 
 logger = logging.getLogger(__name__)
 
-def get_debiaser(name: str) -> Any:
+def get_debiaser(name: str) -> Type[Any]:
     """
     Dynamically loads a debiaser class from supported libraries.
-    
+
     Checks in order:
     1. ibicus.debias (case-insensitive)
     2. SBCK (if installed)
