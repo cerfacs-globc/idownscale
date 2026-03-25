@@ -1,5 +1,6 @@
 import datetime
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -475,7 +476,6 @@ def get_latest_version(log_dir: Path) -> Path:
         msg = f"No version folder found in {log_dir}"
         raise FileNotFoundError(msg)
     
-    import re
     # Sort by the numeric suffix of the version folder
     def version_num(path):
         match = re.search(r'version_(\d+)', path.name)

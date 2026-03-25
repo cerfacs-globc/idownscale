@@ -23,9 +23,9 @@ torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
 
 from iriscc.datautils import Data, get_latest_version, remove_countries # noqa: E402
 from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
-from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR,
+from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR, # noqa: E402
                              RUNS_DIR) # noqa: E402
-from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
+from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation, # noqa: E402
                                Pad, UnPad) # noqa: E402
 
 def get_target_format(exp:str, dates):
