@@ -93,19 +93,19 @@ fi
 
 if run_phase 4; then
     log_progress "--- Phase 4: Training START ---"
-    $PYTHON bin/training/train.py
+    srun $PYTHON bin/training/train.py
     complete_phase 4
 fi
 
 if run_phase 5; then
     log_progress "--- Phase 5: Inference START ---"
-    $PYTHON bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc $FORCE_FLAG
+    srun $PYTHON bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc $FORCE_FLAG
     complete_phase 5
 fi
 
 if run_phase 6; then
     log_progress "--- Phase 6: Evaluation START ---"
-    $PYTHON bin/evaluation/evaluate_futur_trend.py --exp exp5 --ssp ssp585 --simu gcm $FORCE_FLAG
+    srun $PYTHON bin/evaluation/evaluate_futur_trend.py --exp exp5 --ssp ssp585 --simu gcm $FORCE_FLAG
     complete_phase 6
 fi
 

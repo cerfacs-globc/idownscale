@@ -90,6 +90,7 @@ if __name__=='__main__':
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}", flush=True)
+    torch.set_float32_matmul_precision('high')
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
     model.eval()
     hparams = model.hparams['hparams']
