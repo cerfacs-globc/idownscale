@@ -8,7 +8,7 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
-from iriscc.settings import RUNS_DIR, CONFIG
+from iriscc.settings import DATASET_BC_DIR, RUNS_DIR, CONFIG
 
 
 class IRISCCHyperParameters():
