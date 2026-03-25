@@ -21,12 +21,12 @@ from torchvision.transforms import v2
 # REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
 torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
 
-from iriscc.datautils import Data, remove_countries # noqa: E402
+from iriscc.datautils import Data, get_latest_version, remove_countries # noqa: E402
 from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
 from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR,
-                             RUNS_DIR)
+                             RUNS_DIR) # noqa: E402
 from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
-                               Pad, UnPad)
+                               Pad, UnPad) # noqa: E402
 
 def get_target_format(exp:str, dates):
     get_data = Data(CONFIG[exp]['domain'])
@@ -86,16 +86,8 @@ if __name__=='__main__':
         sys.exit(0)
 
     log_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
-    if (log_dir / 'version_best').exists():
-        run_dir = log_dir / 'version_best'
-    else:
-        # Find the latest version
-        versions = [d for d in log_dir.glob('version_*') if d.is_dir()]
-        if not versions:
-            raise FileNotFoundError(f"No version folder found in {log_dir}")
-        import re
-        run_dir = sorted(versions, key=lambda x: int(re.search(r'version_(\d+)', x.name).group(1)))[-1]
-        print(f"Using latest version: {run_dir.name}", flush=True)
+    run_dir = get_latest_version(log_dir)
+    print(f"Using version: {run_dir.name}", flush=True)
 
     checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 

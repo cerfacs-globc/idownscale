@@ -22,6 +22,7 @@ from typing import Optional
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
+from iriscc.datautils import get_latest_version
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
 from iriscc.settings import (CONFIG, 
@@ -57,7 +58,8 @@ def get_config(exp: str,
     elif test_name == 'era5_raw':
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
     else:
-        run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
+        log_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs'
+        run_dir = get_latest_version(log_dir)
         checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
         model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
         model.eval()

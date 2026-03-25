@@ -14,6 +14,7 @@ import pytorch_lightning as pl
 import torch
 
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger # noqa: E402
 # REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
 torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
 

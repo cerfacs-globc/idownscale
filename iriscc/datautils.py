@@ -451,18 +451,7 @@ class Data(object):
    
 
 def return_unit(var: str):
-    """Returns the unit of measurement for a given variable.
-
-    Parameters:
-        var (str): The variable name for which the unit is requested.
-                 Accepted values are 'tas', 'pr', 'sfcWind', and 'psl'.
-
-    Returns:
-        str: The unit of measurement corresponding to the variable.
-
-    Raises:
-        ValueError: If the variable name is not recognized.
-    """
+    """Returns the unit of measurement for a given variable."""
     match var:
         case 'tas':
             return 'K'
@@ -475,3 +464,21 @@ def return_unit(var: str):
         case _:
             msg = f"Unknown variable: {var}"
             raise ValueError(msg)
+
+def get_latest_version(log_dir: Path) -> Path:
+    """Finds the latest version_x directory or version_best in a lightning_logs folder."""
+    if (log_dir / 'version_best').exists():
+        return log_dir / 'version_best'
+    
+    versions = [d for d in log_dir.glob('version_*') if d.is_dir()]
+    if not versions:
+        msg = f"No version folder found in {log_dir}"
+        raise FileNotFoundError(msg)
+    
+    import re
+    # Sort by the numeric suffix of the version folder
+    def version_num(path):
+        match = re.search(r'version_(\d+)', path.name)
+        return int(match.group(1)) if match else -1
+        
+    return sorted(versions, key=version_num)[-1]

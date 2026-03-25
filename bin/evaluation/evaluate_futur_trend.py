@@ -151,7 +151,7 @@ if __name__=='__main__':
     )
 
     ## Reference 1980-2010
-    data_ref = xr.open_mfdataset(list(simu_dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    data_ref = xr.open_mfdataset(list(simu_dir.rglob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
@@ -179,7 +179,7 @@ if __name__=='__main__':
         print(log_msg, flush=True)
 
         # GET DATA
-        file = next(simu_dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
+        file = next(simu_dir.rglob(f'tas*{ssp}_r1i1p1f2*.nc'))
         data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         data = standardize_longitudes(data)
         data = crop_domain_from_ds(data, CONFIG[exp]['domain'])

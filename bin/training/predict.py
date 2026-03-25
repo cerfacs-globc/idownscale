@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import GRAPHS_DIR, RUNS_DIR, DATASET_BC_DIR, CONFIG
+from iriscc.datautils import get_latest_version
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
     diff_y = y_hat-y  
@@ -62,7 +63,8 @@ if __name__=='__main__':
     parser.add_argument('--simu-test', type=str, help='gcm, gcm_bc, rcm, rcm_bc', default=None)
     args = parser.parse_args()
 
-    run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
+    log_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
+    run_dir = get_latest_version(log_dir)
     checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
