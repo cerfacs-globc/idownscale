@@ -38,7 +38,8 @@ def get_debiaser(name: str) -> Any:
     except ImportError:
         logger.debug("SBCK not found.")
 
-    raise ValueError(f"Debiaser '{name}' could not be found in Ibicus or SBCK.")
+    msg = f"Debiaser '{name}' could not be found in Ibicus or SBCK."
+    raise ValueError(msg)
 
 def get_model(name: str) -> Type:
     """
@@ -57,7 +58,8 @@ def get_model(name: str) -> Type:
     }
     
     if name not in mapping:
-        raise ValueError(f"Model '{name}' is not registered in iriscc.models.")
+        msg = f"Model '{name}' is not registered in iriscc.models."
+        raise ValueError(msg)
     
     module_path, class_name = mapping[name].split('.')
     module = importlib.import_module(f'iriscc.models.{module_path}')

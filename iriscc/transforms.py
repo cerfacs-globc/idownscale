@@ -237,7 +237,11 @@ class Log10Transform:
 
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
-        x, y = torch.tensor(x), torch.tensor(y)
+        if not isinstance(x, torch.Tensor):
+            x = torch.as_tensor(x)
+        if not isinstance(y, torch.Tensor):
+            y = torch.as_tensor(y)
+        x, y = x.detach().clone(), y.detach().clone()
         if 'pr input' in self.channels:
             pr_i = self.channels.index('pr input')
             x[pr_i, :, :] = torch.log10(1 + x[pr_i, :, :])

@@ -121,6 +121,9 @@ if __name__=='__main__':
     else:
         labels = [simu_name, f'{simu_name} BC', '']
 
+    colors = [COLORS.get(labels[0], 'black'), COLORS.get(labels[1], 'red'), COLORS.get(labels[2], 'blue')]
+    custom_cmap = plt.get_cmap("RdYlBu_r")
+
     var_spatial = []
     var_temporal = []
 

@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import xesmf as xe
-
+from iriscc.settings import (
     DATASET_METADATA,
     EOBS_RAW_DIR,
     ERA5_DIR,
