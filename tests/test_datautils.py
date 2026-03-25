@@ -5,9 +5,11 @@ import pytest
 pytest.importorskip("esmpy")
 
 from iriscc.datautils import (
-    standardize_longitudes,
+    Data,
     generate_bounds,
+    standardize_longitudes,
 )
+from iriscc.settings import DATASET_METADATA
 
 def test_standardize_longitudes():
     # Test 1D lon
@@ -31,8 +33,7 @@ def test_generate_bounds():
     assert bounds[0] == 5
     assert bounds[3] == 35
 
-from iriscc.datautils import Data
-from iriscc.settings import DATASET_METADATA
+
 
 def test_data_class_metadata_lookup():
     # Test if metadata is correctly loaded for a known source

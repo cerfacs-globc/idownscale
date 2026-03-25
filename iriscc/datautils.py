@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import xesmf as xe
-from iriscc.settings import (
+    CERRA_RAW_DIR,
+    CONFIG,
     COUNTRIES_MASK,
     DATASET_METADATA,
     EOBS_RAW_DIR,
@@ -365,7 +366,7 @@ class Data(object):
          data[data < 0] = 0.
          if data_type in {'gcm', 'rcm'}: # kg/m2/s to mm/day
             data = data * 3600 * 24
-      if var.startswith('tas') or var.startswith('ta'):
+      if var.startswith(("tas", "ta")):
          if np.nanmean(data) < 100: # celsius to kelvin
             data = data + 273.15
       return data
@@ -445,7 +446,6 @@ class Data(object):
       return ds
    
    def get_cerra_dataset(self, var:str, date):
-      from iriscc.settings import CERRA_RAW_DIR
       meta = DATASET_METADATA['cerra']
       src_var = meta['var_map'].get(var, var)
       pattern = meta['file_pattern'].format(var=src_var)
