@@ -2,8 +2,8 @@ import sys
 import argparse
 from pathlib import Path
 
-import matplotlib
-matplotlib.use('Agg')  # Set non-interactive backend before importing pyplot
+import matplotlib as mpl
+mpl.use('Agg')  # Set non-interactive backend before importing pyplot
 
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt

@@ -48,7 +48,6 @@ def main():
     # However, 'compute_test_metrics_day.py' loads it from the BC test dataset samples.
     # We'll do the same for consistency.
     sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}'
-    samples = sorted(sample_dir.glob('sample_*.npz'))
     
     dates = []
     obs_list = []
