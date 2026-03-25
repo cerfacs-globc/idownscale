@@ -85,7 +85,18 @@ if __name__=='__main__':
         print(f"Skipping INFERENCE: {output_file} already exists. Use --force to overwrite.", flush=True)
         sys.exit(0)
 
-    run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
+    log_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
+    if (log_dir / 'version_best').exists():
+        run_dir = log_dir / 'version_best'
+    else:
+        # Find the latest version
+        versions = [d for d in log_dir.glob('version_*') if d.is_dir()]
+        if not versions:
+            raise FileNotFoundError(f"No version folder found in {log_dir}")
+        import re
+        run_dir = sorted(versions, key=lambda x: int(re.search(r'version_(\d+)', x.name).group(1)))[-1]
+        print(f"Using latest version: {run_dir.name}", flush=True)
+
     checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
