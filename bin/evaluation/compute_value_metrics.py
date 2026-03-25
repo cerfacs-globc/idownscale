@@ -1,5 +1,6 @@
 """
 Evaluation of downscaling models using COST VALUE framework.
+
 Compares predictions, ground truth (ERA5), and baseline.
 """
 
@@ -47,7 +48,7 @@ def main():
     # However, 'compute_test_metrics_day.py' loads it from the BC test dataset samples.
     # We'll do the same for consistency.
     sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}'
-    samples = sorted(list(sample_dir.glob('sample_*.npz')))
+    samples = sorted(sample_dir.glob('sample_*.npz'))
     
     dates = []
     obs_list = []
@@ -79,7 +80,6 @@ def main():
     
     # Temporal (at each pixel, then mean)
     # For lag-1 autocorr, we need the full timeseries at each point
-    n_pixels = obs.shape[1] * obs.shape[2]
     obs_reshaped = obs.reshape(obs.shape[0], -1)
     pred_reshaped = pred.reshape(pred.shape[0], -1)
     

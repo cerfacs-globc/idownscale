@@ -10,7 +10,7 @@ from scipy.stats import pearsonr, wasserstein_distance
 
 def get_marginal_metrics(obs, pred):
     """Compute marginal distributional metrics."""
-    metrics = {
+    return {
         'bias': np.nanmean(pred) - np.nanmean(obs),
         'std_ratio': np.nanstd(pred) / np.nanstd(obs),
         'q5_bias': np.nanquantile(pred, 0.05) - np.nanquantile(obs, 0.05),
@@ -18,7 +18,6 @@ def get_marginal_metrics(obs, pred):
         'q95_bias': np.nanquantile(pred, 0.95) - np.nanquantile(obs, 0.95),
         'wasserstein': wasserstein_distance(obs.flatten(), pred.flatten())
     }
-    return metrics
 
 def get_temporal_metrics(obs, pred):
     """Compute temporal persistence metrics."""
@@ -27,12 +26,11 @@ def get_temporal_metrics(obs, pred):
         if len(x) < 2: return np.nan
         return pearsonr(x[:-1], x[1:])[0]
     
-    metrics = {
+    return {
         'autocorr_obs': lag1_autocorr(obs),
         'autocorr_pred': lag1_autocorr(pred),
         'autocorr_error': lag1_autocorr(pred) - lag1_autocorr(obs)
     }
-    return metrics
 
 def get_spatial_metrics(obs_mean_map, pred_mean_map):
     """Compute spatial coherence metrics comparing time-mean maps."""
@@ -44,11 +42,10 @@ def get_spatial_metrics(obs_mean_map, pred_mean_map):
     if not np.any(mask):
         return {'spatial_corr': np.nan, 'spatial_rmse': np.nan}
     
-    metrics = {
+    return {
         'spatial_corr': pearsonr(obs_flat[mask], pred_flat[mask])[0],
         'spatial_rmse': np.sqrt(np.nanmean((pred_mean_map - obs_mean_map)**2))
     }
-    return metrics
 
 def get_spell_length(data, threshold, operator='>'):
     """Calculate mean spell length above/below a threshold."""
