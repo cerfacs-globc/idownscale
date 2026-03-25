@@ -48,9 +48,9 @@ PROGRESS_LOG="PROGRESS.log"
 mkdir -p "$MARKER_DIR"
 
 FORCE_FLAG=""
-if [[ $REGENERATE -eq 1 ]]; then
+if [[ $REGENERATE -eq 1 || $FORCE -eq 1 ]]; then
     FORCE_FLAG="--force"
-    FORCE=1  # Always bypass markers when regenetating
+    [[ $REGENERATE -eq 1 ]] && FORCE=1  # Ensure markers are bypassed if regenerating
 fi
 
 log_progress() {
@@ -119,7 +119,18 @@ fi
 
 if run_phase 6; then
     log_progress "--- Phase 6: Evaluation START ---"
+    
+    # 6.1 Future Trend Analysis (Qualitative)
     srun $PYTHON bin/evaluation/evaluate_futur_trend.py --exp "$EXP" --ssp "$SSP" --simu "$SIMU" $FORCE_FLAG
+    
+    # 6.2 Historical Validation (Quantitative - VALUE Framework)
+    # First, run inference on the historical test period to allow comparison with ERA5
+    log_progress "--- Phase 6.2: Historical Validation (VALUE) ---"
+    srun $PYTHON bin/training/predict_loop.py --startdate 20000101 --enddate 20141231 --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" $FORCE_FLAG
+    
+    # Second, compute VALUE metrics for the historical period
+    srun $PYTHON bin/evaluation/compute_value_metrics.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST"
+    
     complete_phase 6
 fi
 
