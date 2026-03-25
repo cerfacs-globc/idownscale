@@ -35,10 +35,15 @@ if __name__=='__main__':
     
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
     parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
+    parser.add_argument('--dataset_dir', type=str, help='Path to dataset directory', default=None)
     parser.add_argument('--force', action='store_true', help='Force reconnection')
     args = parser.parse_args()
 
-    dataset_dir = CONFIG[args.exp]['dataset']
+    if args.dataset_dir:
+        from pathlib import Path
+        dataset_dir = Path(args.dataset_dir)
+    else:
+        dataset_dir = CONFIG[args.exp]['dataset']
     gamma_file = dataset_dir / 'gamma_params.npz'
     if gamma_file.exists() and not args.force:
         print(f"Skipping Gamma statistics computation: {gamma_file} already exists.", flush=True)

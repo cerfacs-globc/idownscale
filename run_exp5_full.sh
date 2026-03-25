@@ -85,6 +85,9 @@ fi
 if run_phase 3; then
     log_progress "--- Phase 3: Bias Correction (Ibicus) START ---"
     $PYTHON bin/preprocessing/bias_correction_ibicus.py --exp exp5 --ssp ssp585 --simu gcm --var tas $FORCE_FLAG
+    # After bias correction, we MUST compute statistics for the new dataset before training
+    $PYTHON bin/preprocessing/compute_statistics.py --exp exp5 --dataset_dir datasets/dataset_bc/dataset_exp5_test_gcm_bc $FORCE_FLAG
+    $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp exp5 --dataset_dir datasets/dataset_bc/dataset_exp5_test_gcm_bc $FORCE_FLAG
     complete_phase 3
 fi
 
