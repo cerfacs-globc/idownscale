@@ -6,7 +6,7 @@ def test_get_debiaser_ibicus():
     # ibicus should be installed in the environment
     try:
         cdft = get_debiaser('cdft')
-        assert cdft.__name__ == 'CDFT'
+        assert cdft.__name__ == 'CDFt'
     except ImportError:
         pytest.skip("Ibicus not installed")
 
