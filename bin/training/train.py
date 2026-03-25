@@ -14,15 +14,13 @@ import pytorch_lightning as pl
 import torch
 
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
-
 # REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
-torch.serialization.add_safe_globals([pathlib.PosixPath])
+torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
 
-from iriscc.dataloaders import get_dataloaders
-from iriscc.hparams import IRISCCHyperParameters
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+from iriscc.dataloaders import get_dataloaders # noqa: E402
+from iriscc.hparams import IRISCCHyperParameters # noqa: E402
+from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
+from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule # noqa: E402
 
 torch.cuda.is_available()
 

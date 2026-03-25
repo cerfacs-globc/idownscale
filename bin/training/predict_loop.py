@@ -19,10 +19,10 @@ import xarray as xr
 from torchvision.transforms import v2
 
 # REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
-torch.serialization.add_safe_globals([pathlib.PosixPath])
+torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
 
-from iriscc.datautils import Data, remove_countries
-from iriscc.lightning_module import IRISCCLightningModule
+from iriscc.datautils import Data, remove_countries # noqa: E402
+from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
 from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR,
                              RUNS_DIR)
 from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
