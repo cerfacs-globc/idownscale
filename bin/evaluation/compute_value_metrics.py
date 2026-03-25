@@ -83,10 +83,11 @@ def main():
     obs_reshaped = obs.reshape(obs.shape[0], -1)
     pred_reshaped = pred.reshape(pred.shape[0], -1)
     
-    temp_metrics_list = []
-    for i in range(obs_reshaped.shape[1]):
-        if not np.all(np.isnan(obs_reshaped[:, i])):
-            temp_metrics_list.append(get_temporal_metrics(obs_reshaped[:, i], pred_reshaped[:, i]))
+    temp_metrics_list = [
+        get_temporal_metrics(obs_reshaped[:, i], pred_reshaped[:, i])
+        for i in range(obs_reshaped.shape[1])
+        if not np.all(np.isnan(obs_reshaped[:, i]))
+    ]
     
     avg_temporal = {
         'autocorr_obs_mean': np.nanmean([m['autocorr_obs'] for m in temp_metrics_list]),

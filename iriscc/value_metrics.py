@@ -1,7 +1,7 @@
 """
 Core logic for COST Action ES1102 (VALUE) validation metrics.
 
-This module provides standardized implementations for marginal, temporal, 
+This module provides standardized implementations for marginal, temporal,
 and spatial diagnostics used in downscaling validation.
 """
 
@@ -23,7 +23,8 @@ def get_temporal_metrics(obs, pred):
     """Compute temporal persistence metrics."""
     def lag1_autocorr(x):
         x = x.flatten()
-        if len(x) < 2: return np.nan
+        if len(x) < 2:
+            return np.nan
         return pearsonr(x[:-1], x[1:])[0]
     
     return {
