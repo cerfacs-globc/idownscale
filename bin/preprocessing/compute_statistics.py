@@ -73,7 +73,12 @@ if __name__=='__main__':
         print(f"Skipping statistics computation: {stats_file} already exists.", flush=True)
         sys.exit(0)
 
+    dataset_dir.mkdir(parents=True, exist_ok=True)
     dataset = np.sort([str(p) for p in dataset_dir.glob('sample*')])
+    
+    if len(dataset) == 0:
+        print(f"ERROR: No samples found in {dataset_dir}. Ensure Phase 1 and 2 completed successfully.", flush=True)
+        sys.exit(1)
     channels = CONFIG[args.exp]['channels']
     ch = len(channels)
     total_sum = np.zeros(ch)

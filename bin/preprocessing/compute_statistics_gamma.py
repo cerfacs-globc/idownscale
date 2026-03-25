@@ -58,6 +58,9 @@ if __name__=='__main__':
                 data = dict(np.load(file, allow_pickle=True))
                 y = data['y'][0]  # Select the precipitation input variable
                 y_year.append(y)
+        if not y_year:
+            print(f"WARNING: No samples found for year {nb} in {dataset_dir}. Skipping.", flush=True)
+            continue
         y_year = np.stack(y_year, axis=0)
         y_year = y_year.reshape(-1, h * w)  # Reshape to (365*5, h*w)
 

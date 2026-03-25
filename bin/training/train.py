@@ -14,21 +14,27 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from iriscc.dataloaders import get_dataloaders
-from iriscc.hparams import IRISCCHyperParameters
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+import argparse
 
-torch.cuda.is_available()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Train the model")
+    parser.add_argument('--exp', type=str, default='exp5', help='Experiment name')
+    args = parser.parse_args()
 
-hparams = IRISCCHyperParameters()
-train_dataloader = get_dataloaders('train')
-val_dataloader = get_dataloaders('val')
-test_dataloader = get_dataloaders('test')
+    # Check if AI step is enabled for this experiment
+    if not CONFIG[args.exp].get('ai_step', True):
+        print(f"Skipping TRAINING: Experiment {args.exp} is configured to use Bias Correction only.", flush=True)
+        sys.exit(0)
 
-if hparams.model == 'cddpm':
-    model = IRISCCCDDPMLightningModule(hparams.__dict__)
-else :
-    model = IRISCCLightningModule(hparams.__dict__)
+    hparams = IRISCCHyperParameters(exp=args.exp)
+    train_dataloader = get_dataloaders('train', hparams)
+    val_dataloader = get_dataloaders('val', hparams)
+    test_dataloader = get_dataloaders('test', hparams)
+
+    if hparams.model == 'cddpm':
+        model = IRISCCCDDPMLightningModule(hparams.__dict__)
+    else:
+        model = IRISCCLightningModule(hparams.__dict__)
     
 logger = TensorBoardLogger(save_dir=hparams.runs_dir, name='lightning_logs')
 checkpoint_callback = ModelCheckpoint(

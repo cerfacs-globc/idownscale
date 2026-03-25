@@ -70,6 +70,7 @@ class DatasetBuilder:
             dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
         else:
             dataset = self.dataset
+        dataset.mkdir(parents=True, exist_ok=True)
         
         target_path = dataset / f'sample_{date_str}.npz'
         if target_path.exists() and not plot and not force:
@@ -97,18 +98,27 @@ class DatasetBuilder:
                    date: datetime.date) -> np.ndarray:
         x = []
         get_data = Data(self.domain)
+        input_source = CONFIG[self.exp].get('input_source', 'era5')
 
         for var in self.input_vars:
             if var == 'elevation':
                 ds = xr.open_dataset(self.orog_file)
                 ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
             else:
-                ds_era5 = get_data.get_era5_dataset(var, date)
-                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) # default value
-                ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
-                                                        ds_target=ds_gcm, 
-                                                        method="conservative_normed")
-                ds = reformat_as_target(ds_era5_to_gcm, 
+                # Load input dataset (ERA5, CERRA, etc.)
+                if input_source == 'era5':
+                    ds_input = get_data.get_era5_dataset(var, date)
+                elif input_source == 'cerra':
+                    ds_input = get_data.get_cerra_dataset(var, date)
+                else:
+                    # Fallback to general target loading if needed for demonstrators
+                    ds_input = get_data.get_target_dataset(target=input_source, var=var, date=date)
+
+                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) 
+                ds_input_to_gcm = interpolation_target_grid(ds_input, 
+                                                           ds_target=ds_gcm, 
+                                                           method="conservative_normed")
+                ds = reformat_as_target(ds_input_to_gcm, 
                                         target_file=self.target_file, 
                                         method='conservative_normed', 
                                         domain=self.domain, 
@@ -121,16 +131,10 @@ class DatasetBuilder:
                     date: datetime.date) -> np.ndarray:
         get_data = Data(self.domain)
         y = []
-        if self.target == 'safran':
-            for var in self.target_vars:
-                ds = get_data.get_safran_dataset(var, date)
-                data = ds[var].values
-                y.append(data)
-        elif self.target == 'eobs':
-            for var in self.target_vars:
-                ds = get_data.get_eobs_dataset(var, date)
-                data = ds[var].values
-                y.append(data)
+        for var in self.target_vars:
+            ds = get_data.get_target_dataset(target=self.target, var=var, date=date, exp=self.exp)
+            data = ds[var].values
+            y.append(data)
         return np.stack(y, axis=0)
     
     def baseline_data(self, 

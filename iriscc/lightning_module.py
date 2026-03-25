@@ -22,8 +22,7 @@ from torchmetrics import PearsonCorrCoef
 from monai.networks.nets import SwinUNETR, UNet
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
-from iriscc.models.miniunet import MiniUNet
-from iriscc.models.miniswinunetr import MiniSwinUNETR
+from iriscc.registry import get_model as get_model_class
 from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
 
 layout = {
@@ -32,23 +31,26 @@ layout = {
     },
 }
 
-def get_model(model:str, 
-              in_channels:int, 
-              out_channels:int, 
-              img_size:tuple,
-              dropout:float=0):
+def instantiate_model(model_name: str, 
+                      in_channels: int, 
+                      out_channels: int, 
+                      img_size: tuple,
+                      dropout: float = 0):
+    model_class = get_model_class(model_name)
     
-    match model:
-        case 'unet':
-            return UNet(spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout,
-                        channels=(4, 8, 16, 32), strides=(2,2,2)).float()
-        case 'miniunet':
-            return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
-        case 'swinunetr':
-            return SwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2, drop_rate=dropout).float()
-        case 'miniswinunetr':
-            return MiniSwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2,
-                                 drop_rate=dropout).float()
+    if model_name == 'unet':
+        return model_class(spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout,
+                           channels=(4, 8, 16, 32), strides=(2,2,2)).float()
+    elif model_name == 'miniunet':
+        return model_class(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+    elif model_name == 'swinunetr':
+        return model_class(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2, drop_rate=dropout).float()
+    elif model_name == 'miniswinunetr':
+        return model_class(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2,
+                             drop_rate=dropout).float()
+    else:
+        # Default instantiation for other models in the registry
+        return model_class(in_channels=in_channels, out_channels=out_channels).float()
         
 
 
@@ -77,11 +79,11 @@ class IRISCCLightningModule(pl.LightningModule):
                     "mae": MaskedMAE(ignore_value = self.fill_value)
                 })
         self.spatial_corr_metric = PearsonCorrCoef()
-        self.model = get_model(model=hparams['model'], 
-                               in_channels=self.in_channels, 
-                               out_channels=1, 
-                               img_size=self.img_size,
-                               dropout=self.dropout)
+        self.model = instantiate_model(model_name=hparams['model'], 
+                                       in_channels=self.in_channels, 
+                                       out_channels=1, 
+                                       img_size=self.img_size,
+                                       dropout=self.dropout)
 
         self.test_metrics = {}
         self.train_step_outputs = []

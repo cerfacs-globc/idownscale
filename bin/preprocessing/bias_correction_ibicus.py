@@ -16,7 +16,8 @@ import pandas as pd
 import datetime
 from typing import Optional, List, Tuple
 from ibicus.evaluate import marginal, metrics, trend
-from ibicus.debias import CDFt
+
+from iriscc.registry import get_debiaser
 
 
 from iriscc.datautils import (reformat_as_target, 
@@ -105,8 +106,8 @@ def plot_seasonal_hist(
     plt.suptitle(title)
     ax1.set_title('Winter')
     ax2.set_title('Summer')
-    ax1.set_xlabel('{var} (K)')
-    ax2.set_xlabel('{var} (K)')
+    ax1.set_xlabel(f'{var} ({unit})')
+    ax2.set_xlabel(f'{var} ({unit})')
     ax2.legend()
     plt.tight_layout()
     plt.savefig(savedir)
@@ -168,9 +169,20 @@ if __name__=='__main__':
     gcm_ds = get_data_bc.get_gcm_dataset(var, None)
     lon, lat = gcm_ds.lon.values, gcm_ds.lat.values
     get_data = Data(domain=domain)
+    
+    # Ensure infrastructure exists
+    DATASET_BC_DIR.mkdir(parents=True, exist_ok=True)
+    GRAPHS_DIR.joinpath('biascorrection').mkdir(parents=True, exist_ok=True)
 
-    debiaser = CDFt.from_variable(variable=var,
-                                  apply_by_month=True)
+    debiaser_name = CONFIG[exp].get('debiaser', 'cdft')
+    debiaser_class = get_debiaser(debiaser_name)
+    
+    # Check if from_variable exists (standard for Ibicus) or use default constructor
+    if hasattr(debiaser_class, 'from_variable'):
+        debiaser = debiaser_class.from_variable(variable=var,
+                                               apply_by_month=True)
+    else:
+        debiaser = debiaser_class()
 
     train_hist = dict(np.load(DATASET_BC_DIR/f'bc_train_hist_{simu}.npz', allow_pickle=True))
     test_hist = dict(np.load(DATASET_BC_DIR/f'bc_test_hist_{simu}.npz', allow_pickle=True))
@@ -183,7 +195,7 @@ if __name__=='__main__':
         final_nc = RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc'
     
     sample_dir = DATASET_BC_DIR.joinpath(f'dataset_{exp}_test_{simu}_bc')
-    if final_nc.exists() and any(sample_dir.iterdir()) and not args.force:
+    if final_nc.exists() and sample_dir.exists() and any(sample_dir.iterdir()) and not args.force:
         print(f"Skipping Bias Correction (Ibicus): {final_nc} and samples already exist.", flush=True)
         sys.exit(0)
 
@@ -338,7 +350,8 @@ if __name__=='__main__':
     plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==3., df_simu_year["values"], None), color="blue")
     plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==3., df_simu_bc_year["values"], None), color="green")
     plt.title(f'Annual mean {var} {simu} ({ssp})')
-    plt.ylabel('{var} (K)')
+    unit = return_unit(var)
+    plt.ylabel(f'{var} ({unit})')
     plt.legend()
     plt.savefig(GRAPHS_DIR/f'biascorrection/{var}_bc_datasets_temporal_profiles_ibicus_{ssp}_{simu}.png')
 
@@ -359,23 +372,23 @@ if __name__=='__main__':
                        savedir=GRAPHS_DIR/f'biascorrection/{var}_ibicus_test_future_histo_{ssp}_{simu}.png',
                        simu=simu)
 
-    ds_train_hist_bc = xr.Dataset(data_vars=dict(
-                            tas=(['time', 'lat', 'lon'], train_hist_bc)),
+    ds_train_hist_bc = xr.Dataset(data_vars={
+                            var: (['time', 'lat', 'lon'], train_hist_bc)},
                             coords=dict(
                             lat=('lat', lat),
                             lon=('lon', lon),
                             time=('time', train_hist['dates'])
                             ))
-    ds_test_hist_bc = xr.Dataset(data_vars=dict(
-                            tas=(['time', 'lat', 'lon'], test_hist_bc)),
+    ds_test_hist_bc = xr.Dataset(data_vars={
+                            var: (['time', 'lat', 'lon'], test_hist_bc)},
                             coords=dict(
                             lat=('lat', lat),
                             lon=('lon', lon),
                             time=('time', test_hist['dates'])
                             ))
     
-    ds_test_future_bc = xr.Dataset(data_vars=dict(
-                            tas=(['time', 'lat', 'lon'], test_future_bc)),
+    ds_test_future_bc = xr.Dataset(data_vars={
+                            var: (['time', 'lat', 'lon'], test_future_bc)},
                             coords=dict(
                             lat=('lat', lat),
                             lon=('lon', lon),
@@ -407,11 +420,12 @@ if __name__=='__main__':
         
 
     
-        x.append(ds_train_hist_bc_i.tas.values)
+        x.append(ds_train_hist_bc_i[var].values)
         x = np.stack(x, axis = 0)
         ds_target = get_data.get_target_dataset(target=CONFIG[exp]['target'], 
                                      var = var, 
-                                     date = date)
+                                     date = date,
+                                     exp = exp)
         y = ds_target[var].values
         y = np.expand_dims(y, axis= 0)
         
@@ -439,11 +453,12 @@ if __name__=='__main__':
                                          )
                                          
     
-        x.append(ds_test_hist_bc_i.tas.values)
+        x.append(ds_test_hist_bc_i[var].values)
         x = np.stack(x, axis = 0)
         ds_target = get_data.get_target_dataset(target=CONFIG[exp]['target'], 
                                      var = var, 
-                                     date = date)
+                                     date = date,
+                                     exp = exp)
         y = ds_target[var].values
         y = np.expand_dims(y, axis= 0)
         
@@ -469,7 +484,7 @@ if __name__=='__main__':
                                          mask=True
                                          )  
     
-        x.append(ds_test_future_bc_i.tas.values)
+        x.append(ds_test_future_bc_i[var].values)
         x = np.stack(x, axis = 0)
         
         sample = {'x' : x}

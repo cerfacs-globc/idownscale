@@ -103,17 +103,23 @@ if __name__=='__main__':
         domain = [CONFIG[exp]['domain'],
                     CONFIG[exp]['domain'],
                     CONFIG[exp]['domain']]
+    var = CONFIG[exp]['target_vars'][0]
+    unit = return_unit(var)
+    ai_step = CONFIG[exp].get('ai_step', True)
+
     if simu == 'rcm':
         simu_name = 'RCM 12km'
         simu_dir = RCM_RAW_DIR / 'ALADIN_reformat'
+        bc_dir = RCM_RAW_DIR / 'ALADIN-BC'
     else:
         simu_name = 'GCM 1°'
         simu_dir = GCM_RAW_DIR / 'CNRM-CM6-1'
-    labels = [simu_name, 'UNet', 'SwinUNETR']
-    colors = [COLORS[i] for i in labels]
-    colors_map = ['white', 'yellow', 'orange', 'red', 'black']
-    custom_cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', colors_map, N=12)
-    unit = return_unit(CONFIG[exp]['target_vars'][0])
+        bc_dir = GCM_RAW_DIR / 'CNRM-CM6-1-BC'
+
+    if ai_step:
+        labels = [simu_name, 'UNet', 'SwinUNETR']
+    else:
+        labels = [simu_name, f'{simu_name} BC', '']
 
     var_spatial = []
     var_temporal = []
@@ -137,26 +143,39 @@ if __name__=='__main__':
     )
 
     ## Reference 1980-2010
-    data_ref = xr.open_mfdataset(list(simu_dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    ## Reference 1980-2010
+    data_ref = xr.open_mfdataset(list(simu_dir.glob(f'{var}*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
-    tas_ref = data_ref.tas.values
+    val_ref = data_ref[var].values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(
-        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
-    ).sel(time=slice('1980', '2010'))
-    unet_ref = unet_ref.mean(dim='time')
-    tas_unet_ref = unet_ref.tas.values
-    unet_ref.close()
+    if ai_step:
+        unet_ref = xr.open_mfdataset(
+            list(PREDICTION_DIR.glob(f'{var}*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+        ).sel(time=slice('1980', '2010'))
+        unet_ref = unet_ref.mean(dim='time')
+        val_unet_ref = unet_ref[var].values
+        unet_ref.close()
 
-    swinunet_ref = xr.open_mfdataset(
-        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
-    ).sel(time=slice('1980', '2010'))
-    swinunet_ref = swinunet_ref.mean(dim='time')
-    tas_swinunet_ref = swinunet_ref.tas.values
-    swinunet_ref.close()
+        swinunet_ref = xr.open_mfdataset(
+            list(PREDICTION_DIR.glob(f'{var}*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+        ).sel(time=slice('1980', '2010'))
+        swinunet_ref = swinunet_ref.mean(dim='time')
+        val_swinunet_ref = swinunet_ref[var].values
+        swinunet_ref.close()
+    else:
+        # For BC-only, look for the BC historical file if it exists
+        bc_files = list(bc_dir.glob(f'{var}*historical*bc.nc'))
+        if bc_files:
+            bc_ref = xr.open_dataset(bc_files[0]).sel(time=slice('1980', '2010'))
+            bc_ref = bc_ref.mean(dim='time')
+            val_unet_ref = bc_ref[var].values
+            bc_ref.close()
+        else:
+            val_unet_ref = val_ref # Fallback
+        val_swinunet_ref = val_ref # Dummy
 
     total_periods = len(periods) - 1
     for i in range(total_periods):
@@ -165,32 +184,59 @@ if __name__=='__main__':
         print(log_msg, flush=True)
 
         # GET DATA
-        file = next(simu_dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
+        simu_files = list(simu_dir.glob(f'{var}*{ssp}_r1i1p1f2*.nc'))
+        if not simu_files:
+            print(f"ERROR: No simulation files found in {simu_dir} for {ssp}.", flush=True)
+            sys.exit(1)
+        file = simu_files[0]
         data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         data = standardize_longitudes(data)
         data = crop_domain_from_ds(data, CONFIG[exp]['domain'])
-        tas_data = data.tas.values
+        val_data = data[var].values
         data.close()
         
-        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
-        unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        tas_unet = unet.tas.values
-        unet.close()
+        if ai_step:
+            unet_files = list(PREDICTION_DIR.glob(f'{var}*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+            if not unet_files:
+                print(f"ERROR: No UNet predictions found in {PREDICTION_DIR} for {ssp}.", flush=True)
+                sys.exit(1)
+            file = unet_files[0]
+            unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            val_unet = unet[var].values
+            unet.close()
 
-        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
-        swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        tas_swinunet = swinunet.tas.values
-        swinunet.close()
+            swin_files = list(PREDICTION_DIR.glob(f'{var}*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+            if not swin_files:
+                print(f"ERROR: No SwinUNet predictions found in {PREDICTION_DIR} for {ssp}.", flush=True)
+                sys.exit(1)
+            file = swin_files[0]
+            swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            val_swinunet = swinunet[var].values
+            swinunet.close()
+        else:
+            # For BC-only, load the BC file
+            bc_files = list(bc_dir.glob(f'{var}*{ssp}*bc.nc'))
+            if not bc_files:
+                print(f"ERROR: No Bias Corrected files found in {bc_dir} for {ssp}.", flush=True)
+                sys.exit(1)
+            file = bc_files[0]
+            bc_ds = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            val_unet = bc_ds[var].values
+            bc_ds.close()
+            val_swinunet = np.full_like(val_data, np.nan) # Dummy
 
-        tas_list = [tas_data, tas_unet, tas_swinunet]
-        tref = [tas_ref, tas_unet_ref, tas_swinunet_ref]
+        val_list = [val_data, val_unet, val_swinunet]
+        vref = [val_ref, val_unet_ref, val_swinunet_ref]
 
         ## PLOT CHANGES MAPS
         for col in range(3):
+            if not ai_step and col == 2:
+                axes1[i, col].axis('off')
+                continue
             ax1 = axes1[i, col]
             data_proj = inputs_projections[col]
             cs = ax1.contourf(
-                np.nanmean(tas_list[col], axis=0) - tref[col],
+                np.nanmean(val_list[col], axis=0) - vref[col],
                 extent=domain[col],
                 transform=data_proj,
                 cmap=custom_cmap,
@@ -211,7 +257,7 @@ if __name__=='__main__':
 
 
             ## PLOT VARIABILITY
-            var_t = compute_variability(tas_list[col])
+            var_t = compute_variability(val_list[col])
             var_temporal.extend([
                 {'period': f'{periods[i]} - {periods[i+1]}', 'Variability': val, 'label': labels[col]}
                 for val in var_t.flatten()
@@ -219,16 +265,19 @@ if __name__=='__main__':
             
         
         ## PLOT HISTOGRAMS 
-        plot_histogram([tas_data.flatten(), tas_unet.flatten()], 
+        plot_histogram([val_data.flatten(), val_unet.flatten()], 
                        axes2[i], 
                        [labels[0], labels[1]], 
                        [colors[0], colors[1]], 
                        f'{periods[i]} - {periods[i+1]}')
-        plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], 
-                       axes3[i], 
-                       [labels[0], labels[2]], 
-                       [colors[0], colors[2]], 
-                       f'{periods[i]} - {periods[i+1]}')
+        if ai_step:
+            plot_histogram([val_data.flatten(), val_swinunet.flatten()], 
+                           axes3[i], 
+                           [labels[0], labels[2]], 
+                           [colors[0], colors[2]], 
+                           f'{periods[i]} - {periods[i+1]}')
+        else:
+            axes3[i].axis('off')
 
     for ax, col in zip(axes1[0], labels, strict=True):
         ax.set_title(col, fontsize=14)

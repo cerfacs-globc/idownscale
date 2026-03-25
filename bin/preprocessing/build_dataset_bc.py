@@ -32,6 +32,7 @@ if __name__=='__main__':
 
     domain = [-12.5, 27.5, 31., 71.]
     get_data = Data(domain=domain)
+    DATASET_BC_DIR.mkdir(parents=True, exist_ok=True)
     
     
     #### TRAIN HISTORIQUE DATASET
@@ -65,12 +66,12 @@ if __name__=='__main__':
             tas_simu = ds_simu.tas.values
             era5_train_hist.append(tas_era5)
             simu_train_hist.append(tas_simu)
-    era5_train_hist = np.stack(era5_train_hist, axis = 0)
-    simu_train_hist = np.stack(simu_train_hist, axis = 0)
-    train_hist = {'era5' : era5_train_hist,
-                  args.simu : simu_train_hist,
-                  'dates': DATES_BC_TRAIN_HIST}
-    np.savez(target_train_hist, **train_hist)
+        era5_train_hist = np.stack(era5_train_hist, axis = 0)
+        simu_train_hist = np.stack(simu_train_hist, axis = 0)
+        train_hist = {'era5' : era5_train_hist,
+                      args.simu : simu_train_hist,
+                      'dates': DATES_BC_TRAIN_HIST}
+        np.savez(target_train_hist, **train_hist)
     
 
     
@@ -107,12 +108,12 @@ if __name__=='__main__':
             tas_simu = ds_simu.tas.values
             era5_test_hist.append(tas_era5)
             simu_test_hist.append(tas_simu)
-    era5_test_hist = np.stack(era5_test_hist, axis = 0)
-    simu_test_hist = np.stack(simu_test_hist, axis = 0)
-    test_hist = {'era5' : era5_test_hist,
-                 args.simu : simu_test_hist,
-                 'dates': DATES_BC_TEST_HIST}
-    np.savez(target_test_hist, **test_hist)
+        era5_test_hist = np.stack(era5_test_hist, axis = 0)
+        simu_test_hist = np.stack(simu_test_hist, axis = 0)
+        test_hist = {'era5' : era5_test_hist,
+                     args.simu : simu_test_hist,
+                     'dates': DATES_BC_TEST_HIST}
+        np.savez(target_test_hist, **test_hist)
     
 
     #### TEST FUTUR DATASET
@@ -136,7 +137,7 @@ if __name__=='__main__':
             tas_simu = ds_simu.tas.values
             ds_simu.close()
             simu_test_future.append(tas_simu)
-    simu_test_future = np.stack(simu_test_future, axis = 0)
-    test_future = {args.simu : simu_test_future,
-                   'dates' : DATES_BC_TEST_FUTURE}
-    np.savez(target_test_future, **test_future)
+        simu_test_future = np.stack(simu_test_future, axis = 0)
+        test_future = {args.simu : simu_test_future,
+                       'dates' : DATES_BC_TEST_FUTURE}
+        np.savez(target_test_future, **test_future)

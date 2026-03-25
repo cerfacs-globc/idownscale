@@ -10,9 +10,7 @@ import pandas as pd
 import xarray as xr
 import xesmf as xe
 
-from iriscc.settings import (
-    CONFIG,
-    COUNTRIES_MASK,
+    DATASET_METADATA,
     EOBS_RAW_DIR,
     ERA5_DIR,
     GCM_RAW_DIR,
@@ -28,7 +26,7 @@ from iriscc.settings import (
 logger = logging.getLogger(__name__)
 
 
-def standardize_dims_and_coords(ds) :
+def standardize_dims_and_coords(ds, source_type=None) :
     dim_mapping = {'x': ['i', 'ni', 'xh', 'lon', 'nlon'],
                    'y': ['j', 'nj', 'yh', 'lat', 'nlat'],
                    'lev': ['olevel']}
@@ -46,6 +44,15 @@ def standardize_dims_and_coords(ds) :
            if name in ds.coords :
             ds = ds.rename({name: standard_name})
             break
+
+    # Variable renaming based on source_type
+    if source_type and source_type in DATASET_METADATA:
+        var_map = DATASET_METADATA[source_type].get('var_map', {})
+        # Invert map to go from source_name to standard_name
+        inv_map = {v: k for k, v in var_map.items() if v != k}
+        for src_var, std_var in inv_map.items():
+            if src_var in ds.data_vars and std_var not in ds.data_vars:
+                ds = ds.rename({src_var: std_var})
          
     return ds
 
@@ -219,7 +226,7 @@ def reformat_as_target(ds:xr.Dataset,
                                   target_projection)
 
 
-def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
+def crop_domain_from_ds(ds:xr.Dataset, domain:tuple|list) -> xr.Dataset:
    """
    Crops the input dataset to a specified geographical domain based on latitude and longitude coordinates.
    """
@@ -227,24 +234,19 @@ def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
       if 'x' in ds.dims:
          ds = ds.sel(x=slice(domain[0], domain[1]), y=slice(domain[2], domain[3]))
       else:
+         # Handle both slice and individual values
          ds = ds.sel(lon=slice(domain[0], domain[1]), lat=slice(domain[2], domain[3]))
    return ds
 
 
-def remove_countries(array:np.ndarray) -> np.ndarray:
+def remove_countries(array:np.ndarray, domain:list|tuple) -> np.ndarray:
    """
-   Removes specific countries from the input SAFRAN-like array.
-
-   Args:
-      array (np.ndarray): The input 2D array to be modified.
-
-   Returns:
-      np.ndarray: The modified array with specific countries removed.
+   Removes specific countries (Switzerland, Germany, etc.) from an array.
    """
    # Load the countries mask dataset
    ds = xr.open_dataset(COUNTRIES_MASK)
    ds = ds.reindex(lat=ds.lat[::-1])  # Reverse latitude order if necessary
-   ds = crop_domain_from_ds(ds, CONFIG['exp3']['domain'])  # Crop to France domain
+   ds = crop_domain_from_ds(ds, domain)  # Crop to experiment domain
    ds = ds.drop_vars('spatial_ref')  # Drop unnecessary variable
    index = ds['index'].values
 
@@ -358,19 +360,24 @@ class Data(object):
       self.domain = domain
 
    def clean_data(self, data, var, data_type=None):
-      if var == 'pr':
+      if var.startswith('pr'):
          data[data < 0] = 0.
          if data_type in {'gcm', 'rcm'}: # kg/m2/s to mm/day
             data = data * 3600 * 24
-      if var == 'tas':
+      if var.startswith('tas') or var.startswith('ta'):
          if np.nanmean(data) < 100: # celsius to kelvin
             data = data + 273.15
       return data
    
    def get_era5_dataset(self, var: str, date):
-      file = next((ERA5_DIR / f"{var}_1d").glob(f"{var}*_{date.year}_*"))
+      meta = DATASET_METADATA['era5']
+      src_var = meta['var_map'].get(var, var)
+      dir_name = meta['dir_pattern'].format(var=var)
+      pattern = meta['file_pattern'].format(var=src_var, year=date.year)
+      
+      file = next((ERA5_DIR / dir_name).glob(pattern))
       ds = xr.open_dataset(file)
-      ds = standardize_dims_and_coords(ds)
+      ds = standardize_dims_and_coords(ds, source_type='era5')
       ds = standardize_longitudes(ds)
       ds = ds.reindex(lat=ds.lat[::-1])
       ds = crop_domain_from_ds(ds, self.domain)
@@ -379,35 +386,52 @@ class Data(object):
       return ds
    
    def get_gcm_dataset(self, var: str, date, ssp: str | None = None):
-      if date is None or date < pd.Timestamp("2015-01-01"):
-         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(f"*/{var}*historical*r1i1p1f2*"))
-      else:
-         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(f"*/{var}*{ssp}*"))
+      meta = DATASET_METADATA['gcm']
+      src_var = meta['var_map'].get(var, var)
+      period = 'historical' if (date is None or date < pd.Timestamp("2015-01-01")) else ssp
+      pattern = meta['file_pattern'].format(var=src_var, period=period)
+
+      file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(pattern))
       ds = xr.open_dataset(file)
       ds = standardize_longitudes(ds)
       ds = self.crop_time_dim(ds, date)
+      ds = standardize_dims_and_coords(ds, source_type='gcm')
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
       return ds
    
    def get_rcm_dataset(self, var: str, date, ssp: str | None = None):
+      meta = DATASET_METADATA['rcm']
+      src_var = meta['var_map'].get(var, var)
+      
       if date is None:
-         file = next(RCM_RAW_DIR.glob(f"ALADIN/{var}*ssp585*r1i1p1f2*"))
+         period = 'ssp585' # default for geometry loading
+         pattern = meta['file_pattern'].format(var=src_var, period=period)
+         file = next(RCM_RAW_DIR.glob(pattern))
          ds = xr.open_dataset(file).isel(time=0)
       else :
-         if date < pd.Timestamp('2015-01-01'):
-            file_for_xy = next(RCM_RAW_DIR.glob(f'ALADIN/{var}*ssp585*r1i1p1f2*'))
-            ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
-            xref = ds_for_xy['x'].values
-            yref = ds_for_xy['y'].values
-            ds_for_xy.close()
-            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(f"ALADIN/{var}*historical*r1i1p1f2*"))]
-         else :
-            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(f"ALADIN/{var}*{ssp}*r1i1p1f2*"))]
+         period = 'historical' if date < pd.Timestamp('2015-01-01') else ssp
+         pattern = meta['file_pattern'].format(var=src_var, period=period)
+         
+         if period == 'historical':
+             # Need a reference for geometry
+             ref_pattern = meta['file_pattern'].format(var=src_var, period='ssp585')
+             file_for_xy = next(RCM_RAW_DIR.glob(ref_pattern))
+             ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
+             xref = ds_for_xy['x'].values
+             yref = ds_for_xy['y'].values
+             ds_for_xy.close()
+         
+         files = [str(p) for p in sorted(RCM_RAW_DIR.glob(pattern))]
          for file in files:
+            # Check if file covers the date by parsing year from filename
+            # This logic remains somewhat specific but uses the pattern
             if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
                ds = xr.open_dataset(file)
                ds = self.crop_time_dim(ds, date)
+      
+      ds = standardize_dims_and_coords(ds, source_type='rcm')
+
       if 'x' not in ds.coords:
          ds = ds.assign_coords(x = (['x'], xref))
          ds = ds.assign_coords(y = (['y'], yref))
@@ -419,18 +443,42 @@ class Data(object):
       ds[var].values = self.clean_data(ds[var].values, var, data_type='rcm')
       return ds
    
-   def get_safran_dataset(self, var:str, date):
-      ds = xr.open_dataset(next(SAFRAN_REFORMAT_DIR.glob(f"{var}*{date.year}_reformat.nc")))
+   def get_cerra_dataset(self, var:str, date):
+      from iriscc.settings import CERRA_RAW_DIR
+      meta = DATASET_METADATA['cerra']
+      src_var = meta['var_map'].get(var, var)
+      pattern = meta['file_pattern'].format(var=src_var)
+
+      file = next(CERRA_RAW_DIR.glob(pattern))
+      ds = xr.open_dataset(file)
       ds = self.crop_time_dim(ds, date)
+      ds = standardize_dims_and_coords(ds, source_type='cerra')
+      ds = crop_domain_from_ds(ds, self.domain)
+      ds[var].values = self.clean_data(ds[var].values, var, data_type='cerra')
+      return ds
+   
+   def get_safran_dataset(self, var:str, date, exp:str=None):
+      meta = DATASET_METADATA['safran']
+      src_var = meta['var_map'].get(var, var)
+      pattern = meta['file_pattern'].format(var=src_var, year=date.year)
+
+      ds = xr.open_dataset(next(SAFRAN_REFORMAT_DIR.glob(pattern)))
+      ds = self.crop_time_dim(ds, date)
+      ds = standardize_dims_and_coords(ds, source_type='safran')
       ds[var].values = self.clean_data(ds[var].values, var, data_type='safran')
-      ds[var].values = remove_countries(ds[var].values)
+      if exp and CONFIG[exp].get('remove_countries', False):
+         ds[var].values = remove_countries(ds[var].values, domain=self.domain)
       return ds
 
    def get_eobs_dataset(self, var:str, date):
-      file = next(EOBS_RAW_DIR.glob(f'{var}*'))
+      meta = DATASET_METADATA['eobs']
+      src_var = meta['var_map'].get(var, var)
+      pattern = meta['file_pattern'].format(var=src_var)
+
+      file = next(EOBS_RAW_DIR.glob(pattern))
       ds = xr.open_dataset(file)
       ds = self.crop_time_dim(ds, date)
-      ds = standardize_dims_and_coords(ds)
+      ds = standardize_dims_and_coords(ds, source_type='eobs')
       ds = apply_landseamask(ds, 'eobs', variables=[var])
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='eobs')
@@ -442,11 +490,13 @@ class Data(object):
          ds = ds.isel(time=0)
       return ds
    
-   def get_target_dataset(self, target:str, var:str='tas', date=None) -> xr.Dataset:
+   def get_target_dataset(self, target:str, var:str='tas', date=None, exp:str=None) -> xr.Dataset:
       if target == 'safran':
-         ds = self.get_safran_dataset(var, date)
+         ds = self.get_safran_dataset(var, date, exp=exp)
       elif target == 'eobs':
          ds = self.get_eobs_dataset(var, date)
+      elif target == 'cerra':
+         ds = self.get_cerra_dataset(var, date)
       return ds
    
 

@@ -25,6 +25,7 @@ ERA5_DIR = Path("/scratch/globc/page/idownscale_active/rawdata/era5")
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
 LOCAL_EOBS_RAW_DIR = LOCAL_RAW_DIR / 'eobs'
 ALADIN_RAW_DIR = RAW_DIR / 'ALADIN'
+CERRA_RAW_DIR = RAW_DIR / 'cerra'
 TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'tas_day_SAFRAN_1959_reformat.nc'
 TARGET_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc'
 TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/historical/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
@@ -64,6 +65,34 @@ GRAPHS_DIR = Path('/scratch/globc/page/idownscale_active/graph/')
 METRICS_DIR = Path('/scratch/globc/page/idownscale_active/metrics/')
 PREDICTION_DIR = Path('/scratch/globc/page/idownscale_active/prediction/')
 
+DATASET_METADATA = {
+    'era5': {
+        'var_map': {'tas': 't2m', 'pr': 'tp'},
+        'file_pattern': '{var}*_{year}_*',
+        'dir_pattern': '{var}_1d'
+    },
+    'cerra': {
+        'var_map': {'tas': 'tas', 'pr': 'tp'}, 
+        'file_pattern': '{var}*'
+    },
+    'safran': {
+        'var_map': {'tas': 'tas', 'pr': 'pr'},
+        'file_pattern': '{var}*{year}_reformat.nc'
+    },
+    'eobs': {
+        'var_map': {'tas': 'tas', 'pr': 'pr'},
+        'file_pattern': '{var}*'
+    },
+    'gcm': {
+        'var_map': {'tas': 'tas', 'pr': 'pr'},
+        'file_pattern': '*/{var}*{period}*r1i1p1f2*'
+    },
+    'rcm': {
+        'var_map': {'tas': 'tas', 'pr': 'pr'},
+        'file_pattern': 'ALADIN/{var}*{period}*r1i1p1f2*'
+    }
+}
+
 CONFIG = {
     'exp3':
         {'target': 'safran',
@@ -81,7 +110,8 @@ CONFIG = {
             'dataset': DATASET_EXP3_30Y_DIR,
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
-            'channels': ['elevation', 'tas input', 'tas target']
+            'channels': ['elevation', 'tas input', 'tas target'],
+            'remove_countries': True
         },
 
     'exp4': # obsolete, use exp5 
@@ -120,7 +150,10 @@ CONFIG = {
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
-            'ssp': 'ssp585'
+            'ssp': 'ssp585',
+            'debiaser': 'cdft',
+            'model': 'unet',
+            'ai_step': True
         },
     'exp6':
         {'target':'eobs',
@@ -135,7 +168,12 @@ CONFIG = {
             'target_vars': ['pr'],
             'input_vars': ['elevation', 'pr'],
             'channels': ['elevation', 'pr input', 'pr target'], # to not get lost for normalization
-            'ssp': 'ssp585'
+            'ssp': 'ssp585',
+            'debiaser': 'cdft',
+            'model': 'unet',
+            'ai_step': True,
+            'input_source': 'era5',
+            'remove_countries': False
         },
     'exp7':
         {'target':'eobs',
@@ -150,7 +188,9 @@ CONFIG = {
             'target_vars': ['pr'],
             'input_vars': ['elevation', 'huss', 'psl', 'tas'],
             'channels': ['elevation', 'huss input', 'psl input', 'tas input', 'pr target'], # to not get lost for normalization
-            'ssp': 'ssp585'
+            'ssp': 'ssp585',
+            'input_source': 'era5',
+            'remove_countries': False
         },
     'exp8':
         {'target':'eobs',
@@ -190,9 +230,32 @@ CONFIG = {
                         'uas input',
                         'psl input',
                         'pr target'], # to not get lost for normalization
-            'ssp': 'ssp585'
-        }
+            'ssp': 'ssp585',
+            'input_source': 'era5',
+            'remove_countries': False
+        },
+
+    'exp_cerra_test': {
+        'target': 'cerra',
+        'domain': [-6., 10., 38, 54],
+        'data_projection' : ccrs.PlateCarree(),
+        'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+        'pyproj_projection' : None,
+        'shape': (64,64),
+        'target_file' : TARGET_EOBS_FRANCE_FILE,
+        'orog_file' : OROG_EOBS_FRANCE_FILE,
+        'dataset' : DATASET_DIR / 'dataset_cerra_test',
+        'target_vars': ['tas'],
+        'input_vars': ['elevation', 'tas'],
+        'channels': ['elevation', 'tas input', 'tas target'],
+        'ssp': 'ssp585',
+        'debiaser': 'cdft',
+        'model': 'unet',
+        'ai_step': True,
+        'input_source': 'era5',
+        'remove_countries': False
     }
+}
 
 COLORS = {'SAFRAN 8km': 'purple',
           'E-OBS 25km' : 'blue',

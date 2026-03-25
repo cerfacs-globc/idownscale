@@ -6,6 +6,7 @@ Welcome to idownscale's documentation!
    :caption: Contents:
 
    getting_started
+   package_architecture
    management
    preprocessing
    training

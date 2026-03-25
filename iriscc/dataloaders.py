@@ -73,20 +73,18 @@ class IRISCC(Dataset):
         return x.float(), y.float()
 
 
-def get_dataloaders(data_type: str) -> DataLoader:
+def get_dataloaders(data_type: str, hparams: IRISCCHyperParameters) -> DataLoader:
     """
     Creates and returns a PyTorch DataLoader for the specified data type.
 
     Args:
-        data_type (str): The type of data to load. Expected values are 'train' or other types
-                            (e.g., 'validation', 'test'). Determines the shuffle behavior and batch size.
+        data_type (str): The type of data to load.
+        hparams (IRISCCHyperParameters): Hyperparameters for the dataset.
 
     Returns:
-        DataLoader: A PyTorch DataLoader object configured with the appropriate dataset,
-                    transformations, batch size, and shuffle settings.
+        DataLoader: A PyTorch DataLoader object.
     """
 
-    hparams = IRISCCHyperParameters()
     transforms = v2.Compose([
                 Log10Transform(hparams.channels),
                 MinMaxNormalisation(hparams.sample_dir, hparams.output_norm), 
