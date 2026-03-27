@@ -1,5 +1,6 @@
 """
 Vectorized version of legacy compute_test_metrics_day.py for speed.
+
 Loads predictions from Phase 5 .nc files instead of running inference day-by-day.
 """
 

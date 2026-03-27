@@ -6,8 +6,8 @@ import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-import matplotlib
-matplotlib.use('Agg')
+import matplotlib as mpl
+mpl.use('Agg')
 
 from iriscc.settings import CONFIG,METRICS_DIR, GRAPHS_DIR
 from iriscc.plotutils import plot_map_contour, plot_monthly_var_seasonal_cycle
