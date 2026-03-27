@@ -7,6 +7,8 @@ pytest.importorskip("esmpy")
 from iriscc.datautils import (
     standardize_longitudes,
     generate_bounds,
+    standardize_dims_and_coords,
+    crop_domain_from_ds,
 )
 
 def test_standardize_longitudes():
@@ -32,7 +34,6 @@ def test_generate_bounds():
     assert bounds[3] == 35
 
 def test_standardize_dims_and_coords():
-    from iriscc.datautils import standardize_dims_and_coords
     ds = xr.Dataset(coords={'nav_lon': [0, 1], 'nav_lat': [0, 1]}, data_vars={'tas': (('nav_lat', 'nav_lon'), [[1, 2], [3, 4]])})
     ds = ds.rename({'nav_lon': 'nlon', 'nav_lat': 'nlat'}) # Mock some odd names
     ds_std = standardize_dims_and_coords(ds)
@@ -40,7 +41,6 @@ def test_standardize_dims_and_coords():
     assert 'lat' in ds_std.coords
 
 def test_crop_domain_from_ds():
-    from iriscc.datautils import crop_domain_from_ds
     ds = xr.Dataset(coords={'lon': [0, 10, 20], 'lat': [0, 10, 20]}, data_vars={'tas': (('lat', 'lon'), np.zeros((3,3)))})
     domain = (5, 15, 5, 15)
     ds_cropped = crop_domain_from_ds(ds, domain)

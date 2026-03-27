@@ -49,7 +49,7 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     
     # Build dictionary dynamically to avoid length mismatch if labels are missing
     df_dict = {'dates': dates}
-    for i, label in enumerate(labels):
+    for label in labels:
         if label in df_var_temporal['label'].unique():
             values = df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
                                     (df_var_temporal['label'] == label)]['Variability'].values
