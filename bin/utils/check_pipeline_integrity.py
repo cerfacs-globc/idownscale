@@ -139,7 +139,7 @@ def main():
         print("\nMinimal Validation Table:")
         try:
             print(df.to_markdown(index=False))
-        except (ImportError, Exception):
+        except (ImportError, Exception): # noqa: BLE001
             print(df.to_string(index=False))
         if 'FAIL' in str(data):
             sys.exit(1)
