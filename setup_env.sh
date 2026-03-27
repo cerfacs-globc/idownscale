@@ -18,7 +18,7 @@ mkdir -p "$CONDA_PKGS_DIRS" "$PIP_CACHE_DIR" "$TMPDIR"
 # ── Load conda (needed to create/install into the env) ───────────────────────
 module load python/anaconda3.11_arm
 
-CONDA_PREFIX="/scratch/globc/page/conda/envs/exp5_arm"
+CONDA_PREFIX="/scratch/globc/page/conda/envs/idownscale_arm_definitive"
 
 # ── Start from zero ────────────────────────────────────────────────────────────
 echo "=== Removing old environment ==="
@@ -34,7 +34,7 @@ conda create -y -p "$CONDA_PREFIX" -c conda-forge python=3.11
 echo "=== Installing conda packages ==="
 conda install -y -p "$CONDA_PREFIX" -c conda-forge \
     eigen esmpy xesmf netcdf4 cartopy \
-    numpy scipy pandas xarray \
+    pip numpy scipy pandas xarray \
     matplotlib seaborn pyproj \
     pytorch torchvision torchaudio pytorch-lightning torchmetrics \
     timm tqdm
@@ -56,7 +56,7 @@ echo "=== Installing pip-only packages ==="
     --prefix "$CONDA_PREFIX" \
     --no-cache-dir \
     ibicus==1.1.1 \
-    monai==1.4.0 \
+    monai==1.4.0 SBCK==1.4.2 \
     SBCK==1.4.2
 
 # ── Install the project itself ────────────────────────────────────────────────

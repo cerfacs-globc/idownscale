@@ -21,7 +21,7 @@ cd /scratch/globc/page/idownscale_active || exit 1
 
 module load python/anaconda3.11_arm
 
-CONDA_PREFIX="/scratch/globc/page/conda/envs/exp5_arm"
+CONDA_PREFIX="/scratch/globc/page/conda/envs/idownscale_arm_definitive"
 PYTHON="$CONDA_PREFIX/bin/python"
 
 # Isolate from system Anaconda (PYTHONHOME) and stale ~/.local packages
