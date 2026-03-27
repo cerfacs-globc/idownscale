@@ -151,6 +151,7 @@ if __name__=='__main__':
     parser.add_argument('--ssp', type=str, help='SSP scenario (e.g., ssp585)')
     parser.add_argument('--simu', type=str, help='gcm or rcm', default='gcm')
     parser.add_argument('--var', type=str, help='tas, pr', default='tas')
+    parser.add_argument('--force', action='store_true', help='Force data regeneration')
     args = parser.parse_args()
 
     exp = args.exp
@@ -175,13 +176,24 @@ if __name__=='__main__':
     test_hist = dict(np.load(DATASET_BC_DIR/f'bc_test_hist_{simu}.npz', allow_pickle=True))
     test_future = dict(np.load(DATASET_BC_DIR/f'bc_test_future_{simu}.npz', allow_pickle=True))
 
+    # Check if outputs already exist to skip execution
+    if simu == 'gcm':
+        final_nc = GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc'
+    else:
+        final_nc = RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc'
+    
+    sample_dir = DATASET_BC_DIR.joinpath(f'dataset_{exp}_test_{simu}_bc')
+    if final_nc.exists() and any(sample_dir.iterdir()) and not args.force:
+        print(f"Skipping Bias Correction (Ibicus): {final_nc} and samples already exist.", flush=True)
+        sys.exit(0)
+
     # Ensure output directories exist
     GRAPHS_DIR.joinpath('biascorrection').mkdir(parents=True, exist_ok=True)
     if simu == 'gcm':
         GCM_RAW_DIR.joinpath('CNRM-CM6-1-BC').mkdir(parents=True, exist_ok=True)
     elif simu == 'rcm':
         RCM_RAW_DIR.joinpath('ALADIN-BC').mkdir(parents=True, exist_ok=True)
-    DATASET_BC_DIR.joinpath(f'dataset_{exp}_test_{simu}_bc').mkdir(parents=True, exist_ok=True)
+    sample_dir.mkdir(parents=True, exist_ok=True)
 
     # Pre-process elevation data to match target grid
     print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Preparing elevation data...", flush=True)

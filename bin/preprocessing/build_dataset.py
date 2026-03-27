@@ -63,24 +63,34 @@ class DatasetBuilder:
     def process_date(self, 
                      date: datetime.date, 
                      plot: bool = False, 
-                     baseline: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+                     baseline: bool = False,
+                     force: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+        date_str = date.date().strftime('%Y%m%d')
+        if baseline:
+            dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
+        else:
+            dataset = self.dataset
+        
+        target_path = dataset / f'sample_{date_str}.npz'
+        if target_path.exists() and not plot and not force:
+            # print(f"Skipping existing sample: {target_path}", flush=True)
+            return None, None
+
         if baseline:
             x = self.baseline_data(date)
             y = self.target_data(date)
             sample = {'x': x,
                       'y': y}
-            dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
         else:
             x = self.input_data(date)
             y = self.target_data(date)
             sample = {'x': x, 
                         'y': y}
-            dataset = self.dataset
-        date_str = date.date().strftime('%Y%m%d')
+
         if plot:
             plot_test(x[1], 'Input ERA5', GRAPHS_DIR/'test.png')
         else:
-            np.savez(dataset / f'sample_{date_str}.npz', **sample)
+            np.savez(target_path, **sample)
         return x, y
 
     def input_data(self, 
@@ -169,6 +179,10 @@ if __name__ == '__main__':
         '--baseline', type=str2bool, nargs='?', const=True,
         help='Use baseline data instead of input data', default=False
     )
+    parser.add_argument(
+        '--force', type=str2bool, nargs='?', const=True,
+        help='Force data regeneration', default=False
+    )
     args = parser.parse_args()
     exp = args.exp
 
@@ -183,7 +197,8 @@ if __name__ == '__main__':
         print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
         x, y = dataset_builder.process_date(date, 
                                             plot=args.plot, 
-                                            baseline=args.baseline)
+                                            baseline=args.baseline,
+                                            force=args.force)
 
         
 

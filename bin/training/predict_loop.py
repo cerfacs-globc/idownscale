@@ -13,16 +13,20 @@ sys.path.append('.')
 
 import numpy as np
 import pandas as pd
+import pathlib
 import torch
 import xarray as xr
 from torchvision.transforms import v2
 
-from iriscc.datautils import Data, remove_countries
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR,
-                             RUNS_DIR)
-from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
-                               Pad, UnPad)
+# REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
+torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
+
+from iriscc.datautils import Data, get_latest_version, remove_countries # noqa: E402
+from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
+from iriscc.settings import (CONFIG, DATASET_BC_DIR, PREDICTION_DIR, # noqa: E402
+                             RUNS_DIR) # noqa: E402
+from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation, # noqa: E402
+                               Pad, UnPad) # noqa: E402
 
 def get_target_format(exp:str, dates):
     get_data = Data(CONFIG[exp]['domain'])
@@ -55,13 +59,41 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
     parser.add_argument('--simu-test', type=str, help='gcm or gcm_bc, rcm, rcm_bc', default=None)
+    parser.add_argument('--force', action='store_true', help='Force prediction regeneration')
     args = parser.parse_args()
 
+    # Define output filename first to check for existence
+    startdate = args.startdate
+    enddate = args.enddate
+    if pd.to_datetime(enddate) <= pd.Timestamp('2014-12-31'):
+        period = 'historical'
+    else:
+        period = 'ssp585'
 
-    run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
+    if args.simu_test.startswith('gcm'):
+        data_type = 'CNRM-CM6-1'
+    elif args.simu_test.startswith('rcm'):
+        data_type = 'ALADIN'
+    
+    test_name = args.test_name
+    if args.simu_test is not None:
+        test_name = f'{args.test_name}_{args.simu_test}'
+
+    output_file = PREDICTION_DIR/f'tas_day_{data_type}_{period}_r1i1p1f2_gr_{startdate}_{enddate}_{args.exp}_{test_name}.nc'
+    
+    if output_file.exists() and not args.force:
+        print(f"Skipping INFERENCE: {output_file} already exists. Use --force to overwrite.", flush=True)
+        sys.exit(0)
+
+    log_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
+    run_dir = get_latest_version(log_dir)
+    print(f"Using version: {run_dir.name}", flush=True)
+
     checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
 
-    device = 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f"Using device: {device}", flush=True)
+    torch.set_float32_matmul_precision('high')
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
     model.eval()
     hparams = model.hparams['hparams']
@@ -75,24 +107,9 @@ if __name__=='__main__':
 
     sample_dir = hparams['sample_dir']
     if args.simu_test is not None:
-        test_name = f'{args.test_name}_{args.simu_test}'
         sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}' # bc or not
-    else:
-        test_name = args.test_name
 
-    
-    startdate = args.startdate
-    enddate = args.enddate
     dates = pd.date_range(start=startdate, end=enddate, freq='D')
-    if dates[-1] <= pd.Timestamp('2014-12-31'):
-        period = 'historical'
-    else:
-        period = 'ssp585'
-
-    if args.simu_test.startswith('gcm'):
-        data_type = 'CNRM-CM6-1'
-    elif args.simu_test.startswith('rcm'):
-        data_type = 'ALADIN'
     
     ds, y = get_target_format(args.exp, dates=dates)
     y = np.expand_dims(y, axis= 0)
@@ -121,5 +138,5 @@ if __name__=='__main__':
         y_hat[condition] = np.nan
         ds.tas[i] = y_hat
 
-    ds.to_netcdf(PREDICTION_DIR/f'tas_day_{data_type}_{period}_r1i1p1f2_gr_{startdate}_{enddate}_{args.exp}_{test_name}.nc')
+    ds.to_netcdf(output_file)
     

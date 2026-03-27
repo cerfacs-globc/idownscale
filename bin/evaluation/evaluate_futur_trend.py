@@ -46,24 +46,28 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     axes[0].legend()
 
     dates = pd.date_range(*(pd.to_datetime([f'{periods[-2]}-01-01', f'{periods[-1]}-12-31'])))
-    dfs = pd.DataFrame.from_dict({'dates' : dates,
-                        labels[0]: 
-                            df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
-                             (df_var_temporal['label'] == labels[0])]['Variability'].values,
-                        labels[1]: 
-                            df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
-                             (df_var_temporal['label'] == labels[1])]['Variability'].values,
-                        labels[2]: 
-                            df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
-                             (df_var_temporal['label'] == labels[2])]['Variability'].values})
+    
+    # Build dictionary dynamically to avoid length mismatch if labels are missing
+    df_dict = {'dates': dates}
+    for label in labels:
+        if label in df_var_temporal['label'].unique():
+            values = df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
+                                    (df_var_temporal['label'] == label)]['Variability'].values
+            if len(values) == len(dates):
+                df_dict[label] = values
+            else:
+                print(f"Warning: Length mismatch for {label} ({len(values)} != {len(dates)}). Skipping in variability plot.")
+    
+    dfs = pd.DataFrame.from_dict(df_dict)
     dfs = dfs.groupby(dfs['dates'].dt.year).mean()
     for i, label in enumerate(labels):
-        axes[1].plot(dfs['dates'], 
-                    dfs[label], 
-                    '^-',
-                    label=label,
-                    color=colors[i],
-                    linewidth=2.5)
+        if label in dfs.columns:
+            axes[1].plot(dfs.index, 
+                        dfs[label], 
+                        '^-',
+                        label=label,
+                        color=colors[i],
+                        linewidth=2.5)
     axes[1].set_title("Variability annual mean")
     axes[1].set_ylabel(f"Variability {unit}")
     return fig, axes
@@ -77,10 +81,17 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--ssp', type=str, help='Scenario name (e.g., ssp126, ssp585)')
     parser.add_argument('--simu', type=str, help='Simulation type (e.g., gcm, rcm)', default='gcm') 
+    parser.add_argument('--force', action='store_true', help='Force evaluation regeneration')
     args = parser.parse_args()
     exp = args.exp
     ssp = args.ssp
     simu = args.simu
+
+    # Check for existing output plot to skip
+    output_plot = GRAPHS_DIR/f'metrics/{exp}/{exp}_spatial_futur_trend_{ssp}_{simu}.png'
+    if output_plot.exists() and not args.force:
+        print(f"Skipping EVALUATION: {output_plot} already exists. Use --force to overwrite.", flush=True)
+        sys.exit(0)
 
     periods = ['2015', '2040', '2070', '2100']   
 
@@ -103,7 +114,21 @@ if __name__=='__main__':
         simu_name = 'GCM 1°'
         simu_dir = GCM_RAW_DIR / 'CNRM-CM6-1'
     labels = [simu_name, 'UNet', 'SwinUNETR']
+    available_indices = [0] # Simulation is always available
+    
+    # Check UNet
+    unet_glob = list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+    if unet_glob:
+        available_indices.append(1)
+    
+    # Check SwinUNETR
+    swin_glob = list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+    if swin_glob:
+        available_indices.append(2)
+
+    active_labels = [labels[i] for i in available_indices]
     colors = [COLORS[i] for i in labels]
+    active_colors = [COLORS[labels[i]] for i in available_indices]
     colors_map = ['white', 'yellow', 'orange', 'red', 'black']
     custom_cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', colors_map, N=12)
     unit = return_unit(CONFIG[exp]['target_vars'][0])
@@ -130,26 +155,26 @@ if __name__=='__main__':
     )
 
     ## Reference 1980-2010
-    data_ref = xr.open_mfdataset(list(simu_dir.glob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
+    data_ref = xr.open_mfdataset(list(simu_dir.rglob('tas*historical_r1i1p1f2*.nc'))).sel(time=slice('1980', '2010'))
     data_ref = standardize_longitudes(data_ref)
     data_ref = crop_domain_from_ds(data_ref, CONFIG[exp]['domain'])
     data_ref = data_ref.mean(dim='time')
     tas_ref = data_ref.tas.values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(
-        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
-    ).sel(time=slice('1980', '2010'))
-    unet_ref = unet_ref.mean(dim='time')
-    tas_unet_ref = unet_ref.tas.values
-    unet_ref.close()
+    tas_unet_ref = None
+    if 1 in available_indices:
+        unet_ref = xr.open_mfdataset(unet_glob).sel(time=slice('1980', '2010'))
+        unet_ref = unet_ref.mean(dim='time')
+        tas_unet_ref = unet_ref.tas.values
+        unet_ref.close()
 
-    swinunet_ref = xr.open_mfdataset(
-        list(PREDICTION_DIR.glob(f'tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
-    ).sel(time=slice('1980', '2010'))
-    swinunet_ref = swinunet_ref.mean(dim='time')
-    tas_swinunet_ref = swinunet_ref.tas.values
-    swinunet_ref.close()
+    tas_swinunet_ref = None
+    if 2 in available_indices:
+        swinunet_ref = xr.open_mfdataset(swin_glob).sel(time=slice('1980', '2010'))
+        swinunet_ref = swinunet_ref.mean(dim='time')
+        tas_swinunet_ref = swinunet_ref.tas.values
+        swinunet_ref.close()
 
     total_periods = len(periods) - 1
     for i in range(total_periods):
@@ -158,28 +183,32 @@ if __name__=='__main__':
         print(log_msg, flush=True)
 
         # GET DATA
-        file = next(simu_dir.glob(f'tas*{ssp}_r1i1p1f2*.nc'))
+        file = next(simu_dir.rglob(f'tas*{ssp}_r1i1p1f2*.nc'))
         data = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
         data = standardize_longitudes(data)
         data = crop_domain_from_ds(data, CONFIG[exp]['domain'])
         tas_data = data.tas.values
         data.close()
         
-        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
-        unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        tas_unet = unet.tas.values
-        unet.close()
+        tas_unet = None
+        if 1 in available_indices:
+            file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc'))
+            unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            tas_unet = unet.tas.values
+            unet.close()
 
-        file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
-        swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
-        tas_swinunet = swinunet.tas.values
-        swinunet.close()
+        tas_swinunet = None
+        if 2 in available_indices:
+            file = next(PREDICTION_DIR.glob(f'tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc'))
+            swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i+1]))
+            tas_swinunet = swinunet.tas.values
+            swinunet.close()
 
         tas_list = [tas_data, tas_unet, tas_swinunet]
         tref = [tas_ref, tas_unet_ref, tas_swinunet_ref]
 
         ## PLOT CHANGES MAPS
-        for col in range(3):
+        for col in available_indices:
             ax1 = axes1[i, col]
             data_proj = inputs_projections[col]
             cs = ax1.contourf(
@@ -212,16 +241,19 @@ if __name__=='__main__':
             
         
         ## PLOT HISTOGRAMS 
-        plot_histogram([tas_data.flatten(), tas_unet.flatten()], 
-                       axes2[i], 
-                       [labels[0], labels[1]], 
-                       [colors[0], colors[1]], 
-                       f'{periods[i]} - {periods[i+1]}')
-        plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], 
-                       axes3[i], 
-                       [labels[0], labels[2]], 
-                       [colors[0], colors[2]], 
-                       f'{periods[i]} - {periods[i+1]}')
+        ## PLOT HISTOGRAMS 
+        if 1 in available_indices:
+            plot_histogram([tas_data.flatten(), tas_unet.flatten()], 
+                           axes2[i], 
+                           [labels[0], labels[1]], 
+                           [colors[0], colors[1]], 
+                           f'{periods[i]} - {periods[i+1]}')
+        if 2 in available_indices:
+            plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], 
+                           axes3[i], 
+                           [labels[0], labels[2]], 
+                           [colors[0], colors[2]], 
+                           f'{periods[i]} - {periods[i+1]}')
 
     for ax, col in zip(axes1[0], labels, strict=True):
         ax.set_title(col, fontsize=14)
@@ -229,7 +261,7 @@ if __name__=='__main__':
     
     fig1.suptitle(f'Temperature changes for {ssp} (Reference : 1980-2010)', fontsize=16)
     fig1.tight_layout(rect=[0.05, 0, 1, 1], pad = 2)
-    fig1.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_spatial_futur_trend_{ssp}_{simu}.png')
+    fig1.savefig(output_plot)
 
     fig2.suptitle(f'Daily temperature ditribution for {ssp} {periods[0]} - {periods[-1]} [UNet]', fontsize=16)
     fig2.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_hist_futur_trend_{ssp}_unet_{simu}.png')

@@ -8,15 +8,20 @@ import sys
 
 sys.path.append('.')
 
+import pathlib
+
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
 
-from iriscc.dataloaders import get_dataloaders
-from iriscc.hparams import IRISCCHyperParameters
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger # noqa: E402
+# REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
+torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
+
+from iriscc.dataloaders import get_dataloaders # noqa: E402
+from iriscc.hparams import IRISCCHyperParameters # noqa: E402
+from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
+from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule # noqa: E402
 
 torch.cuda.is_available()
 
@@ -42,9 +47,8 @@ torch.set_float32_matmul_precision('high') # For hybrid partition
 trainer = pl.Trainer(max_epochs=hparams.max_epoch, 
                      default_root_dir=hparams.runs_dir,
                      log_every_n_steps=1,
-                     accelerator="gpu",
+                     accelerator="auto",
                      devices="auto",
-                     precision='16-mixed',
                      logger=logger,
                      callbacks=checkpoint_callback)
 
