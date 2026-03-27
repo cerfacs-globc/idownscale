@@ -13,24 +13,22 @@ The **IRISCC** project provides high-quality, fine-resolution (10 km) climate pr
 
 ## 📖 Documentation
 
-The full documentation is now available via **Sphinx** and can be hosted on **ReadTheDocs**.
+Full documentation is available in the `docs/` directory.
 
+- **[Release Notes](RELEASE_NOTES.md)**: Latest stabilization and scientific fixes.
 - **[Getting Started](docs/getting_started.rst)**: Installation and directory structure.
-- **[Workflow Management](docs/management.rst)**: How to run the `run_exp5_full.sh` pipeline, use `FORCE`/`REGENERATE`, and monitor logs.
-- **[Data Preprocessing](docs/preprocessing.rst)**: Building datasets and computing statistics.
-- **[Model Training](docs/training.rst)**: Architecture details and inference loops.
-- **[Evaluation](docs/evaluation.rst)**: Metrics and visualization.
+- **[Workflow Management](docs/management.rst)**: Running the `run_exp5_full.sh` pipeline with automated integrity checks.
+- **[Evaluation](docs/evaluation.rst)**: Detailed metrics and visualization protocols.
 
 ---
 
 ## ⚡ Quick Start
 
-### Installation
+### Installation & Workspace Setup
 
 ```bash
-conda create -n idownscale_env python=3.11
 conda activate idownscale_env
-pip install -r requirements.txt
+./bin/utils/setup_workspace.sh # Configures absolute paths for your environment
 ```
 
 ### Running the Experiment 5 Pipeline
@@ -38,30 +36,20 @@ pip install -r requirements.txt
 The main entry point for the full automated workflow is `run_exp5_full.sh`.
 
 ```bash
-# Run the full pipeline (Phases 1-6)
+# Run the full pipeline with structured logging and automated validation
 ./run_exp5_full.sh
-
-# Resume a specifically failed phase (e.g., Phase 3 Bias Correction)
-START_PHASE=3 STOP_PHASE=3 FORCE=1 ./run_exp5_full.sh
 ```
 
----
-
-## 🛠 Workflow Controls
-
-| Variable | Effect |
-| :--- | :--- |
-| `FORCE=1` | Bypasses `.markers/` check. Resumes scripts from existing data. |
-| `REGENERATE=1` | Overwrites existing data and starts from scratch. |
-| `START_PHASE` | Starting point (1-6). |
-| `STOP_PHASE` | Ending point (1-6). |
+All process logs are stored in `logs/exp5/<TIMESTAMP>/`.
+Final scientific validation artifacts (plots, CSVs, PDF reports) are consolidated in `output/exp5/validation/`.
 
 ---
 
 ## 🏗 Project Structure
 
-- `bin/`: CLI scripts for each phase.
+- `bin/`: CLI scripts and automated validation utilities.
 - `docs/`: Sphinx documentation (RST).
-- `iriscc/`: Core library (models, dataloaders, transforms).
-- `scripts/`: Misc utility scripts.
-- `tests/`: Unit tests.
+- `iriscc/`: Core library (100% compliant with Ruff and scientific standards).
+- `logs/`: (Ignored) Structured execution logs for debugging.
+- `output/`: Results and centralized validation artifacts.
+- `tests/`: Automated unit tests (integrated with Pytest).

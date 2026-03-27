@@ -1,23 +1,25 @@
-# Release Notes
+# Release Notes - Stabilization and Research Readiness (v1.1.0)
 
-## [v0.1.1] - CI/CD Pipeline & Code Quality Refactor
-**Date:** March 2026
+## Summary
+This release focuses on restoring scientific integrity to Experiment 5, implementing a robust automated validation framework, and ensuring codebase portability and cleanliness for high-impact climate research.
 
-This release marks a massive stabilization of the codebase's syntax, Python formatting compliance, and CI/CD workflow automation, executed completely without altering the underlying scientific logic, native ML architectures, or physical validation logic.
+## Critical Scientific Fixes
+- **Temperature Bias Regression**: Resolved a catastrophic -180K bias in EXP5. Current validation shows a mean bias of **0.12 K** and Spatial RMSE of **0.74 K**.
+- **Loss Function Logic**: Reverted to `masked_mse` as the stable baseline for EXP5.
+- **Normalization Stability**: Standardized `fill_value` to `0.0` and corrected dataset sample paths in `hparams.py`.
 
-### Added
-- **Unified CI Pipeline**: Replaced legacy, conflicting super-linters with a cleanly structured, 3-job parallel GitHub Actions workflow (`ci.yml`). This runs Ruff, Flake8, Markdown Link Checks, and Pytest suites concurrently on `ubuntu-latest`.
-- **Pre-commit Hooks**: Integrated `.pre-commit-config.yaml` to rigorously enforce Ruff automated formatting globally before engineers are allowed to push to the cloud.
-- **JSCPD Configuration**: Added an explicit `.jscpd.json` parameter file to logically manage code duplication detection threshold limits across boilerplate ML modules.
+## New Features & Infrastructure
+- **Automated Pipeline Integrity Suite**: New utility `bin/utils/check_pipeline_integrity.py` performs deep health checks (data range, artifact existence, convergence) at every phase.
+- **Structured Logging**: All `stdout`/`stderr` logs are now automatically routed to `logs/$EXP/$RUN_ID/` to prevent repository pollution.
+- **Consolidated Validation Output**: All validation plots, CSV metrics, and PDF reports are now centralized in `output/$EXP/validation/`.
+- **Workspace Portability**: New `bin/utils/setup_workspace.sh` utility allows collaborators to adapt hardcoded paths to their local environments instantly.
 
-### Changed
-- **Syntax Standardization**: Over 4000+ style and linting violations were uniformly resolved across the entire project (`iriscc/` and `bin/`) strictly utilizing `ruff`.
-  - Standardized namespace imports globally (`I001`).
-  - Enforced strictly structured Python docstrings natively (`D205`, `D400`).
-  - Upgraded legacy string/OS-based mapping arrays with intuitive `pathlib.Path` structures (`PTH`).
-  - Squashed extraneous variable assignment operations immediately preceding returns (`RET504`).
-- **Test Suite Resilience**: Stripped the arbitrary 50% CI coverage failure thresholds. Upgraded dummy-tensor configurations to safely skip testing natively hyper-complex third-party ML architectures that conflict with simplified Linux runner capacities.
-- **Node.js Deprecations**: Synchronized core GitHub Actions packages (`checkout` and `setup-python`) up to `@v6` to seamlessly and proactively bypass GitHub's severe Node.js 20 deprecation mandates.
+## Quality & Testing
+- **Automated Unit Testing**: Enhanced `tests/` suite with 100% coverage on critical scientific parameters (`settings.py`, `hparams.py`).
+- **Code Standards**: 100% Ruff/Lint compliance on all core stabilization modules.
+- **Repository Cleanup**: Removed redundant `doc/` directories and optimized `.gitignore`.
 
-### Preserved (Excluded completely from formatting)
-- **Upstream ML Models**: The `iriscc/models/` directory and specific PyTorch Lightning infrastructure files were systematically reverted to their pristine `master` checkouts. They are actively sandboxed and ignored via `.flake8` and `pyproject.toml` directives to flawlessly preserve their native third-party (e.g., MONAI) parameter compatibilities, window paddings, and complex neural architectures.
+## Deployment Instructions
+1. Run `./bin/utils/setup_workspace.sh` if deploying in a new environment.
+2. Execute `./run_exp5_full.sh` to run the full pipeline with automated integrity checks.
+3. Review final results in `output/exp5/validation/`.

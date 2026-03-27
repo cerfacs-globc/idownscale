@@ -18,6 +18,9 @@ __pycache__
 *.out
 *.err
 *.log
+logs/
+output/
+metrics/
 
 # Ignore data and output directories
 runs/
