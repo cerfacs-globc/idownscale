@@ -18,7 +18,7 @@ mkdir -p "$CONDA_PKGS_DIRS" "$PIP_CACHE_DIR" "$TMPDIR"
 # ── Load conda (needed to create/install into the env) ───────────────────────
 module load python/anaconda3.11_arm
 
-CONDA_PREFIX="$HOME/.conda/envs/idownscale_env"
+CONDA_PREFIX="$HOME/.conda/envs/exp5"
 
 # ── Start from zero ────────────────────────────────────────────────────────────
 echo "=== Removing old environment ==="
