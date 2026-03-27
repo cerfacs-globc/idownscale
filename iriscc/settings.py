@@ -14,14 +14,15 @@ import pandas as pd
 import cartopy.crs as ccrs
 import pyproj
 
-RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/')
-LOCAL_RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/')
+REPO_DIR = Path(__file__).resolve().parents[1]
+RAW_DIR = REPO_DIR / 'rawdata'
+LOCAL_RAW_DIR = REPO_DIR / 'rawdata'
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
-GCM_RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/gcm/')
+GCM_RAW_DIR = RAW_DIR / 'gcm'
 RCM_RAW_DIR = RAW_DIR / 'rcm'
-ERA5_DIR = Path("/scratch/globc/page/idownscale_active/rawdata/era5")
+ERA5_DIR = RAW_DIR / 'era5'
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
 LOCAL_EOBS_RAW_DIR = LOCAL_RAW_DIR / 'eobs'
 ALADIN_RAW_DIR = RAW_DIR / 'ALADIN'

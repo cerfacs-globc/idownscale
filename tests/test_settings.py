@@ -1,9 +1,9 @@
 import pytest
 from pathlib import Path
-from iriscc.settings import CONFIG, ROOT_DIR
+from iriscc.settings import CONFIG, REPO_DIR
 
-def test_root_dir_exists():
-    assert ROOT_DIR.exists()
+def test_repo_dir_exists():
+    assert REPO_DIR.exists()
 
 def test_exp5_config():
     assert 'exp5' in CONFIG
@@ -12,5 +12,6 @@ def test_exp5_config():
     assert exp5['model'] == 'unet'
 
 def test_dataset_dir_exists():
-    dataset_dir = ROOT_DIR / 'datasets'
+    # datasets directory is expected in the repo root
+    dataset_dir = REPO_DIR / 'datasets'
     assert dataset_dir.exists()
