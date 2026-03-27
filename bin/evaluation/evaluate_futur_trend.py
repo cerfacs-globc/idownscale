@@ -46,24 +46,28 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     axes[0].legend()
 
     dates = pd.date_range(*(pd.to_datetime([f'{periods[-2]}-01-01', f'{periods[-1]}-12-31'])))
-    dfs = pd.DataFrame.from_dict({'dates' : dates,
-                        labels[0]: 
-                            df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
-                             (df_var_temporal['label'] == labels[0])]['Variability'].values,
-                        labels[1]: 
-                            df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
-                             (df_var_temporal['label'] == labels[1])]['Variability'].values,
-                        labels[2]: 
-                            df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
-                             (df_var_temporal['label'] == labels[2])]['Variability'].values})
+    
+    # Build dictionary dynamically to avoid length mismatch if labels are missing
+    df_dict = {'dates': dates}
+    for i, label in enumerate(labels):
+        if label in df_var_temporal['label'].unique():
+            values = df_var_temporal[(df_var_temporal['period'] == f'{periods[-2]} - {periods[-1]}') & 
+                                    (df_var_temporal['label'] == label)]['Variability'].values
+            if len(values) == len(dates):
+                df_dict[label] = values
+            else:
+                print(f"Warning: Length mismatch for {label} ({len(values)} != {len(dates)}). Skipping in variability plot.")
+    
+    dfs = pd.DataFrame.from_dict(df_dict)
     dfs = dfs.groupby(dfs['dates'].dt.year).mean()
     for i, label in enumerate(labels):
-        axes[1].plot(dfs['dates'], 
-                    dfs[label], 
-                    '^-',
-                    label=label,
-                    color=colors[i],
-                    linewidth=2.5)
+        if label in dfs.columns:
+            axes[1].plot(dfs.index, 
+                        dfs[label], 
+                        '^-',
+                        label=label,
+                        color=colors[i],
+                        linewidth=2.5)
     axes[1].set_title("Variability annual mean")
     axes[1].set_ylabel(f"Variability {unit}")
     return fig, axes
