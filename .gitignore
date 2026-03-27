@@ -1,18 +1,24 @@
 .git
 !.gitignore
 log
+logs/
+output/
+metrics/
 name.e
 name2.e
 nameh.e
 name.o
-.gitignore
-run_batch_globc.sh
-run_batch_grace.sh
-run_batch_hybrid.sh
-PET0.ESMF_LogFile
-garcia.code-workspace
-__pycache__
-*.pyc
+*.out
+*.err
+*.log
+*.zip
+*.nc
+# Root level pollution
+PROGRESS.log
+__init__.py
+idownscale.egg-info/
+.markers/
+*.marker
 
 # Ignore run outputs and logs
 *.out

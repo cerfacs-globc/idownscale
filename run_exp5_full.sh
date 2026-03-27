@@ -2,8 +2,8 @@
 #SBATCH -p grace
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=exp5_full
-#SBATCH --output=/scratch/globc/page/idownscale_active/exp5_full_%j.out
-#SBATCH --error=/scratch/globc/page/idownscale_active/exp5_full_%j.err
+#SBATCH --output=/scratch/globc/page/idownscale_active/logs/exp5_full_%j.out
+#SBATCH --error=/scratch/globc/page/idownscale_active/logs/exp5_full_%j.err
 #SBATCH --time=12:00:00
 
 # ---------------------
@@ -11,6 +11,10 @@ RUN_ID=$(date +%Y%m%d_%H%M%S)
 LOG_DIR="logs/$EXP/$RUN_ID"
 export LOG_DIR
 mkdir -p "$LOG_DIR"
+# Ensure essential output and data directories exist for first-time runs
+mkdir -p output/"$EXP"/validation output/"$EXP"/predictions
+mkdir -p metrics/"$EXP" graph/metrics/"$EXP"
+mkdir -p datasets/dataset_bc
 
 set -e
 cd /scratch/globc/page/idownscale_active || exit 1
@@ -79,14 +83,14 @@ if run_phase 1; then
     $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
-    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 1 --exp "$EXP" >> "$LOG_DIR/integrity_checks.log" 2>&1
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 1 --exp "$EXP" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1
     complete_phase 1
 fi
 
 if run_phase 2; then
     log_progress "--- Phase 2: Bias Correction Preprocessing START ---"
     $PYTHON bin/preprocessing/build_dataset_bc.py --simu "$SIMU" --ssp "$SSP" --var "$VAR" $FORCE_FLAG >> "$LOG_DIR/phase2.log" 2>&1
-    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 2 --exp "$EXP" >> "$LOG_DIR/integrity_checks.log" 2>&1
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 2 --exp "$EXP" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1
     complete_phase 2
 fi
 
@@ -96,21 +100,21 @@ if run_phase 3; then
     BC_DATASET_DIR="datasets/dataset_bc/dataset_${EXP}_test_${SIMU}_bc"
     $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" --dataset_dir "$BC_DATASET_DIR" $FORCE_FLAG >> "$LOG_DIR/phase3.log" 2>&1
     $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" --dataset_dir "$BC_DATASET_DIR" $FORCE_FLAG >> "$LOG_DIR/phase3.log" 2>&1
-    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 3 --exp "$EXP" --simu "$SIMU" >> "$LOG_DIR/integrity_checks.log" 2>&1
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 3 --exp "$EXP" --simu "$SIMU" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1
     complete_phase 3
 fi
 
 if run_phase 4; then
     log_progress "--- Phase 4: Training START ---"
     srun $PYTHON bin/training/train.py >> "$LOG_DIR/phase4.log" 2>&1
-    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 4 --exp "$EXP" >> "$LOG_DIR/integrity_checks.log" 2>&1
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 4 --exp "$EXP" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1
     complete_phase 4
 fi
 
 if run_phase 5; then
     log_progress "--- Phase 5: Inference START ---"
     srun $PYTHON bin/training/predict_loop.py --startdate "$START_DATE_INF" --enddate "$END_DATE_INF" --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" $FORCE_FLAG >> "$LOG_DIR/phase5.log" 2>&1
-    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 5 --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" >> "$LOG_DIR/integrity_checks.log" 2>&1
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 5 --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1
     complete_phase 5
 fi
 
@@ -151,7 +155,9 @@ if run_phase 6; then
     # Copy PDF report
     cp /scratch/globc/page/idownscale_active/output/"$EXP"/*.pdf "$VALIDATION_DIR/" 2>/dev/null || true
     
-    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 6 --exp "$EXP" >> "$LOG_DIR/integrity_checks.log" 2>&1
+    INTEGRITY_LOG="$VALIDATION_DIR/pipeline_integrity.log"
+    echo "--- Phase 6: Integrity Check ---" >> "$INTEGRITY_LOG"
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 6 --exp "$EXP" | tee -a "$INTEGRITY_LOG" >> "$LOG_DIR/integrity_checks.log" 2>&1
     # Save a copy of the execution log to the validation directory
     cp "$LOG_DIR/execution.log" "$VALIDATION_DIR/run_summary.log"
     
