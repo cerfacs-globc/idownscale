@@ -1,3 +1,4 @@
+import os
 import pytest
 from pathlib import Path
 from iriscc.settings import CONFIG, REPO_DIR
@@ -10,8 +11,6 @@ def test_exp5_config():
     exp5 = CONFIG['exp5']
     assert exp5['fill_value'] == 0.0
     assert exp5['model'] == 'unet'
-
-import os
 
 @pytest.mark.skipif(os.getenv('GITHUB_ACTIONS') == 'true', reason="datasets directory not present in CI")
 def test_dataset_dir_exists():
