@@ -121,7 +121,7 @@ CONFIG = {
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
-            'ssp': 'ssp585'
+            'ssp': 'ssp585', 'mask': 'target', 'fill_value': 0.0, 'output_norm': True, 'model': 'unet'
         },
     'exp6':
         {'target':'eobs',

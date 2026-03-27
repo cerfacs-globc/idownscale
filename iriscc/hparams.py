@@ -23,12 +23,12 @@ class IRISCCHyperParameters():
         self.model ='unet'
         self.exp = f'{exp}/unet_all'
         self.runs_dir = RUNS_DIR / self.exp
-        self.sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_gcm_bc'
-        self.fill_value = -1.
+        self.sample_dir = CONFIG[exp]['dataset']
+        self.fill_value = 0.0
         self.domain = 'france'
         self.domain_crop = None
         self.channels = CONFIG[exp]['channels']
-        self.loss = 'masked_gamma_mae' # masked_mse or masked_gamma_mae
+        self.loss = 'masked_mse' # masked_mse or masked_gamma_mae
         self.dropout = 0.0
         
         # Diffusion hparams

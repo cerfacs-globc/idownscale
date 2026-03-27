@@ -85,12 +85,14 @@ if run_phase 1; then
     $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline $FORCE_FLAG
     $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" $FORCE_FLAG
     $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" $FORCE_FLAG
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 1 --exp "$EXP"
     complete_phase 1
 fi
 
 if run_phase 2; then
     log_progress "--- Phase 2: Bias Correction Preprocessing START ---"
     $PYTHON bin/preprocessing/build_dataset_bc.py --simu "$SIMU" --ssp "$SSP" --var "$VAR" $FORCE_FLAG
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 2 --exp "$EXP"
     complete_phase 2
 fi
 
@@ -102,18 +104,21 @@ if run_phase 3; then
     BC_DATASET_DIR="datasets/dataset_bc/dataset_${EXP}_test_${SIMU}_bc"
     $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" --dataset_dir "$BC_DATASET_DIR" $FORCE_FLAG
     $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" --dataset_dir "$BC_DATASET_DIR" $FORCE_FLAG
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 3 --exp "$EXP" --simu "$SIMU"
     complete_phase 3
 fi
 
 if run_phase 4; then
     log_progress "--- Phase 4: Training START ---"
     srun $PYTHON bin/training/train.py
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 4 --exp "$EXP"
     complete_phase 4
 fi
 
 if run_phase 5; then
     log_progress "--- Phase 5: Inference START ---"
     srun $PYTHON bin/training/predict_loop.py --startdate "$START_DATE_INF" --enddate "$END_DATE_INF" --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" $FORCE_FLAG
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 5 --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST"
     complete_phase 5
 fi
 
@@ -156,6 +161,7 @@ if run_phase 6; then
     # Copy PDF report (ensure it's in the root of output dir)
     cp "$OUTPUT_EXP_DIR"/*.pdf "$OUTPUT_EXP_DIR/" 2>/dev/null || true
     
+    srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 6 --exp "$EXP"
     complete_phase 6
 fi
 
