@@ -11,10 +11,12 @@ modifications: Christian Pagé
 
 from pathlib import Path
 import pandas as pd
+import sys
+import os
 import cartopy.crs as ccrs
 import pyproj
 
-REPO_DIR = Path(__file__).resolve().parents[1]
+REPO_DIR = Path(os.getenv('GITHUB_WORKSPACE', Path(__file__).resolve().parents[1]))
 RAW_DIR = REPO_DIR / 'rawdata'
 LOCAL_RAW_DIR = REPO_DIR / 'rawdata'
 SAFRAN_DIR = RAW_DIR / 'safran'
