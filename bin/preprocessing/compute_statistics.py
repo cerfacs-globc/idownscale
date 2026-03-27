@@ -12,6 +12,8 @@ import json
 import sys
 from typing import Tuple
 
+sys.path.append('.')
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -64,21 +66,21 @@ def plot_histogram(data,
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
     parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
+    parser.add_argument('--dataset_dir', type=str, help='Path to dataset directory', default=None)
     parser.add_argument('--force', action='store_true', help='Force reconnection')
     args = parser.parse_args()
 
-    dataset_dir = CONFIG[args.exp]['dataset']
+    if args.dataset_dir:
+        from pathlib import Path
+        dataset_dir = Path(args.dataset_dir).resolve()
+    else:
+        dataset_dir = CONFIG[args.exp]['dataset'].resolve()
     stats_file = dataset_dir / 'statistics.json'
     if stats_file.exists() and not args.force:
         print(f"Skipping statistics computation: {stats_file} already exists.", flush=True)
         sys.exit(0)
 
-    dataset_dir.mkdir(parents=True, exist_ok=True)
-    dataset = np.sort([str(p) for p in dataset_dir.glob('sample*')])
-    
-    if len(dataset) == 0:
-        print(f"ERROR: No samples found in {dataset_dir}. Ensure Phase 1 and 2 completed successfully.", flush=True)
-        sys.exit(1)
+    dataset = np.sort([str(p.resolve()) for p in dataset_dir.glob('sample*')])
     channels = CONFIG[args.exp]['channels']
     ch = len(channels)
     total_sum = np.zeros(ch)
@@ -90,9 +92,9 @@ if __name__=='__main__':
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
     
-    train_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
-    val_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
-    test_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
+    train_start = np.where(dataset == str((dataset_dir/f'sample_{DATES_TRAIN[0]}0101.npz').resolve()))[0][0]
+    val_start = np.where(dataset == str((dataset_dir/f'sample_{DATES_TRAIN[1]}0101.npz').resolve()))[0][0]
+    test_start = np.where(dataset == str((dataset_dir/f'sample_{DATES_TRAIN[2]}0101.npz').resolve()))[0][0]
    
     y_data = {'train' : [],
                  'val' : [],
@@ -102,8 +104,15 @@ if __name__=='__main__':
         print(sample)
 
         data = dict(np.load(sample, allow_pickle=True))
-        x, y = data['x'], data['y']
-        condition = np.isnan(y[0])
+        x = data['x']
+        y = data.get('y')
+        
+        if y is not None:
+            condition = np.isnan(y[0])
+        else:
+            # Fallback condition if no y is present (e.g. inference samples)
+            condition = np.isnan(x[0]) 
+            
         for c, channel in enumerate(channels[:-1]):  # Exclude the last channel (target)
             x[c][condition] = np.nan
             if channel == 'pr input':
@@ -140,9 +149,11 @@ if __name__=='__main__':
 
         # Validation and test data histograms 
         elif nb in range(val_start, test_start-1):
-            y_data['val'].append(y.flatten())
+            if y is not None:
+                y_data['val'].append(y.flatten())
         elif nb >= test_start :
-            y_data['test'].append(y.flatten())
+            if y is not None:
+                y_data['test'].append(y.flatten())
         
     mean = total_sum / n_total
     std = np.sqrt((square_sum / n_total) - (mean**2))

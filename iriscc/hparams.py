@@ -8,7 +8,7 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
-from iriscc.settings import RUNS_DIR, CONFIG
+from iriscc.settings import DATASET_BC_DIR, RUNS_DIR, CONFIG
 
 
 class IRISCCHyperParameters():
@@ -25,12 +25,12 @@ class IRISCCHyperParameters():
         self.model = conf.get('model', 'unet')
         self.exp = f"{exp}/{self.model}_all"
         self.runs_dir = RUNS_DIR / self.exp
-        self.sample_dir = conf['dataset']
-        self.fill_value = -1.
+        self.sample_dir = conf.get('dataset', CONFIG[exp]['dataset'])
+        self.fill_value = conf.get('fill_value', 0.0)
         self.domain = conf.get('domain_name', 'france')
         self.domain_crop = conf.get('domain_crop', None)
-        self.channels = conf['channels']
-        self.loss = conf.get('loss', 'masked_gamma_mae') # masked_mse or masked_gamma_mae
+        self.channels = conf.get('channels', CONFIG[exp]['channels'])
+        self.loss = conf.get('loss', 'masked_mse') # masked_mse or masked_gamma_mae
         self.dropout = conf.get('dropout', 0.0)
         
         # Diffusion hparams

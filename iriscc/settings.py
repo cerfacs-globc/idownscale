@@ -11,17 +11,20 @@ modifications: Christian Pagé
 
 from pathlib import Path
 import pandas as pd
+import sys
+import os
 import cartopy.crs as ccrs
 import pyproj
 
-RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/')
-LOCAL_RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/')
+REPO_DIR = Path(os.getenv('GITHUB_WORKSPACE', Path(__file__).resolve().parents[1]))
+RAW_DIR = REPO_DIR / 'rawdata'
+LOCAL_RAW_DIR = REPO_DIR / 'rawdata'
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
-GCM_RAW_DIR = Path('/scratch/globc/page/idownscale_active/rawdata/gcm/')
+GCM_RAW_DIR = RAW_DIR / 'gcm'
 RCM_RAW_DIR = RAW_DIR / 'rcm'
-ERA5_DIR = Path("/scratch/globc/page/idownscale_active/rawdata/era5")
+ERA5_DIR = RAW_DIR / 'era5'
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
 LOCAL_EOBS_RAW_DIR = LOCAL_RAW_DIR / 'eobs'
 ALADIN_RAW_DIR = RAW_DIR / 'ALADIN'
@@ -64,6 +67,7 @@ RUNS_DIR = Path('/scratch/globc/page/idownscale_active/runs/')
 GRAPHS_DIR = Path('/scratch/globc/page/idownscale_active/graph/')
 METRICS_DIR = Path('/scratch/globc/page/idownscale_active/metrics/')
 PREDICTION_DIR = Path('/scratch/globc/page/idownscale_active/prediction/')
+OUTPUT_DIR = Path('/scratch/globc/page/idownscale_active/output/')
 
 DATASET_METADATA = {
     'era5': {
@@ -153,8 +157,11 @@ CONFIG = {
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
             'ssp': 'ssp585',
-            'debiaser': 'cdft',
+            'mask': 'target',
+            'fill_value': 0.0,
+            'output_norm': True,
             'model': 'unet',
+            'debiaser': 'cdft',
             'ai_step': True,
             'domain_name': 'france'
         },

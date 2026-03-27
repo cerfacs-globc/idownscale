@@ -8,17 +8,21 @@ import sys
 
 sys.path.append('.')
 
+import pathlib
+
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
 
-from iriscc.dataloaders import get_dataloaders
-from iriscc.hparams import IRISCCHyperParameters
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
-from iriscc.settings import CONFIG
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger # noqa: E402
+# REQUIRED FIX for PyTorch 2.6+ to allow loading checkpoints with Path objects
+torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
+
+from iriscc.dataloaders import get_dataloaders # noqa: E402
+from iriscc.hparams import IRISCCHyperParameters # noqa: E402
+from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
 import argparse
+from iriscc.settings import CONFIG # noqa: E402
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train the model")
@@ -37,25 +41,25 @@ if __name__ == '__main__':
 
     if hparams.model == 'cddpm':
         model = IRISCCCDDPMLightningModule(hparams.__dict__)
-    else:
+    else :
         model = IRISCCLightningModule(hparams.__dict__)
     
-logger = TensorBoardLogger(save_dir=hparams.runs_dir, name='lightning_logs')
-checkpoint_callback = ModelCheckpoint(
-    monitor="val_loss", 
-    filename='best-checkpoint-{epoch:02d}-{val_loss:.2f}',
-    save_top_k=1,
-    mode='min'
-)
-torch.set_float32_matmul_precision('high') # For hybrid partition
+    logger = TensorBoardLogger(save_dir=hparams.runs_dir, name='lightning_logs')
+    checkpoint_callback = ModelCheckpoint(
+        monitor="val_loss", 
+        filename='best-checkpoint-{epoch:02d}-{val_loss:.2f}',
+        save_top_k=1,
+        mode='min'
+    )
+    torch.set_float32_matmul_precision('high') # For hybrid partition
 
-trainer = pl.Trainer(max_epochs=hparams.max_epoch, 
-                     default_root_dir=hparams.runs_dir,
-                     log_every_n_steps=1,
-                     accelerator="auto",
-                     devices="auto",
-                     logger=logger,
-                     callbacks=checkpoint_callback)
+    trainer = pl.Trainer(max_epochs=hparams.max_epoch, 
+                         default_root_dir=hparams.runs_dir,
+                         log_every_n_steps=1,
+                         accelerator="auto",
+                         devices="auto",
+                         logger=logger,
+                         callbacks=checkpoint_callback)
 
-trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
-trainer.test(model, dataloaders=test_dataloader, ckpt_path='best')
+    trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
+    trainer.test(model, dataloaders=test_dataloader, ckpt_path='best')

@@ -11,6 +11,7 @@ Welcome to idownscale's documentation!
    preprocessing
    training
    evaluation
+   release_notes
 
 Indices and tables
 ==================

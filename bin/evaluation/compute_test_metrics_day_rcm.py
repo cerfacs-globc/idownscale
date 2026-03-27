@@ -26,7 +26,7 @@ from iriscc.settings import (CONFIG,
                              METRICS_DIR, 
                              RCM_RAW_DIR)
 from iriscc.transforms import UnPad
-from iriscc.datautils import Data
+from iriscc.datautils import Data, get_latest_version
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
     parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
@@ -42,7 +42,8 @@ if __name__ == "__main__":
     dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
     get_data = Data(CONFIG[exp]['domain'])
 
-    run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
+    log_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs'
+    run_dir = get_latest_version(log_dir)
     checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
     test_name = f'{test_name}_{simu_test}_pp'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'

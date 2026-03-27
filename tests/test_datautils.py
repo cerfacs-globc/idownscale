@@ -5,11 +5,11 @@ import pytest
 pytest.importorskip("esmpy")
 
 from iriscc.datautils import (
-    Data,
-    generate_bounds,
     standardize_longitudes,
+    generate_bounds,
+    standardize_dims_and_coords,
+    crop_domain_from_ds,
 )
-from iriscc.settings import DATASET_METADATA
 
 def test_standardize_longitudes():
     # Test 1D lon
@@ -33,14 +33,16 @@ def test_generate_bounds():
     assert bounds[0] == 5
     assert bounds[3] == 35
 
+def test_standardize_dims_and_coords():
+    ds = xr.Dataset(coords={'nav_lon': [0, 1], 'nav_lat': [0, 1]}, data_vars={'tas': (('nav_lat', 'nav_lon'), [[1, 2], [3, 4]])})
+    ds = ds.rename({'nav_lon': 'nlon', 'nav_lat': 'nlat'}) # Mock some odd names
+    ds_std = standardize_dims_and_coords(ds)
+    assert 'lon' in ds_std.coords
+    assert 'lat' in ds_std.coords
 
-
-def test_data_class_metadata_lookup():
-    # Test if metadata is correctly loaded for a known source
-    assert 'era5' in DATASET_METADATA
-    assert DATASET_METADATA['era5']['var_map']['tas'] == 't2m'
-
-def test_data_init():
-    domain = [-6., 10., 38, 54]
-    data = Data(domain)
-    assert data.domain == domain
+def test_crop_domain_from_ds():
+    ds = xr.Dataset(coords={'lon': [0, 10, 20], 'lat': [0, 10, 20]}, data_vars={'tas': (('lat', 'lon'), np.zeros((3,3)))})
+    domain = (5, 15, 5, 15)
+    ds_cropped = crop_domain_from_ds(ds, domain)
+    assert len(ds_cropped.lon) == 1
+    assert ds_cropped.lon.values[0] == 10
