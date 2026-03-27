@@ -1,6 +1,18 @@
-.git
-!.gitignore
-log
+# Standard Python ignores
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Slurm & Environment ignores
+*.out
+*.err
+*.log
 logs/
 output/
 metrics/
@@ -8,35 +20,16 @@ name.e
 name2.e
 nameh.e
 name.o
-*.out
-*.err
-*.log
 *.zip
 *.nc
-# Root level pollution
-PROGRESS.log
-__init__.py
-idownscale.egg-info/
-.markers/
 *.marker
+.markers/
+PET0.ESMF_LogFile
+garcia.code-workspace
 
-# Ignore run outputs and logs
-*.out
-*.err
-*.log
-logs/
-output/
-metrics/
-
-# Ignore data and output directories
+# Data ignores
 runs/
 rawdata/
 datasets/
 graph/
-
-# Ignore large data files
-*.nc
-*.npz
-*.zip
-*.egg-info/
 *~
