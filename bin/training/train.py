@@ -4,6 +4,7 @@ date: 16/07/2025
 author: Zoé GARCIA
 """
 
+import argparse
 import sys
 
 sys.path.append('.')
@@ -21,7 +22,7 @@ torch.serialization.add_safe_globals([pathlib.PosixPath]) # noqa: E402
 from iriscc.dataloaders import get_dataloaders # noqa: E402
 from iriscc.hparams import IRISCCHyperParameters # noqa: E402
 from iriscc.lightning_module import IRISCCLightningModule # noqa: E402
-import argparse
+from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule # noqa: E402
 from iriscc.settings import CONFIG # noqa: E402
 
 if __name__ == '__main__':
