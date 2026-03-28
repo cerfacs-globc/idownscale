@@ -71,7 +71,7 @@ OUTPUT_DIR = Path('/scratch/globc/page/idownscale_active/output/')
 
 DATASET_METADATA = {
     'era5': {
-        'var_map': {'tas': 't2m', 'pr': 'tp'},
+        'var_map': {'pr': 'tp'},
         'file_pattern': '{var}*_{year}_*',
         'dir_pattern': '{var}_1d'
     },
@@ -116,7 +116,8 @@ CONFIG = {
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
             'remove_countries': True,
-            'domain_name': 'france'
+            'domain_name': 'france',
+            'freq': '1D'
         },
 
     'exp4': # obsolete, use exp5 
@@ -158,6 +159,7 @@ CONFIG = {
             'channels': ['elevation', 'tas input', 'tas target'],
             'ssp': 'ssp585',
             'mask': 'target',
+            'freq': '1D',
             'fill_value': 0.0,
             'output_norm': True,
             'model': 'unet',

@@ -38,6 +38,9 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/cerfacs-globc/idownscale.git"
 
+[tool.setuptools.packages.find]
+include = ["iriscc*"]
+
 # Ruff configuration: https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
 exclude = [

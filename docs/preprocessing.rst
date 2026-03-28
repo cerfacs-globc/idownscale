@@ -1,7 +1,50 @@
-Data Preprocessing
-==================
+Preprocessing is the foundation of the downscaling pipeline. It converts raw observation data (SAFRAN, E-OBS) and climate model outputs (GCM, RCM) into standardized formats.
 
-Preprocessing is the foundation of the downscaling pipeline. It converts raw NetCDF data into normalized NumPy samples prepared for neural network training.
+Observation Pre-processing
+--------------------------
+
+Different observation datasets require specific reformatting before they can be used as targets for the downscaling model.
+
+SAFRAN (1D to 2D)
+^^^^^^^^^^^^^^^^^
+
+SAFRAN-France data is provided by Météo-France in a 1D vector format (index-based). To use it in a spatial CNN pipeline, it must be reformatted to a regular 2D grid.
+
+* **Script**: ``bin/preprocessing/safran_reformat.py``
+* **Method**: Uses ``scipy.spatial.cKDTree`` to perform a nearest-neighbor mapping from the 1D observation points to a reference 2D grid (defined in ``settings.py``).
+* **Usage**:
+
+.. code-block:: bash
+
+   # Ensure raw 1D files are in rawdata/safran/raw_safran/
+   python bin/preprocessing/safran_reformat.py
+
+E-OBS (Grid Standardization)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+E-OBS is natively provided in a 2D regular lat/lon grid, so it does not require 1D-to-2D interpolation. However, it must be standardized for dimension names and units.
+
+* **Standardization**: Handled dynamically by the ``Data`` class in ``iriscc/datautils.py``.
+* **Variable Names**: ``longitude`` -> ``lon``, ``latitude`` -> ``lat``.
+* **Units**: Automatically converted from Celsius to Kelvin if the raw mean is < 100.
+* **Cropping**: Large E-OBS files are subsets using the ``crop_domain.py`` utility.
+
+.. code-block:: bash
+
+    python bin/preprocessing/crop_domain.py --input raw_eobs.nc --output target_eobs.nc --exp exp5 --standardize
+
+RCM to Target Reformatting
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When evaluating climate model outputs (RCM) against observations, the RCM must be reformatted to exactly match the target grid and variable names.
+
+* **Script**: ``bin/preprocessing/aladin_reformat_target.py``
+* **Purpose**: Performs bilinear interpolation of raw RCM fields to the target observation grid (EOBS or Safran) to enable pixel-by-pixel metrics calculation.
+* **Usage**:
+
+.. code-block:: bash
+
+    python bin/preprocessing/aladin_reformat_target.py --exp exp5 --startdate 20000101 --enddate 20141231
 
 Dataset Building
 ----------------
@@ -54,6 +97,15 @@ Bias Correction (Phase 3)
 Phase 3 uses the ``Ibicus`` library to apply statistical bias correction to the climate model data (GCM or RCM). This step ensures that the model outputs align with the statistical distribution of observations (EOBS or Safran).
 
 Implementation: ``bin/preprocessing/bias_correction_ibicus.py``
+
+Calendar Robustness (CMIP6 Support)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The pipeline is designed to be **calendar-agnostic** to support all CMIP6 standards (``noleap``, ``360_day``, ``all_leap``, etc.).
+
+* **Mechanism**: String-based date matching (``YYYY-MM-DD``) via ``iriscc/datautils.py``.
+* **Gap Filling**: If a target Gregorian date (e.g., Feb 29th) is missing from the source GCM calendar, the system automatically **duplicates the previous available day's data**.
+* **Extra Days**: Days in the GCM calendar that do not exist in the target experimental timeline (e.g., days 31-360 in a 360-day calendar matching a standard month) are automatically ignored.
 
 The "Silent Initialization" Phase
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

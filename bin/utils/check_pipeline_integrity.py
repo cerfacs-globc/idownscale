@@ -9,8 +9,13 @@ import pandas as pd
 def check_phase1_2(exp):
     print(f"--- Validating Phases 1-2 (Datasets) for {exp} ---")
     dataset_dir = Path(f'datasets/dataset_{exp}')
-    if not dataset_dir.exists():
-        dataset_dir = Path(f'datasets/dataset_{exp}_30y') # fallback
+    # Check if dir exists AND has samples, or fallback
+    if not dataset_dir.exists() or not list(dataset_dir.glob('sample_*.npz')):
+        dataset_dir = Path(f'datasets/dataset_{exp}_30y')
+    
+    # Try the experiment name without 'dataset_' prefix if still empty
+    if not dataset_dir.exists() or not list(dataset_dir.glob('sample_*.npz')):
+        dataset_dir = Path(f'datasets/{exp}')
     
     samples = list(dataset_dir.glob('sample_*.npz'))
     if not samples:
@@ -24,9 +29,9 @@ def check_phase1_2(exp):
         'Samples Found': len(samples),
         'X Shape': str(x.shape),
         'Y Shape': str(y.shape),
-        'X Range (K)': f"{np.min(x[1]):.1f} - {np.max(x[1]):.1f}", # Index 1 is tas
-        'Y Range (K)': f"{np.min(y):.1f} - {np.max(y):.1f}",
-        'Status': 'PASS' if 200 < np.mean(y) < 320 else 'FAIL (Unphysical)'
+        'X Range (K)': f"{np.nanmin(x[1]):.1f} - {np.nanmax(x[1]):.1f}", # Index 1 is tas
+        'Y Range (K)': f"{np.nanmin(y):.1f} - {np.nanmax(y):.1f}",
+        'Status': 'PASS' if 200 < np.nanmean(y) < 320 else 'FAIL (Unphysical)'
     }
     return True, results
 

@@ -30,6 +30,61 @@ from iriscc.settings import (
 logger = logging.getLogger(__name__)
 
 
+def validate_frequency(ds, expected_freq):
+    """Validate that the dataset time frequency matches the expected experiment frequency."""
+    if 'time' not in ds.coords or len(ds.time) < 2:
+        return
+
+    # Extract actual frequency in minutes
+    try:
+        # Handles both datetime64 and cftime
+        deltas = ds.time.diff('time').values.astype('timedelta64[m]').astype(float)
+        avg_delta = np.mean(deltas)
+    except Exception:
+        # Fallback for very complex calendars
+        return
+
+    freq_map = {
+        '1D': 1440.0,
+        '1M': 43200.0,  # 30 days approx
+        '6H': 360.0,
+        '1H': 60.0
+    }
+
+    expected_m = freq_map.get(expected_freq, 1440.0)
+
+    # Check if delta is within 50% (allowing for variable month lengths)
+    if abs(avg_delta - expected_m) > (expected_m * 0.5):
+        raise ValueError(f"Scientific Consistency Error: Dataset frequency (~{avg_delta/60:.1f}h) "
+                         f"does not match expected experiment frequency '{expected_freq}'. "
+                         f"Check your input data paths.")
+
+
+def crop_time_dim(ds, date=None, fallback=True):
+    """Select a specific date from the dataset, matching on YYYY-MM-DD.
+    If missing (e.g., Feb 29th in noleap calendars), optionally falls back to the previous day."""
+    if date is not None:
+        date_str = date.strftime('%Y-%m-%d')
+        mask = ds.time.dt.strftime('%Y-%m-%d') == date_str
+
+        if not mask.any():
+            if fallback:
+                # Fallback to previous day (e.g., handle Feb 29 missing in noleap)
+                # Need datetime import inside or ensure it's at top
+                from datetime import timedelta
+                prev_date = date - timedelta(days=1)
+                prev_str = prev_date.strftime('%Y-%m-%d')
+                mask_fallback = ds.time.dt.strftime('%Y-%m-%d') == prev_str
+                if mask_fallback.any():
+                    ds_fallback = ds.sel(time=mask_fallback)
+                    return ds_fallback.isel(time=0)
+            return None
+
+        ds = ds.sel(time=mask)
+        ds = ds.isel(time=0)
+    return ds
+
+
 def standardize_dims_and_coords(ds, source_type=None) :
     dim_mapping = {'x': ['i', 'ni', 'xh', 'lon', 'nlon'],
                    'y': ['j', 'nj', 'yh', 'lat', 'nlat'],
@@ -92,7 +147,7 @@ def generate_bounds(coord: np.ndarray) -> np.ndarray:
     bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
     bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
     bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
-    return bounds.astype(np.int32)
+    return bounds
 
 
 def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
@@ -110,8 +165,10 @@ def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr
         x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
 
         proj = projection
-
-        lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
+        if proj is None:
+            lon_b, lat_b = x_b_2d, y_b_2d
+        else:
+            lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
 
         ds = ds.assign_coords(
             x_b=("x_b", x_b),
@@ -372,7 +429,7 @@ class Data(object):
                 data = data + 273.15
         return data
    
-    def get_era5_dataset(self, var: str, date):
+    def get_era5_dataset(self, var: str, date, exp: str | None = None):
         meta = DATASET_METADATA['era5']
         src_var = meta['var_map'].get(var, var)
         dir_name = meta['dir_pattern'].format(var=var)
@@ -380,15 +437,21 @@ class Data(object):
 
         file = next((ERA5_DIR / dir_name).glob(pattern))
         ds = xr.open_dataset(file)
+        
+        # Frequency validation
+        if exp and exp in CONFIG:
+            validate_frequency(ds, CONFIG[exp].get('freq', '1D'))
+            
         ds = standardize_dims_and_coords(ds, source_type='era5')
         ds = standardize_longitudes(ds)
         ds = ds.reindex(lat=ds.lat[::-1])
         ds = crop_domain_from_ds(ds, self.domain)
         ds = self.crop_time_dim(ds, date)
+        if ds is None: return None
         ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
         return ds
-   
-    def get_gcm_dataset(self, var: str, date, ssp: str | None = None):
+    
+    def get_gcm_dataset(self, var: str, date, ssp: str | None = None, exp: str | None = None):
         meta = DATASET_METADATA['gcm']
         src_var = meta['var_map'].get(var, var)
         period = 'historical' if (date is None or date < pd.Timestamp("2015-01-01")) else ssp
@@ -396,14 +459,20 @@ class Data(object):
 
         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(pattern))
         ds = xr.open_dataset(file)
+
+        # Frequency validation
+        if exp and exp in CONFIG:
+            validate_frequency(ds, CONFIG[exp].get('freq', '1D'))
+
         ds = standardize_longitudes(ds)
         ds = self.crop_time_dim(ds, date)
+        if ds is None: return None
         ds = standardize_dims_and_coords(ds, source_type='gcm')
         ds = crop_domain_from_ds(ds, self.domain)
         ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
         return ds
    
-    def get_rcm_dataset(self, var: str, date, ssp: str | None = None):
+    def get_rcm_dataset(self, var: str, date, ssp: str | None = None, exp: str | None = None):
         meta = DATASET_METADATA['rcm']
         src_var = meta['var_map'].get(var, var)
 
@@ -413,35 +482,55 @@ class Data(object):
             file = next(RCM_RAW_DIR.glob(pattern))
             ds = xr.open_dataset(file).isel(time=0)
         else:
-            period = 'historical' if date < pd.Timestamp('2015-01-01') else ssp
+            period = 'historical' if date < pd.Timestamp("2015-01-01") else ssp
             pattern = meta['file_pattern'].format(var=src_var, period=period)
-
+            
+            xref, yref = None, None
             if period == 'historical':
-                # Need a reference for geometry
-                ref_pattern = meta['file_pattern'].format(var=src_var, period='ssp585')
-                file_for_xy = next(RCM_RAW_DIR.glob(ref_pattern))
-                ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
-                xref = ds_for_xy['x'].values
-                yref = ds_for_xy['y'].values
-                ds_for_xy.close()
-
-            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(pattern))]
+                 ref_pattern = meta['file_pattern'].format(var=src_var, period='ssp585')
+                 try:
+                     file_for_xy = next(RCM_RAW_DIR.glob(ref_pattern))
+                     with xr.open_dataset(file_for_xy) as ds_for_xy:
+                         xref = ds_for_xy['x'].values
+                         yref = ds_for_xy['y'].values
+                 except Exception:
+                     pass
+            
+            files = sorted(list(RCM_RAW_DIR.glob(pattern)))
+            ds = None
             for file in files:
-                # Check if file covers the date by parsing year from filename
-                if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
-                    ds = xr.open_dataset(file)
-                    ds = self.crop_time_dim(ds, date)
+                fname = file.name
+                try:
+                    dates_part = fname.split('_')[-1].replace('.nc', '')
+                    start_y = int(dates_part[:4])
+                    end_y = int(dates_part[9:13])
+                    if start_y <= date.year <= end_y:
+                        ds = xr.open_dataset(file)
+                        break
+                except Exception:
+                    continue
+            
+            if ds is None: return None
 
+        # Frequency validation
+        if exp and exp in CONFIG:
+            validate_frequency(ds, CONFIG[exp].get('freq', '1D'))
+
+        ds = standardize_longitudes(ds)
+        ds = self.crop_time_dim(ds, date)
+        if ds is None: return None
         ds = standardize_dims_and_coords(ds, source_type='rcm')
 
-        if 'x' not in ds.coords:
-            ds = ds.assign_coords(x = (['x'], xref))
-            ds = ds.assign_coords(y = (['y'], yref))
+        if 'x' not in ds.coords and xref is not None:
+            ds = ds.assign_coords(x=(['x'], xref), y=(['y'], yref))
 
-        x = ds['x'].values * 1000 # in meter to match Lambert Conformal projection
-        y = ds['y'].values * 1000
-        ds['x'] = x
-        ds['y'] = y
+        if 'x' in ds.coords:
+            # We don't overwrite if it's already in meters (Lambert Conformal)
+            # Standard Aladin files are in kilometers, target is in meters
+            if np.max(ds['x'].values) < 10000:
+                ds['x'] = ds['x'] * 1000 
+                ds['y'] = ds['y'] * 1000
+            
         ds[var].values = self.clean_data(ds[var].values, var, data_type='rcm')
         return ds
    
@@ -471,25 +560,29 @@ class Data(object):
             ds[var].values = remove_countries(ds[var].values, domain=self.domain)
         return ds
 
-    def get_eobs_dataset(self, var:str, date):
+    def get_eobs_dataset(self, var:str, date, exp:str | None = None):
         meta = DATASET_METADATA['eobs']
         src_var = meta['var_map'].get(var, var)
         pattern = meta['file_pattern'].format(var=src_var)
 
         file = next(EOBS_RAW_DIR.glob(pattern))
         ds = xr.open_dataset(file)
+
+        # Frequency validation
+        if exp and exp in CONFIG:
+            validate_frequency(ds, CONFIG[exp].get('freq', '1D'))
+
         ds = self.crop_time_dim(ds, date)
+        if ds is None: return None
+
         ds = standardize_dims_and_coords(ds, source_type='eobs')
         ds = apply_landseamask(ds, 'eobs', variables=[var])
         ds = crop_domain_from_ds(ds, self.domain)
         ds[var].values = self.clean_data(ds[var].values, var, data_type='eobs')
         return ds
-   
+    
     def crop_time_dim(self, ds, date=None):
-        if date is not None:
-            ds = ds.sel(time=ds.time.dt.date == date.date())
-            ds = ds.isel(time=0)
-        return ds
+        return crop_time_dim(ds, date)
    
     def get_target_dataset(self, target:str, var:str="tas", date=None, exp:str | None = None) -> xr.Dataset:
         if target == 'safran':

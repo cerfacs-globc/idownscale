@@ -107,14 +107,16 @@ class DatasetBuilder:
             else:
                 # Load input dataset (ERA5, CERRA, etc.)
                 if input_source == 'era5':
-                    ds_input = get_data.get_era5_dataset(var, date)
+                    ds_input = get_data.get_era5_dataset(var, date, exp=self.exp)
                 elif input_source == 'cerra':
-                    ds_input = get_data.get_cerra_dataset(var, date)
+                    ds_input = get_data.get_cerra_dataset(var, date) # Cerra not yet updated for exp
                 else:
                     # Fallback to general target loading if needed for demonstrators
                     ds_input = get_data.get_target_dataset(target=input_source, var=var, date=date)
 
-                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) 
+                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp, exp=self.exp) 
+                if ds_input is None or ds_gcm is None:
+                    continue # Skip missing calendar dates
                 ds_input_to_gcm = interpolation_target_grid(ds_input, 
                                                            ds_target=ds_gcm, 
                                                            method="conservative_normed")
@@ -133,6 +135,8 @@ class DatasetBuilder:
         y = []
         for var in self.target_vars:
             ds = get_data.get_target_dataset(target=self.target, var=var, date=date, exp=self.exp)
+            if ds is None:
+                continue # Skip missing calendar dates
             data = ds[var].values
             y.append(data)
         return np.stack(y, axis=0)

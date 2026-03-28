@@ -48,13 +48,17 @@ if __name__=='__main__':
             ds_era5 = get_data.get_era5_dataset(args.var, date)
 
             if args.simu == 'gcm':
-                ds_simu = get_data.get_gcm_dataset(args.var, date)
+                ds_simu = get_data.get_gcm_dataset(args.var, date, ssp='historical')
+                if ds_era5 is None or ds_simu is None:
+                    continue # Skip missing calendar dates
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                            ds_target=ds_simu, 
                                                            method="conservative_normed")
             else :
-                ds_simu = get_data.get_rcm_dataset(args.var, date)
-                ds_gcm = get_data.get_gcm_dataset(args.var, date)
+                ds_simu = get_data.get_rcm_dataset(args.var, date, ssp='historical')
+                ds_gcm = get_data.get_gcm_dataset(args.var, date, ssp='historical')
+                if ds_simu is None or ds_gcm is None or ds_era5 is None:
+                    continue # Skip missing calendar dates
                 ds_simu = interpolation_target_grid(ds_simu, 
                                        ds_target=crop_domain_from_ds(ds_gcm, domain), 
                                        method="conservative_normed",
@@ -88,13 +92,17 @@ if __name__=='__main__':
             ds_era5 = get_data.get_era5_dataset(args.var, date)
 
             if args.simu == 'gcm':
-                ds_simu = get_data.get_gcm_dataset(args.var, date)
+                ds_simu = get_data.get_gcm_dataset(args.var, date, ssp='historical')
+                if ds_era5 is None or ds_simu is None:
+                    continue # Skip missing calendar dates
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                            ds_target=ds_simu, 
                                                            method="conservative_normed")
             else :
-                ds_simu = get_data.get_rcm_dataset(args.var, date)
-                ds_gcm = get_data.get_gcm_dataset(args.var, date)
+                ds_simu = get_data.get_rcm_dataset(args.var, date, ssp='historical')
+                ds_gcm = get_data.get_gcm_dataset(args.var, date, ssp='historical')
+                if ds_simu is None or ds_gcm is None or ds_era5 is None:
+                    continue # Skip missing calendar dates
                 ds_simu = interpolation_target_grid(ds_simu, 
                                        ds_target=crop_domain_from_ds(ds_gcm, domain), 
                                        method="conservative_normed",
@@ -127,9 +135,13 @@ if __name__=='__main__':
             print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [TEST FUTURE] Processing {date.date()} ({i+1}/{total_test_future})", flush=True)
             if args.simu == 'gcm':
                 ds_simu = get_data.get_gcm_dataset(args.var, date, args.ssp) # 1er membre
+                if ds_simu is None:
+                    continue # Skip missing calendar dates
             else :
                 ds_simu = get_data.get_rcm_dataset(args.var, date, args.ssp)
                 ds_gcm = get_data.get_gcm_dataset(args.var, date=date, ssp=args.ssp)
+                if ds_simu is None or ds_gcm is None:
+                    continue # Skip missing calendar dates
                 ds_simu = interpolation_target_grid(ds_simu, 
                                        ds_target=ds_gcm, 
                                        method="conservative_normed",
