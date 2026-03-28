@@ -17,7 +17,7 @@ import cartopy.crs as ccrs
 import pyproj
 
 REPO_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = Path(os.getenv('IDOWNSCALE_DATA_DIR', os.getcwd()))
+DATA_DIR = Path(os.getenv('IDOWNSCALE_DATA_DIR', Path.cwd()))
 RAW_DIR = Path(os.getenv('IDOWNSCALE_RAW_DIR', REPO_DIR / 'rawdata'))
 LOCAL_RAW_DIR = RAW_DIR
 SAFRAN_DIR = RAW_DIR / 'safran'
