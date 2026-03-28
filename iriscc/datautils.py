@@ -449,7 +449,8 @@ class Data(object):
         ds = ds.reindex(lat=ds.lat[::-1])
         ds = crop_domain_from_ds(ds, self.domain)
         ds = self.crop_time_dim(ds, date)
-        if ds is None: return None
+        if ds is None:
+            return None
         ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
         return ds
     
@@ -468,7 +469,8 @@ class Data(object):
 
         ds = standardize_longitudes(ds)
         ds = self.crop_time_dim(ds, date)
-        if ds is None: return None
+        if ds is None:
+            return None
         ds = standardize_dims_and_coords(ds, source_type='gcm')
         ds = crop_domain_from_ds(ds, self.domain)
         ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
