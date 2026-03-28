@@ -16,9 +16,10 @@ import os
 import cartopy.crs as ccrs
 import pyproj
 
-REPO_DIR = Path(os.getenv('GITHUB_WORKSPACE', Path(__file__).resolve().parents[1]))
-RAW_DIR = REPO_DIR / 'rawdata'
-LOCAL_RAW_DIR = REPO_DIR / 'rawdata'
+REPO_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = Path(os.getenv('IDOWNSCALE_DATA_DIR', os.getcwd()))
+RAW_DIR = Path(os.getenv('IDOWNSCALE_RAW_DIR', REPO_DIR / 'rawdata'))
+LOCAL_RAW_DIR = RAW_DIR
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
@@ -39,10 +40,10 @@ LANDSEAMASK_GCM = GCM_RAW_DIR / 'sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
 LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR / 'landseamask/CNTR_RG_10M_2024_4326.nc'
-UTILS_DIR = Path('/scratch/globc/garcia/utils/')
+UTILS_DIR = Path(os.getenv('IDOWNSCALE_UTILS_DIR', '/scratch/globc/garcia/utils/'))
 DEFAULT_GRID_FILE = UTILS_DIR / 'tasmax_1d_21000101_21001231.nc'
 
-DATASET_DIR = Path('/scratch/globc/page/idownscale_active/datasets/')
+DATASET_DIR = DATA_DIR / 'datasets'
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
@@ -63,11 +64,11 @@ DATASET_EXP8_30Y_DIR = DATASET_DIR / 'dataset_exp8_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
 
-RUNS_DIR = Path('/scratch/globc/page/idownscale_active/runs/')
-GRAPHS_DIR = Path('/scratch/globc/page/idownscale_active/graph/')
-METRICS_DIR = Path('/scratch/globc/page/idownscale_active/metrics/')
-PREDICTION_DIR = Path('/scratch/globc/page/idownscale_active/prediction/')
-OUTPUT_DIR = Path('/scratch/globc/page/idownscale_active/output/')
+RUNS_DIR = DATA_DIR / 'runs'
+GRAPHS_DIR = DATA_DIR / 'graph'
+METRICS_DIR = DATA_DIR / 'metrics'
+PREDICTION_DIR = DATA_DIR / 'prediction'
+OUTPUT_DIR = DATA_DIR / 'output'
 
 DATASET_METADATA = {
     'era5': {
