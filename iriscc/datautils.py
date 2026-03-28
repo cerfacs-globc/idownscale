@@ -1,4 +1,5 @@
 import datetime
+from datetime import timedelta
 import logging
 import re
 import sys
@@ -63,7 +64,9 @@ def validate_frequency(ds, expected_freq):
 
 def crop_time_dim(ds, date=None, fallback=True):
     """Select a specific date from the dataset, matching on YYYY-MM-DD.
-    If missing (e.g., Feb 29th in noleap calendars), optionally falls back to the previous day."""
+
+    If missing (e.g., Feb 29th in noleap calendars), optionally falls back to the previous day.
+    """
     if date is not None:
         date_str = date.strftime('%Y-%m-%d')
         mask = ds.time.dt.strftime('%Y-%m-%d') == date_str
@@ -71,8 +74,6 @@ def crop_time_dim(ds, date=None, fallback=True):
         if not mask.any():
             if fallback:
                 # Fallback to previous day (e.g., handle Feb 29 missing in noleap)
-                # Need datetime import inside or ensure it's at top
-                from datetime import timedelta
                 prev_date = date - timedelta(days=1)
                 prev_str = prev_date.strftime('%Y-%m-%d')
                 mask_fallback = ds.time.dt.strftime('%Y-%m-%d') == prev_str
@@ -473,6 +474,35 @@ class Data(object):
         ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
         return ds
    
+    def _get_rcm_geometry(self, src_var: str):
+        """Internal helper to get xref/yref from a reference Aladin file."""
+        meta = DATASET_METADATA['rcm']
+        ref_pattern = meta['file_pattern'].format(var=src_var, period='ssp585')
+        try:
+            file_for_xy = next(RCM_RAW_DIR.glob(ref_pattern))
+            with xr.open_dataset(file_for_xy) as ds_for_xy:
+                xref = ds_for_xy['x'].values
+                yref = ds_for_xy['y'].values
+                return xref, yref
+        except (StopIteration, KeyError, AttributeError):
+            logger.warning("Could not load RCM geometry reference from %s", ref_pattern)
+            return None, None
+
+    def _find_rcm_file(self, pattern: str, date: datetime.datetime):
+        """Internal helper to find the specific RCM file covering the requested date."""
+        files = sorted(RCM_RAW_DIR.glob(pattern))
+        for file in files:
+            fname = file.name
+            try:
+                dates_part = fname.split('_')[-1].replace('.nc', '')
+                start_y = int(dates_part[:4])
+                end_y = int(dates_part[9:13])
+                if start_y <= date.year <= end_y:
+                    return xr.open_dataset(file)
+            except (ValueError, IndexError):
+                continue
+        return None
+
     def get_rcm_dataset(self, var: str, date, ssp: str | None = None, exp: str | None = None):
         meta = DATASET_METADATA['rcm']
         src_var = meta['var_map'].get(var, var)
@@ -482,35 +512,15 @@ class Data(object):
             pattern = meta['file_pattern'].format(var=src_var, period=period)
             file = next(RCM_RAW_DIR.glob(pattern))
             ds = xr.open_dataset(file).isel(time=0)
+            xref, yref = None, None
         else:
             period = 'historical' if date < pd.Timestamp("2015-01-01") else ssp
             pattern = meta['file_pattern'].format(var=src_var, period=period)
-            
-            xref, yref = None, None
+            xref, yref = (None, None)
             if period == 'historical':
-                 ref_pattern = meta['file_pattern'].format(var=src_var, period='ssp585')
-                 try:
-                     file_for_xy = next(RCM_RAW_DIR.glob(ref_pattern))
-                     with xr.open_dataset(file_for_xy) as ds_for_xy:
-                         xref = ds_for_xy['x'].values
-                         yref = ds_for_xy['y'].values
-                 except Exception:
-                     pass
+                xref, yref = self._get_rcm_geometry(src_var)
             
-            files = sorted(list(RCM_RAW_DIR.glob(pattern)))
-            ds = None
-            for file in files:
-                fname = file.name
-                try:
-                    dates_part = fname.split('_')[-1].replace('.nc', '')
-                    start_y = int(dates_part[:4])
-                    end_y = int(dates_part[9:13])
-                    if start_y <= date.year <= end_y:
-                        ds = xr.open_dataset(file)
-                        break
-                except (AttributeError, ValueError, IndexError):
-                    continue
-            
+            ds = self._find_rcm_file(pattern, date)
             if ds is None:
                 return None
 
