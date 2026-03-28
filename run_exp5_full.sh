@@ -86,9 +86,21 @@ complete_phase() {
 }
 
 if run_phase 1; then
-    log_progress "--- Phase 1: Preprocessing START ---"
-    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
-    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
+    log_progress "--- Phase 1: Preprocessing START (OPT-4: parallel standard+baseline) ---"
+    # OPT-4: Standard and baseline preprocessing are independent — run in parallel.
+    WORKERS=${IDOWNSCALE_WORKERS:-1}
+    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --workers "$WORKERS" $FORCE_FLAG >> "$LOG_DIR/phase1_std.log" 2>&1 &
+    PID_STD=$!
+    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline --workers "$WORKERS" $FORCE_FLAG >> "$LOG_DIR/phase1_baseline.log" 2>&1 &
+    PID_BASELINE=$!
+    wait $PID_STD; RC_STD=$?
+    wait $PID_BASELINE; RC_BASELINE=$?
+    if [[ $RC_STD -ne 0 || $RC_BASELINE -ne 0 ]]; then
+        log_progress "Phase 1 preprocessing FAILED (std=$RC_STD, baseline=$RC_BASELINE)"
+        exit 1
+    fi
+    # Merge phase logs for unified view
+    cat "$LOG_DIR/phase1_std.log" "$LOG_DIR/phase1_baseline.log" >> "$LOG_DIR/phase1.log"
     $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     $PYTHON bin/utils/check_pipeline_integrity.py --phase 1 --exp "$EXP" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1

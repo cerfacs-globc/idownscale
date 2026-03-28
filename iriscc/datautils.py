@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.append(".")  # noqa: E402
 
+import hashlib
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -230,32 +231,74 @@ def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr
     return ds
 
 
-def interpolation_target_grid(ds: xr.Dataset, 
-                              ds_target: xr.Dataset, 
-                              method: str, 
+# ---------------------------------------------------------------------------
+# OPT-1: Process-level regridder cache
+# Keyed on (src_grid_hash, tgt_grid_hash, method, bounds_method).
+# Weights are computed once per unique grid-pair and reused for all dates.
+# ---------------------------------------------------------------------------
+_REGRIDDER_CACHE: dict = {}
+
+
+def _grid_hash(ds: xr.Dataset) -> str:
+    """Return a stable hash representing the spatial grid of a dataset."""
+    parts = []
+    for coord in ('lon', 'lat', 'x', 'y'):
+        if coord in ds.coords:
+            arr = ds.coords[coord].values
+            parts.append(f"{coord}:{arr.shape}:{arr.flat[0]:.6f}:{arr.flat[-1]:.6f}")
+    shape_key = "|".join(str(ds.dims.get(d, '')) for d in ('x', 'y', 'lon', 'lat'))
+    raw = "|".join(parts) + "|" + shape_key
+    return hashlib.md5(raw.encode()).hexdigest()  # noqa: S324
+
+
+def _get_or_build_regridder(
+    ds: xr.Dataset,
+    ds_target: xr.Dataset,
+    method: str,
+    bounds_method: str,
+    input_projection=None,
+    target_projection=None,
+) -> xe.Regridder:
+    """Return a cached regridder, building it on first call for each grid-pair."""
+    src_hash = _grid_hash(ds)
+    tgt_hash = _grid_hash(ds_target)
+    key = (src_hash, tgt_hash, method, bounds_method)
+    if key not in _REGRIDDER_CACHE:
+        if method == 'bilinear':
+            regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d")
+        else:
+            if 'x' in ds.dims and 'x_b' not in ds.coords:
+                ds = add_lon_lat_bounds(ds, input_projection, bounds_method)
+            if 'x' in ds_target.dims and 'x_b' not in ds_target.coords:
+                ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
+            regridder = xe.Regridder(ds, ds_target, method)
+        _REGRIDDER_CACHE[key] = regridder
+        logger.debug("Regridder cache MISS — built new regridder for key %s", key)
+    else:
+        logger.debug("Regridder cache HIT — reusing regridder for key %s", key)
+    return _REGRIDDER_CACHE[key]
+
+
+def interpolation_target_grid(ds: xr.Dataset,
+                              ds_target: xr.Dataset,
+                              method: str,
                               input_projection=None,
                               target_projection=None,
                               bounds_method="1") -> xr.Dataset:
     """
     Interpolates the input dataset to match the target grid and domain.
-    """
 
+    Uses a process-level regridder cache (OPT-1) so that xesmf weight
+    computation is only performed once per unique grid-pair per process.
+    """
     for var in ds.data_vars:
         data = ds[var].values
         if data.ndim in (2, 3):
             ds[var].values = np.asfortranarray(data)
             ds[var].values = np.ascontiguousarray(data)
-    if method == 'bilinear':
-        regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d")
-    else:
-        if 'x' in ds.dims :
-            if 'x_b' not in ds.coords:
-                ds = add_lon_lat_bounds(ds, input_projection, bounds_method)
-        if 'x' in ds_target.dims :
-            if 'x_b' not in ds_target.coords:
-                ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
-
-        regridder = xe.Regridder(ds, ds_target, method)
+    regridder = _get_or_build_regridder(
+        ds, ds_target, method, bounds_method, input_projection, target_projection
+    )
     return regridder(ds)
 
 

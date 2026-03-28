@@ -9,7 +9,10 @@ author : Zoé GARCIA
 
 import argparse
 import datetime
+import os
 import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Tuple
 
 sys.path.append('.')
@@ -174,11 +177,19 @@ def str2bool(v):
         raise argparse.ArgumentTypeError(msg)
 
 
+def _process_date_worker(args):
+    """Top-level worker for ProcessPoolExecutor (must be picklable)."""
+    exp, date_str, plot, baseline, force = args
+    import datetime as _dt
+    date = _dt.datetime.strptime(date_str, '%Y-%m-%d')
+    builder = DatasetBuilder(exp)
+    return builder.process_date(date, plot=plot, baseline=baseline, force=force)
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Build dataset for experiment ")
     parser.add_argument('--exp', type=str, default='exp5', help='Experiment name (e.g., exp5)')
-
     parser.add_argument(
         '--plot', type=str2bool, nargs='?', const=True,
         help='Plot the data', default=False
@@ -191,23 +202,50 @@ if __name__ == '__main__':
         '--force', type=str2bool, nargs='?', const=True,
         help='Force data regeneration', default=False
     )
+    parser.add_argument(
+        '--workers', type=int, default=int(os.getenv('IDOWNSCALE_WORKERS', '1')),
+        help='Number of parallel worker processes (default: IDOWNSCALE_WORKERS env or 1)'
+    )
     args = parser.parse_args()
     exp = args.exp
 
     dataset_builder = DatasetBuilder(exp)
-    
-    # Ensure dataset directories exist
     dataset_builder.dataset.mkdir(parents=True, exist_ok=True)
     (DATASET_DIR / f'dataset_{exp}_baseline').mkdir(parents=True, exist_ok=True)
 
     total = len(DATES)
-    for i, date in enumerate(DATES):
-        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
-        x, y = dataset_builder.process_date(date, 
-                                            plot=args.plot, 
-                                            baseline=args.baseline,
-                                            force=args.force)
+    t0 = time.monotonic()
 
-        
-
-    
+    if args.workers <= 1:
+        # Serial path (original behaviour)
+        for i, date in enumerate(DATES):
+            print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
+            dataset_builder.process_date(date, plot=args.plot, baseline=args.baseline, force=args.force)
+    else:
+        # OPT-2: Parallel path
+        print(f"[OPT-2] Launching {args.workers} parallel workers for {total} dates.", flush=True)
+        work_items = [
+            (exp, date.strftime('%Y-%m-%d'), args.plot, args.baseline, args.force)
+            for date in DATES
+        ]
+        completed = 0
+        with ProcessPoolExecutor(max_workers=args.workers) as executor:
+            futures = {executor.submit(_process_date_worker, item): item for item in work_items}
+            for future in as_completed(futures):
+                completed += 1
+                date_str = futures[future][1]
+                try:
+                    future.result()
+                except Exception as exc:  # noqa: BLE001
+                    print(f"[ERROR] {date_str}: {exc}", flush=True)
+                if completed % 100 == 0 or completed == total:
+                    elapsed = time.monotonic() - t0
+                    rate = completed / elapsed if elapsed > 0 else 0
+                    eta_s = (total - completed) / rate if rate > 0 else float('inf')
+                    print(
+                        f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] "
+                        f"Progress: {completed}/{total} — {rate:.1f} dates/s — ETA {eta_s/60:.1f} min",
+                        flush=True
+                    )
+        elapsed = time.monotonic() - t0
+        print(f"[OPT-2] Completed {total} dates in {elapsed/60:.1f} min ({total/elapsed:.1f} dates/s)", flush=True)
