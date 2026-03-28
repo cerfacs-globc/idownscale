@@ -165,9 +165,9 @@ if run_phase 6; then
     log_progress "--- Phase 7: Comparison Reports ---"
     REPORT_DIR="output/$EXP/reports"
     mkdir -p "$REPORT_DIR"
-    RAW_FILE=$(ls data/GCM/tas_*_${SSP}_r1i1p1f2_gcm.nc | head -n 1)
-    BC_FILE=$(ls datasets/dataset_bc/tas_*_${SSP}_r1i1p1f2_bc.nc | head -n 1)
-    AI_FILE=$(ls predictions/exp5/tas_*_${SSP}_r1i1p1f2*exp5_unet_all_gcm_bc.nc | head -n 1)
+    RAW_FILE=$(ls data/GCM/tas_day_*_${SSP}_r1i1p1f2_gcm.nc | head -n 1)
+    BC_FILE=$(ls datasets/dataset_bc/tas_day_*_${SSP}_r1i1p1f2_bc.nc | head -n 1)
+    AI_FILE=$(ls predictions/exp5/tas_day_*_${SSP}_r1i1p1f2*exp5_unet_all_gcm_bc.nc | head -n 1)
     srun $PYTHON bin/evaluation/plot_pdf_evolution.py --exp "$EXP" --ssp "$SSP" --raw "$RAW_FILE" --bc "$BC_FILE" --ai "$AI_FILE" >> "$LOG_DIR/phase7.log" 2>&1
     srun $PYTHON bin/evaluation/generate_comparison_report.py --exp "$EXP" --ssp "$SSP" >> "$LOG_DIR/phase7.log" 2>&1
     mv output/"$EXP"/*.pdf "$REPORT_DIR/" 2>/dev/null || true
