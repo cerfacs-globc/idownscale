@@ -26,6 +26,7 @@ name.o
 .markers/
 PET0.ESMF_LogFile
 garcia.code-workspace
+.vscode/
 
 # Data ignores
 runs/
