@@ -40,7 +40,7 @@ def validate_frequency(ds, expected_freq):
         # Handles both datetime64 and cftime
         deltas = ds.time.diff('time').values.astype('timedelta64[m]').astype(float)
         avg_delta = np.mean(deltas)
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         # Fallback for very complex calendars
         return
 
@@ -55,9 +55,10 @@ def validate_frequency(ds, expected_freq):
 
     # Check if delta is within 50% (allowing for variable month lengths)
     if abs(avg_delta - expected_m) > (expected_m * 0.5):
-        raise ValueError(f"Scientific Consistency Error: Dataset frequency (~{avg_delta/60:.1f}h) "
-                         f"does not match expected experiment frequency '{expected_freq}'. "
-                         f"Check your input data paths.")
+        msg = (f"Scientific Consistency Error: Dataset frequency (~{avg_delta/60:.1f}h) "
+               f"does not match expected experiment frequency '{expected_freq}'. "
+               f"Check your input data paths.")
+        raise ValueError(msg)
 
 
 def crop_time_dim(ds, date=None, fallback=True):
@@ -507,10 +508,11 @@ class Data(object):
                     if start_y <= date.year <= end_y:
                         ds = xr.open_dataset(file)
                         break
-                except Exception:
+                except (AttributeError, ValueError, IndexError):
                     continue
             
-            if ds is None: return None
+            if ds is None:
+                return None
 
         # Frequency validation
         if exp and exp in CONFIG:
@@ -518,7 +520,8 @@ class Data(object):
 
         ds = standardize_longitudes(ds)
         ds = self.crop_time_dim(ds, date)
-        if ds is None: return None
+        if ds is None:
+            return None
         ds = standardize_dims_and_coords(ds, source_type='rcm')
 
         if 'x' not in ds.coords and xref is not None:
@@ -573,7 +576,8 @@ class Data(object):
             validate_frequency(ds, CONFIG[exp].get('freq', '1D'))
 
         ds = self.crop_time_dim(ds, date)
-        if ds is None: return None
+        if ds is None:
+            return None
 
         ds = standardize_dims_and_coords(ds, source_type='eobs')
         ds = apply_landseamask(ds, 'eobs', variables=[var])

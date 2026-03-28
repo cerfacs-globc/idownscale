@@ -45,7 +45,7 @@ def main():
     bc_flat = data_bc.flatten()
     ai_flat = data_ai.flatten()
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
     
     data_list = [raw_flat, bc_flat, ai_flat]
     labels = ['Raw GCM', 'Bias Corrected (Ibicus)', 'AI Downscaled (UNet)']
