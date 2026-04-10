@@ -50,10 +50,10 @@ def standardize_dims_and_coords(ds) :
                 break
    
     for standard_name, possible_names in coord_mapping.items() :
-       for name in possible_names :
-           if name in ds.coords :
-            ds = ds.rename({name: standard_name})
-            break
+        for name in possible_names :
+            if name in ds.coords :
+                ds = ds.rename({name: standard_name})
+                break
          
     return ds
 
@@ -89,7 +89,7 @@ def generate_bounds(coord:np.ndarray) -> np.ndarray:
     bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
     bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
     bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
-    return bounds.astype(np.int32)
+    return bounds
 
 
 def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
@@ -105,9 +105,11 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
 
       x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
 
-      proj = projection 
-
-      lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
+      if projection is None:
+         lon_b, lat_b = x_b_2d, y_b_2d
+      else:
+         proj = projection 
+         lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
 
       ds = ds.assign_coords(
          x_b=("x_b", x_b), 
@@ -165,6 +167,7 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
 
    return ds
 
+_regridder_cache = {}
 
 def interpolation_target_grid(ds:xr.Dataset, 
                               ds_target:xr.Dataset, 
@@ -175,7 +178,20 @@ def interpolation_target_grid(ds:xr.Dataset,
    """
    Interpolates the input dataset to match the target grid and domain.
    """
+   global _regridder_cache
    
+   try:
+      src_lon = ds.get('lon', ds.get('x')).values.tobytes()
+      src_lat = ds.get('lat', ds.get('y')).values.tobytes()
+      tgt_lon = ds_target.get('lon', ds_target.get('x')).values.tobytes()
+      tgt_lat = ds_target.get('lat', ds_target.get('y')).values.tobytes()
+      cache_key = (hash(src_lon), hash(src_lat), hash(tgt_lon), hash(tgt_lat), method)
+   except Exception:
+      cache_key = None
+
+   if cache_key and cache_key in _regridder_cache:
+      return _regridder_cache[cache_key](ds)
+      
 
    for var in ds.data_vars:
          data = ds[var].values
@@ -193,6 +209,10 @@ def interpolation_target_grid(ds:xr.Dataset,
             ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
       regridder = xe.Regridder(ds, ds_target, method)
+   
+   if cache_key:
+      _regridder_cache[cache_key] = regridder
+
    ds_out = regridder(ds)
    return ds_out
 
@@ -229,7 +249,7 @@ def reformat_as_target(ds:xr.Dataset,
 
 def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
    """
-   Crops the input dataset to a specified geographical domain based on latitude and longitude coordinates.
+   Crops the input dataset to a specified geographical domain based on coordinates.
    """
    if domain:
       if 'x' in ds.dims:
@@ -376,26 +396,29 @@ class Data(object):
             data = data + 273.15
       return data
    
-   def get_era5_dataset(self, var:str, date):
+   def get_era5_dataset(self, var:str, date, crop=True):
       file = glob.glob(str(ERA5_DIR/f'{var}/{var}*_{date.year}_*'))[0]
       ds = xr.open_dataset(file)
       ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
       ds = ds.reindex(lat=ds.lat[::-1])
-      ds = crop_domain_from_ds(ds, self.domain)
+      if crop:
+         ds = crop_domain_from_ds(ds, self.domain)
       ds = self.crop_time_dim(ds, date)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
       return ds
    
-   def get_gcm_dataset(self, var:str, date, ssp:str=None):
+   def get_gcm_dataset(self, var:str, date, ssp:str=None, crop=True):
       if date is None or date < pd.Timestamp('2015-01-01'):
          file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*historical*r1i1p1f2*'))[0]
       else:
          file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*{ssp}*'))[0]
       ds = xr.open_dataset(file)
+      ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
       ds = self.crop_time_dim(ds, date)
-      ds = crop_domain_from_ds(ds, self.domain)
+      if crop:
+         ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
       return ds
    

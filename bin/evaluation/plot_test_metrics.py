@@ -1,4 +1,5 @@
 import sys
+import os
 sys.path.append('.')
 
 import numpy as np
@@ -15,18 +16,21 @@ parser = argparse.ArgumentParser(description="Predict and plot results for full 
 parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
 parser.add_argument('--test-name', type=str, help='Test name (e.g., unet_gcm_bc)')
 parser.add_argument('--scale', type=str, help='Scale (e.g., daily, monthly)')
+parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
+parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
 args = parser.parse_args()
 print('oks')
 metrics_file = METRICS_DIR / f'{args.exp}/mean_metrics/metrics_test_{args.scale}_{args.exp}_{args.test_name}.npz'
 graph_dir = GRAPHS_DIR/f'metrics/{args.exp}/{args.test_name}/'
+os.makedirs(graph_dir, exist_ok=True)
 
 metrics_dict = dict(np.load(metrics_file, allow_pickle=True))
 rmse_temporal = metrics_dict['rmse_temporal']
 rmse_spatial = metrics_dict['rmse_spatial']
 bias_spatial = metrics_dict['bias_spatial']
 #dates = metrics_dict['dates']
-dates = pd.date_range(start='2000-01-01', 
-                      end='2014-12-31', 
+dates = pd.date_range(start=args.startdate, 
+                      end=args.enddate, 
                       freq='M' if args.scale == 'monthly' else 'D')
 target= CONFIG[args.exp]['target']
 

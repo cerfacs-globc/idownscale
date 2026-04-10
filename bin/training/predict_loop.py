@@ -8,16 +8,19 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
+import os
 import glob
 import xarray as xr
 import pandas as pd
 import torch
 import argparse
 import numpy as np
+from tqdm import tqdm
 from torchvision.transforms import v2
+from pathlib import Path
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, DeMinMaxNormalisation
 from iriscc.settings import (PREDICTION_DIR, 
                              RUNS_DIR, 
                              DATASET_BC_DIR, 
@@ -59,8 +62,42 @@ if __name__=='__main__':
     args = parser.parse_args()
 
 
-    run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
-    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    run_dir_base = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
+    version_best = run_dir_base / 'version_best'
+    
+    if version_best.exists():
+        run_dir = version_best
+    else:
+        # Fallback to the latest version_N folder
+        versions = glob.glob(str(run_dir_base / 'version_*'))
+        if not versions:
+            # Try searching without lightning_logs for flexibility
+            run_dir_fallback = RUNS_DIR/f'{args.exp}/{args.test_name}'
+            versions = glob.glob(str(run_dir_fallback / 'version_*'))
+            if not versions:
+                raise FileNotFoundError(f"No version folders found in {run_dir_base}")
+        
+        # Sort to find the latest version (e.g., version_2 > version_1)
+        run_dir = Path(sorted(versions, key=lambda x: int(os.path.basename(x).split('_')[-1]))[-1])
+        print(f"Automatically selected latest run directory: {run_dir}")
+
+    # Robust search for best checkpoint
+    checkpoint_patterns = [
+        str(run_dir / 'checkpoints' / 'best-checkpoint*.ckpt'),
+        str(run_dir / 'checkpoints' / '*.ckpt'),
+        str(run_dir / '*.ckpt')
+    ]
+    
+    checkpoint_dir = None
+    for pattern in checkpoint_patterns:
+        matches = glob.glob(pattern)
+        if matches:
+            checkpoint_dir = matches[0]
+            print(f"Found checkpoint: {checkpoint_dir}")
+            break
+            
+    if checkpoint_dir is None:
+        raise FileNotFoundError(f"Could not find any checkpoint in {run_dir}")
 
     device = 'cpu'
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
@@ -68,11 +105,13 @@ if __name__=='__main__':
     hparams = model.hparams['hparams']
 
     transforms = v2.Compose([
-                MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
-                LandSeaMask(hparams['mask'], hparams['fill_value']),
-                FillMissingValue(hparams['fill_value']),
-                Pad(hparams['fill_value'])
-                ])
+            MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
+            LandSeaMask(hparams['mask'], hparams['fill_value']),
+            FillMissingValue(hparams['fill_value']),
+            Pad(hparams['fill_value'])
+            ])
+    
+    de_norm = DeMinMaxNormalisation(hparams['sample_dir'], hparams['output_norm'])
 
     sample_dir = hparams['sample_dir']
     if args.simu_test is not None:
@@ -98,10 +137,13 @@ if __name__=='__main__':
     ds, y = get_target_format(args.exp, dates=dates)
     y = np.expand_dims(y, axis= 0)
     
-    for i, date in enumerate(dates):
-        print(date)
+    for i, date in enumerate(tqdm(dates, desc=f'Predicting {period}', mininterval=2, ascii=True)):
+        # print(date)
         date_str = date.date().strftime('%Y%m%d')
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        samples = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))
+        if not samples:
+            raise FileNotFoundError(f"Sample not found for date {date_str} in {sample_dir}")
+        sample = samples[0]
         data = dict(np.load(sample), allow_pickle=True)
 
         x = data['x']
@@ -111,6 +153,8 @@ if __name__=='__main__':
         x = torch.unsqueeze(x, dim=0).float()
         y_hat = model(x.to(device)).to(device)
         y_hat = y_hat.detach().cpu()
+        
+        y_hat[0] = de_norm((False, y_hat[0]))
 
         unpad_func = UnPad(list(CONFIG[args.exp]['shape']))
         y_hat = unpad_func(y_hat[0])[0].numpy()

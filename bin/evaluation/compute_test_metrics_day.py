@@ -21,6 +21,7 @@ import pandas as pd
 from typing import Optional
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
+from tqdm import tqdm
 
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
@@ -55,8 +56,20 @@ def get_config(exp: str,
     elif test_name == 'era5_raw':
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
     else:
-        run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
-        checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
+        run_dir_base = RUNS_DIR/f'{exp}/{test_name}/lightning_logs'
+        version_best = run_dir_base / 'version_best'
+        
+        if version_best.exists():
+            run_dir = version_best
+        else:
+            # Fallback to the latest version_N folder
+            versions = glob.glob(str(run_dir_base / 'version_*'))
+            if not versions:
+                raise FileNotFoundError(f"No version folders found in {run_dir_base}")
+            run_dir = Path(sorted(versions, key=lambda x: int(x.split('_')[-1]))[-1])
+            print(f"Automatically selected latest run directory: {run_dir}")
+
+        checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
         model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
         model.eval()
         hparams = model.hparams['hparams']
@@ -91,11 +104,14 @@ def preprocess(date,
     """
     
     date_str = date.date().strftime('%Y%m%d')
-    sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+    match = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))
+    if not match:
+        raise FileNotFoundError(f"Sample not found for date {date_str} in {sample_dir}")
+    sample = match[0]
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data['x'], data['y']
     condition = np.isnan(y[0])
-    print(x.shape, y.shape)
+    # print(x.shape, y.shape)
     if model: # unet, unet_gcm, unet_gcm_bc
         x, y = transforms((x, y))
         x = torch.unsqueeze(x, dim=0).float()
@@ -158,8 +174,8 @@ if __name__=='__main__':
     i_summer = []
     i_winter = []
 
-    for i, date in enumerate(dates):
-        print(date)
+    for i, date in enumerate(tqdm(dates, desc="Computing metrics", mininterval=2, ascii=True)):
+        # print(date)
         if date.month in [6,7,8]:
             i_summer.append(i)
         if date.month in [1,2,12]:

@@ -43,16 +43,24 @@ class IRISCC(Dataset):
         self.data_type = data_type
 
         list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        train_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
-        val_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
-        test_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
-
+        
+        # End test at 2014-12-31 to avoid loading future samples without ground truth 'y'
+        test_end_matches = np.where(list_data == str(self.sample_dir / 'sample_20150101.npz'))[0]
+        test_end_limit = int(test_end_matches[0]) if len(test_end_matches) > 0 else len(list_data)
+        
+        valid_data = list_data[:test_end_limit]
+        n_samples = len(valid_data)
+        
+        # Use 80% for training, 10% for validation, 10% for testing
+        train_end = int(0.8 * n_samples)
+        val_end = int(0.9 * n_samples)
+        
         if self.data_type == 'train':
-            self.samples = list_data[train_start:val_start-1]
+            self.samples = valid_data[:train_end]
         elif self.data_type == 'val':
-            self.samples = list_data[val_start:test_start-1]
+            self.samples = valid_data[train_end:val_end]
         elif self.data_type == 'test':
-            self.samples = list_data[test_start:]
+            self.samples = valid_data[val_end:]
 
     def __len__(self) -> int:
         """

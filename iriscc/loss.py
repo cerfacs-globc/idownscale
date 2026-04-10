@@ -43,7 +43,7 @@ class MaskedMSELoss(nn.Module):
         squared_error = (y_hat - y) ** 2
         masked_error = squared_error * mask
         loss = masked_error.sum() / (mask.sum()) # Mean over non-masked values
-        return torch.sqrt(loss)
+        return loss
     
 
 

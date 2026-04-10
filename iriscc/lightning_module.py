@@ -160,7 +160,9 @@ class IRISCCLightningModule(pl.LightningModule):
             fig, ax = plt.subplots()
             y[y == self.fill_value] = torch.nan
             vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
-            levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
+            if vmin == vmax:
+                vmax += 1e-5
+            levels = np.linspace(vmin, vmax, 11)
             cs = ax.contourf(y[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
             plt.colorbar(cs, ax=ax, pad=0.05)
             self.logger.experiment.add_figure('Figure/test_y_0', fig)

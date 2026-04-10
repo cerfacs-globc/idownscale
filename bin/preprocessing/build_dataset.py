@@ -9,11 +9,14 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
+import os
 import xarray as xr
 import numpy as np
 import argparse
 import datetime
 from typing import Tuple
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 from iriscc.plotutils import plot_test
 from iriscc.datautils import (standardize_dims_and_coords, 
@@ -61,6 +64,7 @@ class DatasetBuilder:
         self.target_file = CONFIG[exp]['target_file']
         self.orog_file = CONFIG[exp]['orog_file']
         self.ssp = CONFIG[exp]['ssp']
+        os.makedirs(self.dataset, exist_ok=True)
     
     def process_date(self, 
                      date: datetime.date, 
@@ -72,6 +76,7 @@ class DatasetBuilder:
             sample = {'y_hat': y_hat,
                       'y': y}
             dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
+            os.makedirs(dataset, exist_ok=True)
         else:
             x = self.input_data(date)
             y = self.target_data(date)
@@ -95,12 +100,13 @@ class DatasetBuilder:
                 ds = xr.open_dataset(self.orog_file)
                 ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
             else:
-                ds_era5 = get_data.get_era5_dataset(var, date)
-                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) # default value
+                ds_era5 = get_data.get_era5_dataset(var, date, crop=False)
+                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp, crop=False)
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                         ds_target=ds_gcm, 
                                                         method="conservative_normed")
-                ds = reformat_as_target(ds_era5_to_gcm, 
+                ds_era5_to_gcm_crop = crop_domain_from_ds(ds_era5_to_gcm, self.domain)
+                ds = reformat_as_target(ds_era5_to_gcm_crop, 
                                         target_file=self.target_file, 
                                         method='conservative_normed', 
                                         domain=self.domain, 
@@ -132,12 +138,13 @@ class DatasetBuilder:
         get_data = Data(self.domain)
         y_hat = []
         for var in self.input_vars:
-            ds_era5 = get_data.get_era5_dataset(var, date)
-            ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp)
+            ds_era5 = get_data.get_era5_dataset(var, date, crop=False)
+            ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp, crop=False)
             ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                        ds_target=ds_gcm, 
                                                        method="conservative_normed")
-            ds = reformat_as_target(ds_era5_to_gcm, 
+            ds_era5_to_gcm_crop = crop_domain_from_ds(ds_era5_to_gcm, self.domain)
+            ds = reformat_as_target(ds_era5_to_gcm_crop, 
                                     target_file=self.target_file, 
                                     method='bilinear', 
                                     domain=self.domain, 
@@ -155,14 +162,16 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--plot', action='store_true', help='Plot the data', default=False)
     parser.add_argument('--baseline', action='store_true', help='Use baseline data instead of input data', default=False) 
+    parser.add_argument('--n_jobs', type=int, help='Number of jobs for parallel processing', default=1)
     args = parser.parse_args()
     exp = args.exp
 
     dataset_builder = DatasetBuilder(exp)
-    for i, date in enumerate(DATES):
-        x, y = dataset_builder.process_date(date, 
-                                            plot=args.plot, 
-                                            baseline=args.baseline)
+    
+    Parallel(n_jobs=args.n_jobs)(
+        delayed(dataset_builder.process_date)(date, plot=args.plot, baseline=args.baseline)
+        for date in tqdm(DATES, desc=f"Building {exp} dataset")
+    )
 
         
 

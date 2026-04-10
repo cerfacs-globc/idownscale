@@ -14,8 +14,9 @@ import glob
 import json
 import argparse
 import matplotlib.pyplot as plt
+import pandas as pd
 
-from iriscc.settings import CONFIG, DATES_TRAIN
+from iriscc.settings import CONFIG
 from typing import Tuple
 
 def update_statistics(sum: float, 
@@ -69,33 +70,34 @@ def plot_histogram(data,
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
-    parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
+    parser.add_argument('--exp', type=str, help='Experiment name', default='exp5')  
     args = parser.parse_args()
 
     dataset_dir = CONFIG[args.exp]['dataset']
-    dataset = np.sort(glob.glob(str(dataset_dir/'sample*')))
+    list_data = np.sort(glob.glob(str(dataset_dir/'sample*')))
+    
+    # Standardize splitting to match dataloader parity
+    test_end_matches = np.where(list_data == str(dataset_dir / 'sample_20150101.npz'))[0]
+    test_end_limit = int(test_end_matches[0]) if len(test_end_matches) > 0 else len(list_data)
+    dataset = list_data[:test_end_limit]
+    
     channels = CONFIG[args.exp]['channels']
     ch = len(channels)
-    sum = np.zeros(ch)
+    
+    sum_vals = np.zeros(ch)
     square_sum = np.zeros(ch)
     n_total = np.zeros(ch)
 
-    # Other way to split the dataset
-    #nb = len(dataset)
-    #train_end = int(0.6 * nb) 
-    #val_end = train_end + int(0.2 * nb)
+    # Use 80% for training, 10% for validation, 10% for testing (matches dataloader)
+    n_samples = len(dataset)
+    train_end = int(0.8 * n_samples)
+    val_end = int(0.9 * n_samples)
     
-    train_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
-    val_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
-    test_start = np.where(dataset == str(dataset_dir/f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
-   
     y_data = {'train' : [],
                  'val' : [],
                  'test' : []}
 
     for nb, sample in enumerate(dataset):
-        print(sample)
-
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
@@ -103,56 +105,51 @@ if __name__=='__main__':
             x[c][condition] = np.nan
             if channel == 'pr input':
                 x[c][np.isnan(x[c])] = 0.
-                x[c] = np.log10(1 + x[c])  # Apply log transformation to precipitation input
+                x[c] = np.log10(1 + x[c])
                 x[c][condition] = np.nan
-                print(np.nanmax(x[c]))
 
         # Only training statistics are used for normalization
-        if nb in range(train_start, val_start-1):
+        if nb < train_end:
             y_data['train'].append(y.flatten())
-            if nb == train_start:
-                min, max = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
-                min = np.concatenate((min, np.nanmin(y, axis=(1, 2))))
-                max = np.concatenate((max, np.nanmax(y, axis=(1, 2))))
+            if nb == 0:
+                min_vals = np.concatenate((np.nanmin(x, axis=(1, 2)), np.nanmin(y, axis=(1, 2))))
+                max_vals = np.concatenate((np.nanmax(x, axis=(1, 2)), np.nanmax(y, axis=(1, 2))))
             
             for i in range(ch):
                 if i == ch-1:
-                    sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                    sum_vals[i], square_sum[i], n_total[i], min_vals[i], max_vals[i] = update_statistics(sum_vals[i], 
                                                                         square_sum[i], 
                                                                         n_total[i],
-                                                                        min[i],
-                                                                        max[i],
+                                                                        min_vals[i],
+                                                                        max_vals[i],
                                                                         y[0])
                 else:
-                    sum[i], square_sum[i], n_total[i], min[i], max[i] = update_statistics(sum[i], 
+                    sum_vals[i], square_sum[i], n_total[i], min_vals[i], max_vals[i] = update_statistics(sum_vals[i], 
                                                                         square_sum[i], 
                                                                         n_total[i],
-                                                                        min[i],
-                                                                        max[i],
+                                                                        min_vals[i],
+                                                                        max_vals[i],
                                                                         x[i])
-                
-
-
-        # Validation and test data histograms 
-        elif nb in range(val_start, test_start-1):
+        elif nb < val_end:
             y_data['val'].append(y.flatten())
-        elif nb >= test_start :
+        else:
             y_data['test'].append(y.flatten())
         
-    mean = sum / n_total
+    mean = sum_vals / n_total
     std = np.sqrt((square_sum / n_total) - (mean**2))
 
     stats = {}
     for i, chanel in enumerate(channels):
         stats[chanel] = {'mean': mean[i],
                          'std': std[i],
-                         'min': min[i].astype(np.float64),
-                         'max': max[i].astype(np.float64)}
+                         'min': min_vals[i].astype(np.float64),
+                         'max': max_vals[i].astype(np.float64)}
     
     with open(dataset_dir/'statistics.json', "w") as f: 
         json.dump(stats, f)
 
     for type, data in y_data.items():
+        if not data: continue
         data = np.concatenate(data)
         plot_histogram(data, 
                     np.nanmin(data), 
@@ -162,6 +159,3 @@ if __name__=='__main__':
                     CONFIG[args.exp]['target_vars'][0], 
                     f'y {type} dataset histogram', 
                     dataset_dir/f'hist_y_{type}.png')
- 
-    
-

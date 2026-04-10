@@ -88,7 +88,8 @@ class DeMinMaxNormalisation:
     def __call__(self, sample: Tuple[Union[bool, torch.Tensor], torch.Tensor]) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         x, y = sample
         if x is False:
-            y[0, :, :] = y[0, :, :] * (self.max[-1] - self.min[-1]) + self.min[-1]
+            if self.output_norm:
+                y[0, :, :] = y[0, :, :] * (self.max[-1] - self.min[-1]) + self.min[-1]
             return torch.tensor(y)
         else:
             x = [x[C, :, :] * (self.max[C] - self.min[C]) + self.min[C] for C in range(len(x))]

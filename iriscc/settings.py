@@ -10,7 +10,25 @@ import pandas as pd
 import cartopy.crs as ccrs
 import pyproj
 
-RAW_DIR = Path('/scratch/globc/garcia/rawdata/')
+import os
+from pathlib import Path
+import pandas as pd
+import cartopy.crs as ccrs
+import pyproj
+
+# --- Portability Logic ---
+# Resolve the project root automatically based on the location of this file.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Allow users to override the data directories via environment variables
+RAW_DIR = Path(os.environ.get('IDOWNSCALE_RAW_DIR', PROJECT_ROOT / 'rawdata'))
+DATASET_DIR = Path(os.environ.get('IDOWNSCALE_DATASET_DIR', PROJECT_ROOT / 'datasets'))
+RUNS_DIR = Path(os.environ.get('IDOWNSCALE_RUNS_DIR', PROJECT_ROOT / 'runs'))
+GRAPHS_DIR = Path(os.environ.get('IDOWNSCALE_GRAPHS_DIR', PROJECT_ROOT / 'graph'))
+METRICS_DIR = Path(os.environ.get('IDOWNSCALE_METRICS_DIR', PROJECT_ROOT / 'metrics'))
+PREDICTION_DIR = Path(os.environ.get('IDOWNSCALE_PREDICTION_DIR', PROJECT_ROOT / 'prediction'))
+
+# Subdirectories
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
@@ -19,6 +37,7 @@ RCM_RAW_DIR = RAW_DIR / 'rcm'
 ERA5_DIR = RAW_DIR / "era5"
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
 ALADIN_RAW_DIR = RAW_DIR / 'ALADIN'
+
 TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'tas_day_SAFRAN_1959_reformat.nc'
 TARGET_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc'
 TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
@@ -30,7 +49,7 @@ LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
 
-DATASET_DIR = Path('/scratch/globc/garcia/datasets/')
+# Dataset Groups
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
@@ -50,11 +69,6 @@ DATASET_EXP7_30Y_DIR = DATASET_DIR / 'dataset_exp7_30y'
 DATASET_EXP8_30Y_DIR = DATASET_DIR / 'dataset_exp8_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
-
-RUNS_DIR = Path('/scratch/globc/garcia/runs/')
-GRAPHS_DIR = Path('/scratch/globc/garcia/graph/')
-METRICS_DIR = Path('/scratch/globc/garcia/metrics/')
-PREDICTION_DIR = Path('/scratch/globc/garcia/prediction/')
 
 CONFIG = {
     'exp3':
@@ -201,17 +215,22 @@ SAFRAN_PROJ_PYPROJ = pyproj.Proj(
     "+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
 
 
-# Phase 1 settings
-DATES = pd.date_range(start='19850101', end='2004-12-31', freq='D')
-DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
-#DATES_TRAIN = ['1985', '2004', '2010'] # train, valid, test start
-DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
+# Full Production Range
+DATES = pd.date_range(start='19790101', end='2014-12-31', freq='D')
+DATES_TRAIN = ['1980', '2010', '2014'] # Reference only
+DATES_TEST = pd.date_range(start='19800101', end='20141231', freq='D')
 
 # Phase 2 settings
 #DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
 #DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
 
+
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
 DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq='D')
+
+# Experiment 5 Definitive Splits
+DATES_EXP5_TRAIN = pd.date_range(start='1989-01-01', end='2003-12-31', freq='D')
+DATES_EXP5_VAL = pd.date_range(start='2004-01-01', end='2009-12-31', freq='D')
+DATES_EXP5_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D')
 

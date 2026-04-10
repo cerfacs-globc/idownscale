@@ -8,6 +8,7 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
+import os
 import xarray as xr
 import numpy as np
 import argparse
@@ -164,7 +165,7 @@ if __name__=='__main__':
 
     get_data_bc = Data([-12.5, 27.5, 31., 71.]) # Europeen domain
     gcm_ds = get_data_bc.get_gcm_dataset(var, None)
-    lon, lat = gcm_ds.lon.values, gcm_ds.lat.values
+    lon, lat = gcm_ds.get('lon', gcm_ds.get('x')).values, gcm_ds.get('lat', gcm_ds.get('y')).values
     get_data = Data(domain=domain)
 
     debiaser = CDFt.from_variable(variable=var,
@@ -206,6 +207,7 @@ if __name__=='__main__':
                                                             CDFt = test_hist_bc)
     plot = marginal.plot_marginal_bias(variable = var,
                                        bias_df = var_marginal_bias_data)
+    os.makedirs(GRAPHS_DIR / 'biascorrection', exist_ok=True)
     plot.savefig(GRAPHS_DIR /f'biascorrection/{var}_ibicus_bias_boxplot_{simu}.png')
     
     var_trend_bias_data = trend.calculate_future_trend_bias(statistics = ["mean", 0.05, 0.95], 
@@ -348,10 +350,12 @@ if __name__=='__main__':
                             time=('time', test_future['dates'])
                             ))
     if simu == 'gcm':
+        os.makedirs(GCM_RAW_DIR/f'CNRM-CM6-1-BC', exist_ok=True)
         ds_train_hist_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc')
         ds_test_hist_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc')
         ds_test_future_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc')
     elif simu == 'rcm':
+        os.makedirs(RCM_RAW_DIR/f'ALADIN-BC', exist_ok=True)
         ds_train_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_19800101-19991231_150km_bc.nc')
         ds_test_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_20000101-20141231_150km_bc.nc')
         ds_test_future_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc')
@@ -385,6 +389,7 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
+        os.makedirs(DATASET_BC_DIR/f'dataset_{exp}_test_{simu}_bc', exist_ok=True)
         np.savez(DATASET_BC_DIR/f'dataset_{exp}_test_{simu}_bc/sample_{date_str}.npz', **sample)
 
 
