@@ -99,7 +99,7 @@ if __name__=='__main__':
     if checkpoint_dir is None:
         raise FileNotFoundError(f"Could not find any checkpoint in {run_dir}")
 
-    device = 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location=device)
     model.eval()
     hparams = model.hparams['hparams']

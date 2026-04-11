@@ -24,7 +24,7 @@ from torchmetrics import MeanSquaredError, PearsonCorrCoef
 from tqdm import tqdm
 
 from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform, DeMinMaxNormalisation
 from iriscc.settings import (CONFIG, 
                              RUNS_DIR, 
                              METRICS_DIR, 
@@ -45,7 +45,7 @@ def get_config(exp: str,
     Returns:
         Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]
     """
-    model, transforms = None, None
+    model, transforms, de_norm = None, None, None
 
     if test_name.startswith('baseline'):
         sample_dir = DATASET_DIR / f'dataset_{exp}_baseline'
@@ -86,7 +86,10 @@ def get_config(exp: str,
             sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
         else:
             sample_dir = hparams['sample_dir']
-    return model, transforms, sample_dir
+
+        de_norm = DeMinMaxNormalisation(hparams['sample_dir'], hparams['output_norm'])
+        
+    return model, transforms, sample_dir, de_norm
 
 def preprocess(date,
                 sample_dir: Path,
@@ -147,7 +150,7 @@ if __name__=='__main__':
     dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
 
     transforms = None
-    model, transforms, sample_dir = get_config(exp, test_name, simu_test)
+    model, transforms, sample_dir, de_norm = get_config(exp, test_name, simu_test)
 
     if simu_test:
         test_name = f'{test_name}_{simu_test}'
@@ -186,6 +189,11 @@ if __name__=='__main__':
                               sample_dir, 
                               model, 
                               transforms)
+        
+        if de_norm is not None:
+            # Denormalize to Kelvin before metrics (expects (C, H, W))
+            y = de_norm((False, torch.tensor(y).unsqueeze(0))).numpy()[0]
+            y_hat = de_norm((False, torch.tensor(y_hat).unsqueeze(0))).numpy()[0]
 
         ## spatial metrics
         error = (y_hat - y)

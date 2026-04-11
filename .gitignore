@@ -1,15 +1,62 @@
+# Git
 .git
 !.gitignore
-log
-name.e
-name2.e
-nameh.e
-name.o
-.gitignore
-run_batch_globc.sh
-run_batch_grace.sh
-run_batch_hybrid.sh
-PET0.ESMF_LogFile
-garcia.code-workspace
-__pycache__
+
+# HPC / SLURM
+*.out
+*.err
+*.log
+slurm-*
+
+# Data & Models
+datasets/
+rawdata/
+runs/*/lightning_logs/version_*/checkpoints/
+metrics/exp*/
+graph/metrics/
+prediction/
+.weights_*.nc
+
+# Python
+__pycache__/
 *.pyc
+*.pyo
+*.pyd
+.env
+.venv
+env/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Local Dev / IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Diagnostic / Verification / Local Setup
+diagnose_*.py
+verify_*.py
+verify_*.sh
+debug_*.sh
+fix_env_*.sh
+rebuild_env_*.sh
+setup_singularity_env*.sh
+test_*.sh
+test_*.py
+watchdog_*.py
+run_eval_*.sh
+run_repro_*.sh
+run_phases_*.sh
+run_singularity_template.sh
+run_full_production.sh
+run_production_full_resume.sh
+validate_*.py
+check_*.py
+install_*.sh
+job_id.txt
+lib_arm/
+scratch/
+bin/evaluation/validate_vs_garcia.py
+graph/
+runs/diagnostic_plot.py

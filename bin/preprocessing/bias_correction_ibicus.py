@@ -168,8 +168,7 @@ if __name__=='__main__':
     lon, lat = gcm_ds.get('lon', gcm_ds.get('x')).values, gcm_ds.get('lat', gcm_ds.get('y')).values
     get_data = Data(domain=domain)
 
-    debiaser = CDFt.from_variable(variable=var,
-                                  apply_by_month=True)
+    debiaser = CDFt.from_variable(variable=var)
 
     train_hist = dict(np.load(DATASET_BC_DIR/f'bc_train_hist_{simu}.npz', allow_pickle=True))
     test_hist = dict(np.load(DATASET_BC_DIR/f'bc_test_hist_{simu}.npz', allow_pickle=True))

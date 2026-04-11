@@ -16,12 +16,19 @@ parser = argparse.ArgumentParser(description="Predict and plot results for full 
 parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
 parser.add_argument('--test-name', type=str, help='Test name (e.g., unet_gcm_bc)')
 parser.add_argument('--scale', type=str, help='Scale (e.g., daily, monthly)')
+parser.add_argument('--simu-test', type=str, help='Suffix (e.g., gcm_bc)', default=None)
 parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
 parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
 args = parser.parse_args()
-print('oks')
-metrics_file = METRICS_DIR / f'{args.exp}/mean_metrics/metrics_test_{args.scale}_{args.exp}_{args.test_name}.npz'
-graph_dir = GRAPHS_DIR/f'metrics/{args.exp}/{args.test_name}/'
+
+if args.simu_test:
+    full_test_name = f'{args.test_name}_{args.simu_test}'
+else:
+    full_test_name = args.test_name
+
+
+metrics_file = METRICS_DIR / f'{args.exp}/mean_metrics/metrics_test_{args.scale}_{args.exp}_{full_test_name}.npz'
+graph_dir = GRAPHS_DIR/f'metrics/{args.exp}/{full_test_name}/'
 os.makedirs(graph_dir, exist_ok=True)
 
 metrics_dict = dict(np.load(metrics_file, allow_pickle=True))
@@ -47,7 +54,7 @@ print(np.nanmax(bias_spatial), np.nanmax(rmse_spatial))
 
 # Spatial distribution
 ## RMSE
-levels = np.linspace(0, 0.6, 13)
+levels = np.linspace(0, 10.0, 11)  # Physical scale for Kelvin
 colors = [
     '#9ecae1', '#3182bd', '#08519c',
     '#a1d99b', '#41ab5d', '#006d2c',  # Vert clair -> foncé
@@ -60,8 +67,8 @@ fig, ax = plot_map_contour(rmse_spatial,
                     data_projection = CONFIG[args.exp]['data_projection'],
                     fig_projection = CONFIG[args.exp]['fig_projection'],
                     title = f'{args.scale} {args.test_name} ({target})',
-                    cmap=mcolors.ListedColormap(colors[:len(levels) - 1]),
-                    levels=levels ,
+                     cmap=mcolors.ListedColormap(colors[:len(levels) - 1]) if len(colors) >= len(levels)-1 else 'jet',
+                     levels=levels ,
                     var_desc='RMSE (K)')
 ax.text(0.03, 0.07, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}", 
         transform=ax.transAxes, fontsize=10, verticalalignment='top', zorder=10, 
@@ -70,15 +77,15 @@ ax.text(0.03, 0.07, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}",
 plt.savefig(f"{graph_dir}/{args.scale}_spatial_rmse_distribution_{args.test_name}.png")
 
 ## Bias
-levels = np.linspace(-0.06,0.06, 13)
+levels = np.linspace(-5.0, 5.0, 11) # Physical scale for Kelvin
 fig, ax = plot_map_contour(bias_spatial,
                     domain = domain,
                     data_projection = CONFIG[args.exp]['data_projection'],
                     fig_projection = CONFIG[args.exp]['fig_projection'],
                     title = f'{args.scale} {args.test_name} ({target})',
-                    cmap='BrBG',
-                    levels=levels,
-                    var_desc='Bias (K)')
+                     cmap='RdBu_r', # Red for positive bias, Blue for negative
+                     levels=levels,
+                     var_desc='Bias (K)')
 ax.text(0.03, 0.07, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}", 
         transform=ax.transAxes, fontsize=10, verticalalignment='top', zorder=10, 
         horizontalalignment='left', color = 'red', 
