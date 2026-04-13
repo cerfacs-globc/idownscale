@@ -1,4 +1,3 @@
-# jscpd:ignore-start
 """
 Lightning module for IRISCC project.
 
@@ -197,4 +196,3 @@ class IRISCCLightningModule(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
         return [optimizer], [scheduler]
-# jscpd:ignore-end

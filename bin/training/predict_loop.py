@@ -1,4 +1,3 @@
-# jscpd:ignore-start
 """
 Predict and save results for a full period by loading a trained model.
 
@@ -159,4 +158,3 @@ if __name__ == "__main__":
         ds.tas[i] = y_hat
 
     ds.to_netcdf(PREDICTION_DIR / f"tas_day_{data_type}_{period}_r1i1p1f2_gr_{startdate}_{enddate}_{args.exp}_{test_name}.nc")
-# jscpd:ignore-end

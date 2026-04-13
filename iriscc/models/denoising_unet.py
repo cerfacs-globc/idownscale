@@ -1,4 +1,3 @@
-# jscpd:ignore-start
 """
 U-NET FOR BRAIN MRI
 Adapted to diffusion purposes adding time embeddings by Zoé Garcia
@@ -176,4 +175,3 @@ if __name__ == "__main__":
     y_hat = model(x.float(), time_tensor, conditionning_image.float())
     print(y_hat)
     plot_test(y_hat.detach().numpy()[0, 0, :, :], "title", "/gpfs-calypso/scratch/globc/garcia/graph/test4.png")
-# jscpd:ignore-end

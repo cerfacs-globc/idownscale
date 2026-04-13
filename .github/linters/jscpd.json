@@ -1,0 +1,12 @@
+{
+  "threshold": 20,
+  "reporters": ["console", "checkstyle"],
+  "ignore": [
+    "**/.git/**",
+    "**/iriscc/models/**",
+    "**/iriscc/lightning_module*",
+    "**/bin/training/**",
+    "**/bin/preprocessing/**",
+    "**/bin/evaluation/**"
+  ]
+}
