@@ -43,7 +43,7 @@ fix_env_*.sh
 rebuild_env_*.sh
 setup_singularity_env*.sh
 test_*.sh
-test_*.py
+# test_*.py
 watchdog_*.py
 run_eval_*.sh
 run_repro_*.sh

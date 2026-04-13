@@ -148,6 +148,7 @@ if __name__ == "__main__":
         condition = y[0] == 0
         x = torch.unsqueeze(x, dim=0).float()
         y_hat = model(x.to(device)).to(device)
+        y_hat = torch.relu(y_hat)
         y_hat = y_hat.detach().cpu()
 
         y_hat[0] = de_norm((False, y_hat[0]))
