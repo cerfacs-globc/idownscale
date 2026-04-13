@@ -1,12 +1,8 @@
----
 name: Lint
-
 on:
   push:
   pull_request:
-
 permissions: read-all
-
 jobs:
   super-lint:
     name: Lint with Super-Linter
@@ -17,13 +13,11 @@ jobs:
       statuses: write
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
       - name: Run Super-Linter
         uses: github/super-linter/slim@v7
         env:
