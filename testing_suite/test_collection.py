@@ -1,6 +1,6 @@
+import iriscc.datautils
 import numpy as np
 import pandas as pd
-import iriscc.datautils
 
 def test_generate_bounds_int32():
     """
@@ -20,10 +20,7 @@ def test_generate_bounds_int32():
     # Apply patch
     iriscc.datautils.generate_bounds = gb_int32
     
-    try:
         # Test parameters representing standard experiment domains
-        date = pd.Timestamp('1980-01-01')
-        domain = [-6., 10., 38, 54]
         
         # We use a mocked or small sample for CI if possible, 
         # but here we follow the original script's logic.
