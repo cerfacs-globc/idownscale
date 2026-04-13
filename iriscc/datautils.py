@@ -166,7 +166,6 @@ def interpolation_target_grid(ds: xr.Dataset, ds_target: xr.Dataset, method: str
     """
     Interpolates the input dataset to match the target grid and domain.
     """
-    global _regridder_cache
 
     try:
         src_lon = ds.get("lon", ds.get("x")).values.tobytes()

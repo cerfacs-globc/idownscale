@@ -110,9 +110,9 @@ The path to the best-trained model weights should be renamed ‘{version_best}�
 
 ---
 ### Bias correction
-In the ‘perfect prognosis’ approach employed by [Soares et al. (2024)](https://gmd.copernicus.org/articles/17/229/2024/) and [Vrac and Vaittinada Ayar (2017)](https://journals.ametsoc.org/view/journals/apme/56/1/jamc-d-16-0079.1.xml), the neural network learns the scaling relationship between reanalyses and observations before applying the weights to simulation data. The simulated data are corrected against the reanalyses in pre-processing to reduce model bias.
+In the ‘perfect prognosis’ approach employed by [Soares et al. (2024)](https://gmd.copernicus.org/articles/17/229/2024/) and [Vrac and Vaittinada Ayar (2017)](https://doi.org/10.1175/JAMC-D-16-0079.1), the neural network learns the scaling relationship between reanalyses and observations before applying the weights to simulation data. The simulated data are corrected against the reanalyses in pre-processing to reduce model bias.
 
-The CDF-t method [(P.-A. Michelangeli (2009))](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2009GL038401) is used here. The data are first pre-processed to create a training set and two data sets (historical and future) to be cleared, one of which will be used to evaluate the method.
+The CDF-t method [(P.-A. Michelangeli (2009))](https://doi.org/10.1029/2009GL038401) is used here. The data are first pre-processed to create a training set and two data sets (historical and future) to be cleared, one of which will be used to evaluate the method.
 ```bash
 python bin/preprocessing/build_dataset_bc.py --simu gcm --spp ssp585 --var tas
 ```

@@ -13,11 +13,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-
-    ############################################
-    # Grant status permission for MULTI_STATUS #
-    ############################################
     permissions:
       contents: read
       packages: read
