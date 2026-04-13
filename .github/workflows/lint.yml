@@ -24,16 +24,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Super-Linter on new changes
+      - name: Run Super-Linter
         uses: github/super-linter/slim@v7
         env:
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MARKDOWN_CONFIG_FILE: .markdownlint.json
+          MARKDOWN_CONFIG_FILE: mlc_config.json
           PYTHON_RUFF_CONFIG_FILE: .ruff.toml
           JSCPD_CONFIG_FILE: .jscpd.json
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
+          VALIDATE_MARKDOWN_LINKS: true
+          # Disable other python linters already covered by Ruff
           VALIDATE_PYTHON_ISORT: false
           VALIDATE_PYTHON_FLAKE8: false
           VALIDATE_PYTHON_BLACK: false
