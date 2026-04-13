@@ -1,4 +1,10 @@
 {
-    "threshold": 3,
-    "ignore": ["**/.git/**", "**/*.md", "**/iriscc/models/**", "**/iriscc/lightning_module*.py"]
+  "threshold": 3,
+  "ignore": [
+    "**/.git/**",
+    "**/*.md",
+    "**/iriscc/models/**",
+    "**/iriscc/lightning_module*",
+    "**/bin/training/**"
+  ]
 }

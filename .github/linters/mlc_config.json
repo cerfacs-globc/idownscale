@@ -7,11 +7,12 @@
       }
     }
   ],
-  "ignorePatterns": [
-    { "pattern": "^https://journals\\.ametsoc\\.org/" },
-    { "pattern": "^https://agupubs\\.onlinelibrary\\.wiley\\.com/" },
-    { "pattern": "^https://doi\\.org/10\\.1175/" },
-    { "pattern": "^https://doi\\.org/10\\.1029/" }
-  ]
+    "ignorePatterns": [
+      { "pattern": "^https://journals\\.ametsoc\\.org/" },
+      { "pattern": "^https://agupubs\\.onlinelibrary\\.wiley\\.com/" },
+      { "pattern": "^https://doi\\.org/10\\.1175/" },
+      { "pattern": "^https://doi\\.org/10\\.1029/" },
+      { "pattern": "^https://gmd\\.copernicus\\.org/" }
+    ]
 }
   
