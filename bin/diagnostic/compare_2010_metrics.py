@@ -1,6 +1,6 @@
-import xarray as xr
-import numpy as np
 import os
+
+import xarray as xr
 
 def check_file(label, path):
     if not os.path.exists(path):
@@ -8,10 +8,10 @@ def check_file(label, path):
         return None
     ds = xr.open_dataset(path)
     # Select year 2010 if it spans multiple years
-    if 'time' in ds.dims:
+    if "time" in ds.dims:
         try:
-            ds = ds.sel(time='2010')
-        except:
+            ds = ds.sel(time="2010")
+        except Exception:
             pass
     mean_val = ds.tas.mean().values
     print(f"{label} Mean Temp (2010): {mean_val:.4f} K")

@@ -16,7 +16,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
-import xesmf as xe
+try:
+    import xesmf as xe
+except ImportError:
+    xe = None
 
 from iriscc.settings import (
     CONFIG,
