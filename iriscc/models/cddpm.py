@@ -11,7 +11,7 @@ import sys
 import torch
 import torch.nn as nn
 
-sys.path.append('.')
+sys.path.append(".")
 
 from iriscc.models.denoising_unet import CUNet
 
@@ -27,6 +27,7 @@ class CDDPM(nn.Module):
         forward(x0, t, eta): Forward pass of the DDPM model.
         backward(x, t, conditioning_image): Backward pass of the DDPM model.
     """
+
     def __init__(self, n_steps=200, min_beta=1e-4, max_beta=0.02, encode_conditioning_image=False, in_ch=1):
         """
         Initialize the DDPM model.
@@ -38,32 +39,28 @@ class CDDPM(nn.Module):
             max_beta (float): Last value for beta in the DDPM algorithm.
         """
         super(CDDPM, self).__init__()
-        #print('  >> <class CDDPM> : __init__  ')
+        # print('  >> <class CDDPM> : __init__  ')
 
         # Store configuration parameters
         self.n_steps = n_steps
 
         # Move the neural network to the specified device
-        self.network = CUNet(n_steps=self.n_steps,
-                             time_emb_dim = 100,
-                             in_channels=in_ch,
-                             out_channels=1,
-                             init_features=32)
+        self.network = CUNet(n_steps=self.n_steps, time_emb_dim=100, in_channels=in_ch, out_channels=1, init_features=32)
 
         # Generate beta values between min_beta and max_beta
         self.betas = torch.linspace(min_beta, max_beta, n_steps)
 
         # Calculate alpha values (1 - beta) and alpha bar values
         self.alphas = 1 - self.betas
-        self.alpha_bars = torch.tensor([torch.prod(self.alphas[:i + 1]) for i in range(n_steps)])
+        self.alpha_bars = torch.tensor([torch.prod(self.alphas[: i + 1]) for i in range(n_steps)])
 
         self.encode_conditioning_image = encode_conditioning_image
         if encode_conditioning_image:
             self.conditioning_encoder = torch.nn.Sequential(
-                    torch.nn.Conv2d(in_channels=in_ch, out_channels=10, kernel_size=3, padding=1),
-                    torch.nn.Tanh(),
-                    torch.nn.Conv2d(in_channels=10, out_channels=1, kernel_size=1)
-                )
+                torch.nn.Conv2d(in_channels=in_ch, out_channels=10, kernel_size=3, padding=1),
+                torch.nn.Tanh(),
+                torch.nn.Conv2d(in_channels=10, out_channels=1, kernel_size=1),
+            )
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -80,7 +77,7 @@ class CDDPM(nn.Module):
             torch.Tensor: Noisy image tensor.
         """
         # Calculate alpha bar for the current timestep
-        #print('  >> <class CDDPM> : forward  ')
+        # print('  >> <class CDDPM> : forward  ')
         a_bar = self.alpha_bars[t].reshape(x0.shape[0], 1, 1, 1)
 
         # If noise is not provided, generate random noise
@@ -117,7 +114,7 @@ class CDDPM(nn.Module):
             device (str): Device for tensor computations.
         """
         self.device = device
-        #print('  >> <class CDDPM> : set_device  ')
+        # print('  >> <class CDDPM> : set_device  ')
         self.network.to(device)
         self.betas = self.betas.to(device)
         self.alpha_bars = self.alpha_bars.to(device)
@@ -136,11 +133,11 @@ class CDDPM(nn.Module):
         """
         # If noise is not provided, generate random noise
         if eta is None:
-            eta = torch.randn((1,1,conditioning_image.shape[2], conditioning_image.shape[3]), device=self.device)
+            eta = torch.randn((1, 1, conditioning_image.shape[2], conditioning_image.shape[3]), device=self.device)
         x = eta
         for idx, t in enumerate(list(range(start_t))[::-1]):
             time_tensor = (t * torch.ones(x.shape[0], 1)).to(self.device).long()
-            #time_tensor = (torch.ones(1, 1) * t).long()
+            # time_tensor = (torch.ones(1, 1) * t).long()
             # Estimating noise to be removed
             eta_theta = self.backward(x, time_tensor, conditioning_image)
 
@@ -163,12 +160,5 @@ class CDDPM(nn.Module):
         return x
 
 
-
-if __name__=='__main__':
-
-    cddpm = CDDPM(n_steps=5,
-                  min_beta=1e-4,
-                  max_beta=0.02,
-                  encode_conditioning_image=False,
-                  in_ch=3)
-
+if __name__ == "__main__":
+    cddpm = CDDPM(n_steps=5, min_beta=1e-4, max_beta=0.02, encode_conditioning_image=False, in_ch=3)

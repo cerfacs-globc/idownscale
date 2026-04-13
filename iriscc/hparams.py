@@ -6,31 +6,32 @@ author : Zoé GARCIA
 """
 
 import sys
-sys.path.append('.')
 
-from iriscc.settings import RUNS_DIR, CONFIG
+sys.path.append(".")
+
+from iriscc.settings import CONFIG, RUNS_DIR
 
 
-class IRISCCHyperParameters():
+class IRISCCHyperParameters:
     def __init__(self):
-        exp = 'exp5'
-        self.img_size = CONFIG[exp]['shape']
+        exp = "exp5"
+        self.img_size = CONFIG[exp]["shape"]
         self.in_channels = 2
-        self.mask = 'target'
+        self.mask = "target"
         self.learning_rate = 0.001
         self.batch_size = 32
         self.max_epoch = 60
-        self.model ='unet'
-        self.exp = f'{exp}/unet'
+        self.model = "unet"
+        self.exp = f"{exp}/unet"
         self.runs_dir = RUNS_DIR / self.exp
-        self.sample_dir = CONFIG[exp]['dataset']
+        self.sample_dir = CONFIG[exp]["dataset"]
         self.fill_value = 0.0
-        self.domain = 'france'
+        self.domain = "france"
         self.domain_crop = None
-        self.channels = CONFIG[exp]['channels']
-        self.loss = 'masked_mse' # masked_mse or masked_gamma_mae
+        self.channels = CONFIG[exp]["channels"]
+        self.loss = "masked_mse"  # masked_mse or masked_gamma_mae
         self.dropout = 0.0
-        
+
         # Diffusion hparams
         self.n_steps = 200
         self.min_beta = 1e-4

@@ -1,21 +1,22 @@
-''' U-NET FOR BRAIN MRI '''
+"""U-NET FOR BRAIN MRI"""
 
 import sys
-sys.path.append('.')
+
+sys.path.append(".")
 
 from collections import OrderedDict
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
-
-import numpy as np 
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.plotutils import plot_test
 from torchvision.transforms import v2
 
-class MiniUNet(nn.Module):
+from iriscc.plotutils import plot_test
+from iriscc.transforms import FillMissingValue, LandSeaMask, MinMaxNormalisation, Pad
 
+
+class MiniUNet(nn.Module):
     def __init__(self, in_channels, out_channels=1, init_features=32):
         super(MiniUNet, self).__init__()
 
@@ -29,35 +30,25 @@ class MiniUNet(nn.Module):
         self.encoder4 = MiniUNet._block(features * 4, features * 8, name="enc4")
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        self.bottleneck = MiniUNet._block(features * 4, features * 8, name="bottleneck") ##minMiniUNet
+        self.bottleneck = MiniUNet._block(features * 4, features * 8, name="bottleneck")  ##minMiniUNet
 
-        self.upconv4 = nn.ConvTranspose2d(
-            features * 16, features * 8, kernel_size=2, stride=2
-        )
+        self.upconv4 = nn.ConvTranspose2d(features * 16, features * 8, kernel_size=2, stride=2)
         self.decoder4 = MiniUNet._block((features * 8) * 2, features * 8, name="dec4")
-        self.upconv3 = nn.ConvTranspose2d(
-            features * 8, features * 4, kernel_size=2, stride=2
-        )
+        self.upconv3 = nn.ConvTranspose2d(features * 8, features * 4, kernel_size=2, stride=2)
         self.decoder3 = MiniUNet._block((features * 4) * 2, features * 4, name="dec3")
-        self.upconv2 = nn.ConvTranspose2d(
-            features * 4, features * 2, kernel_size=2, stride=2
-        )
+        self.upconv2 = nn.ConvTranspose2d(features * 4, features * 2, kernel_size=2, stride=2)
         self.decoder2 = MiniUNet._block((features * 2) * 2, features * 2, name="dec2")
-        self.upconv1 = nn.ConvTranspose2d(
-            features * 2, features, kernel_size=2, stride=2
-        )
+        self.upconv1 = nn.ConvTranspose2d(features * 2, features, kernel_size=2, stride=2)
         self.decoder1 = MiniUNet._block(features * 2, features, name="dec1")
 
-        self.conv = nn.Conv2d(
-            in_channels=features, out_channels=out_channels, kernel_size=1
-        )
+        self.conv = nn.Conv2d(in_channels=features, out_channels=out_channels, kernel_size=1)
 
     def forward(self, x):
         enc1 = self.encoder1(x)
         enc2 = self.encoder2(self.pool1(enc1))
         enc3 = self.encoder3(self.pool2(enc2))
         bottleneck = self.bottleneck(self.pool3(enc3))
-        dec3 = self.upconv3(bottleneck) 
+        dec3 = self.upconv3(bottleneck)
         dec3 = torch.cat((dec3, enc3), dim=1)
         dec3 = self.decoder3(dec3)
         dec2 = self.upconv2(dec3)
@@ -67,7 +58,6 @@ class MiniUNet(nn.Module):
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = self.decoder1(dec1)
         return self.conv(dec1)
-
 
     @staticmethod
     def _block(in_channels, features, name):
@@ -102,24 +92,18 @@ class MiniUNet(nn.Module):
             )
         )
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     model = MiniUNet(in_channels=2, out_channels=1, init_features=32)
     model = model.float()
 
-    data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
-    x, y = data['x'], data['y']
-    transforms = v2.Compose([
-            MinMaxNormalisation(Path('/scratch/globc/garcia/datasets/dataset_exp3_30y')), 
-            LandSeaMask('france', 0),
-            FillMissingValue(0),
-            Pad(0)
-            ])
-    
-    x, y = transforms((x,y))
+    data = dict(np.load("/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz", allow_pickle=True))
+    x, y = data["x"], data["y"]
+    transforms = v2.Compose([MinMaxNormalisation(Path("/scratch/globc/garcia/datasets/dataset_exp3_30y")), LandSeaMask("france", 0), FillMissingValue(0), Pad(0)])
+
+    x, y = transforms((x, y))
     x = np.expand_dims(x, axis=0)
     x = torch.tensor(x)
     y_hat = model(x.float())
     print(y_hat)
-    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', '/gpfs-calypso/scratch/globc/garcia/graph/test4.png')
-    
-
+    plot_test(y_hat.detach().numpy()[0, 0, :, :], "title", "/gpfs-calypso/scratch/globc/garcia/graph/test4.png")

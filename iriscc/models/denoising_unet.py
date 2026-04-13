@@ -1,38 +1,35 @@
-'''
+"""
 U-NET FOR BRAIN MRI
 Adapted to diffusion purposes adding time embeddings by Zoé Garcia
-'''
+"""
 
 import sys
-sys.path.append('.')
+
+sys.path.append(".")
 
 from collections import OrderedDict
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
-
-import numpy as np 
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.plotutils import plot_test
 from torchvision.transforms import v2
+
+from iriscc.plotutils import plot_test
+from iriscc.transforms import FillMissingValue, LandSeaMask, MinMaxNormalisation, Pad
+
 
 class TimeProcessing(nn.Module):
     def __init__(self, dim_in, dim_out):
         super(TimeProcessing, self).__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(dim_in, dim_out),
-            nn.SiLU(),
-            nn.Linear(dim_out, dim_out)
-        )
+        self.fc = nn.Sequential(nn.Linear(dim_in, dim_out), nn.SiLU(), nn.Linear(dim_out, dim_out))
 
     def forward(self, t):
         return self.fc(t)
 
 
 class CUNet(nn.Module):
-
-    def __init__(self, n_steps=200, time_emb_dim = 100, in_channels=3, out_channels=1, init_features=32):
+    def __init__(self, n_steps=200, time_emb_dim=100, in_channels=3, out_channels=1, init_features=32):
         super(CUNet, self).__init__()
 
         self.time_embed = nn.Embedding(n_steps, time_emb_dim)
@@ -46,43 +43,33 @@ class CUNet(nn.Module):
         self.time_fc_enc1 = TimeProcessing(time_emb_dim, features)
         self.encoder2 = CUNet._block(features, features * 2, name="enc2")
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.time_fc_enc2 = TimeProcessing(time_emb_dim, features*2)
+        self.time_fc_enc2 = TimeProcessing(time_emb_dim, features * 2)
         self.encoder3 = CUNet._block(features * 2, features * 4, name="enc3")
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.time_fc_enc3 = TimeProcessing(time_emb_dim, features*4)
+        self.time_fc_enc3 = TimeProcessing(time_emb_dim, features * 4)
         self.encoder4 = CUNet._block(features * 4, features * 8, name="enc4")
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.time_fc_enc4 = TimeProcessing(time_emb_dim, features*8)
-        
-        #self.bottleneck = CUNet._block(features * 4, features * 8, name="bottleneck") ##minMiniCUNet
-        
-        self.bottleneck = CUNet._block(features * 8, features * 16, name="bottleneck")
-        self.time_fc_bottleneck = TimeProcessing(time_emb_dim, features*16)
+        self.time_fc_enc4 = TimeProcessing(time_emb_dim, features * 8)
 
-        self.upconv4 = nn.ConvTranspose2d(
-            features * 16, features * 8, kernel_size=2, stride=2
-        )
+        # self.bottleneck = CUNet._block(features * 4, features * 8, name="bottleneck") ##minMiniCUNet
+
+        self.bottleneck = CUNet._block(features * 8, features * 16, name="bottleneck")
+        self.time_fc_bottleneck = TimeProcessing(time_emb_dim, features * 16)
+
+        self.upconv4 = nn.ConvTranspose2d(features * 16, features * 8, kernel_size=2, stride=2)
         self.time_fc_dec4 = TimeProcessing(time_emb_dim, (features * 8) * 2)
         self.decoder4 = CUNet._block((features * 8) * 2, features * 8, name="dec4")
-        self.upconv3 = nn.ConvTranspose2d(
-            features * 8, features * 4, kernel_size=2, stride=2
-        )
+        self.upconv3 = nn.ConvTranspose2d(features * 8, features * 4, kernel_size=2, stride=2)
         self.time_fc_dec3 = TimeProcessing(time_emb_dim, (features * 4) * 2)
         self.decoder3 = CUNet._block((features * 4) * 2, features * 4, name="dec3")
-        self.upconv2 = nn.ConvTranspose2d(
-            features * 4, features * 2, kernel_size=2, stride=2
-        )
+        self.upconv2 = nn.ConvTranspose2d(features * 4, features * 2, kernel_size=2, stride=2)
         self.time_fc_dec2 = TimeProcessing(time_emb_dim, (features * 2) * 2)
         self.decoder2 = CUNet._block((features * 2) * 2, features * 2, name="dec2")
-        self.upconv1 = nn.ConvTranspose2d(
-            features * 2, features, kernel_size=2, stride=2
-        )
+        self.upconv1 = nn.ConvTranspose2d(features * 2, features, kernel_size=2, stride=2)
         self.time_fc_dec1 = TimeProcessing(time_emb_dim, features * 2)
         self.decoder1 = CUNet._block(features * 2, features, name="dec1")
 
-        self.conv = nn.Conv2d(
-            in_channels=features, out_channels=out_channels, kernel_size=1
-        )
+        self.conv = nn.Conv2d(in_channels=features, out_channels=out_channels, kernel_size=1)
 
     def forward(self, x, t, conditionning_image):
         t = self.time_embed(t)
@@ -99,7 +86,7 @@ class CUNet(nn.Module):
         enc4 = enc4 + self.time_fc_enc4(t).reshape(enc4.size(0), -1, 1, 1)
 
         bottleneck = self.bottleneck(self.pool4(enc4))
-        
+
         dec4 = self.upconv4(bottleneck)
         dec4 = torch.cat((dec4, enc4), dim=1)
         dec4 = dec4 + self.time_fc_dec4(t).reshape(dec4.size(0), -1, 1, 1)
@@ -124,8 +111,8 @@ class CUNet(nn.Module):
         wk = torch.tensor([1 / 10_000 ** (2 * j / dim_out) for j in range(dim_out)])
         wk = wk.reshape((1, dim_out))
         t = torch.arange(dim_in).reshape((dim_in, 1))
-        embedding[:,::2] = torch.sin(t * wk[:,::2])
-        embedding[:,1::2] = torch.cos(t * wk[:,::2])
+        embedding[:, ::2] = torch.sin(t * wk[:, ::2])
+        embedding[:, 1::2] = torch.cos(t * wk[:, ::2])
         return embedding
 
     @staticmethod
@@ -161,23 +148,21 @@ class CUNet(nn.Module):
             )
         )
 
-if __name__=='__main__':
-    model = CUNet(n_steps=100, 
-                  time_emb_dim = 100, 
-                  in_channels=3, # 2 conditionning channels and 1 noise channel
-                  out_channels=1, 
-                  init_features=32)
+
+if __name__ == "__main__":
+    model = CUNet(
+        n_steps=100,
+        time_emb_dim=100,
+        in_channels=3,  # 2 conditionning channels and 1 noise channel
+        out_channels=1,
+        init_features=32,
+    )
     model = model.float()
 
-    data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
-    conditionning_image, y = data['x'], data['y']
-    transforms = v2.Compose([
-            MinMaxNormalisation(Path('/scratch/globc/garcia/datasets/dataset_exp3_30y')), 
-            LandSeaMask('france', 0),
-            FillMissingValue(0),
-            Pad(0)
-            ])
-    
+    data = dict(np.load("/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz", allow_pickle=True))
+    conditionning_image, y = data["x"], data["y"]
+    transforms = v2.Compose([MinMaxNormalisation(Path("/scratch/globc/garcia/datasets/dataset_exp3_30y")), LandSeaMask("france", 0), FillMissingValue(0), Pad(0)])
+
     conditionning_image, y = transforms((conditionning_image, y))
     conditionning_image = np.expand_dims(conditionning_image, axis=0)
     conditionning_image = torch.tensor(conditionning_image)
@@ -189,6 +174,4 @@ if __name__=='__main__':
 
     y_hat = model(x.float(), time_tensor, conditionning_image.float())
     print(y_hat)
-    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', '/gpfs-calypso/scratch/globc/garcia/graph/test4.png')
-    
-
+    plot_test(y_hat.detach().numpy()[0, 0, :, :], "title", "/gpfs-calypso/scratch/globc/garcia/graph/test4.png")

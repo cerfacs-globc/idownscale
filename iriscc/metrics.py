@@ -5,6 +5,7 @@ Modified metrics for evaluating model performance in PyTorch taking into account
 import torch
 from torchmetrics import Metric
 
+
 class MaskedRMSE(Metric):
     """
     A PyTorch Metric class to compute the Masked Root Mean Squared Error (RMSE).
@@ -13,6 +14,7 @@ class MaskedRMSE(Metric):
         ignore_value (float, optional): A value in the target tensor to ignore during computation.
                                         If None, no values are ignored.
     """
+
     def __init__(self, ignore_value=None, **kwargs):
         super().__init__(**kwargs)
         self.ignore_value = ignore_value
@@ -45,6 +47,7 @@ class MaskedMAE(Metric):
     Attributes:
         ignore_value (float, optional): A value in the target tensor to ignore during computation.
     """
+
     def __init__(self, ignore_value=None, **kwargs):
         super().__init__(**kwargs)
         self.ignore_value = ignore_value

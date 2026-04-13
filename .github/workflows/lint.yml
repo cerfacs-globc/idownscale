@@ -10,7 +10,10 @@ permissions: read-all
 jobs:
   super-lint:
     name: Lint with Super-Linter
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 
     ############################################
     # Grant status permission for MULTI_STATUS #
@@ -23,7 +26,7 @@ jobs:
     steps:
       # Checks out a copy of your repository on the ubuntu-latest machine
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Make sure the actual branch is checked out when running on PR
           # ref: ${{ github.event.pull_request.head.sha }}

@@ -7,29 +7,24 @@ author : Zoé GARCIA
 """
 
 import sys
-sys.path.append('.')
 
-from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import v2
-import numpy as np
-import torch
+sys.path.append(".")
+
 import glob
 from typing import Optional
-from torch import Tensor
 
-from iriscc.settings import DATES_TRAIN
+import numpy as np
+import torch
+from torch import Tensor
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import v2
+
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import (MinMaxNormalisation, 
-                               LandSeaMask, 
-                               Pad, 
-                               FillMissingValue,
-                               Log10Transform)
+from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad
+
 
 class IRISCC(Dataset):
-    def __init__(self,
-                 transform: Optional[v2.Compose],
-                 hparams: IRISCCHyperParameters,
-                 data_type: str = 'train'):
+    def __init__(self, transform: Optional[v2.Compose], hparams: IRISCCHyperParameters, data_type: str = "train"):
         """
         A custom PyTorch Dataset for loading and transforming IRISCC data.
 
@@ -42,24 +37,24 @@ class IRISCC(Dataset):
         self.transform = transform
         self.data_type = data_type
 
-        list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
-        
+        list_data = np.sort(glob.glob(str(self.sample_dir / "sample*")))
+
         # End test at 2014-12-31 to avoid loading future samples without ground truth 'y'
-        test_end_matches = np.where(list_data == str(self.sample_dir / 'sample_20150101.npz'))[0]
+        test_end_matches = np.where(list_data == str(self.sample_dir / "sample_20150101.npz"))[0]
         test_end_limit = int(test_end_matches[0]) if len(test_end_matches) > 0 else len(list_data)
-        
+
         valid_data = list_data[:test_end_limit]
         n_samples = len(valid_data)
-        
+
         # Use 80% for training, 10% for validation, 10% for testing
         train_end = int(0.8 * n_samples)
         val_end = int(0.9 * n_samples)
-        
-        if self.data_type == 'train':
+
+        if self.data_type == "train":
             self.samples = valid_data[:train_end]
-        elif self.data_type == 'val':
+        elif self.data_type == "val":
             self.samples = valid_data[train_end:val_end]
-        elif self.data_type == 'test':
+        elif self.data_type == "test":
             self.samples = valid_data[val_end:]
 
     def __len__(self) -> int:
@@ -79,7 +74,7 @@ class IRISCC(Dataset):
             tuple[Tensor, Tensor]: Transformed input (x) and target (y) tensors.
         """
         data = dict(np.load(self.samples[idx], allow_pickle=True))
-        x, y = data['x'], data['y']
+        x, y = data["x"], data["y"]
         if self.transform:
             x, y = self.transform((x, y))
         return x.float(), y.float()
@@ -97,40 +92,37 @@ def get_dataloaders(data_type: str) -> DataLoader:
     """
 
     hparams = IRISCCHyperParameters()
-    transforms = v2.Compose([
-                Log10Transform(hparams.channels),
-                MinMaxNormalisation(hparams.sample_dir, hparams.output_norm), 
-                LandSeaMask(hparams.mask, hparams.fill_value),
-                FillMissingValue(hparams.fill_value),
-                Pad(hparams.fill_value)
-                ])
-    training_data = IRISCC(transform=transforms,
-                            hparams=hparams,
-                            data_type=data_type)
-    
-    
-    if data_type == 'train':
+    transforms = v2.Compose(
+        [
+            Log10Transform(hparams.channels),
+            MinMaxNormalisation(hparams.sample_dir, hparams.output_norm),
+            LandSeaMask(hparams.mask, hparams.fill_value),
+            FillMissingValue(hparams.fill_value),
+            Pad(hparams.fill_value),
+        ]
+    )
+    training_data = IRISCC(transform=transforms, hparams=hparams, data_type=data_type)
+
+    if data_type == "train":
         shuffle = True
     else:
         shuffle = False
 
-    if data_type == 'train':
+    if data_type == "train":
         batch_size = hparams.batch_size
-    else : 
+    else:
         batch_size = 1
 
-    dataloader = DataLoader(training_data, 
-                            batch_size=batch_size, 
-                            shuffle=shuffle,
-                            num_workers=1)
-    return dataloader   
+    dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+    return dataloader
 
-if __name__ == '__main__':
-    train_dataloader = get_dataloaders('test')
+
+if __name__ == "__main__":
+    train_dataloader = get_dataloaders("test")
     for batch in train_dataloader:
         x = batch[0][0, :, :, :]
         y = batch[1][0, :, :, :]
-        y[y == -1.] = torch.nan
+        y[y == -1.0] = torch.nan
 
         print(x.shape, y.shape)
         print(y)

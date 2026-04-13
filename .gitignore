@@ -11,7 +11,7 @@ slurm-*
 # Data & Models
 datasets/
 rawdata/
-runs/*/lightning_logs/version_*/checkpoints/
+runs/
 metrics/exp*/
 graph/metrics/
 prediction/
@@ -60,3 +60,4 @@ scratch/
 bin/evaluation/validate_vs_garcia.py
 graph/
 runs/diagnostic_plot.py
+diagnostic_plot.py

@@ -1,10 +1,12 @@
 import sys
-sys.path.append('.')
 
-import torch
+sys.path.append(".")
+
 import numpy as np
-from monai.networks.nets import SwinUNETR
+import torch
 from monai.networks.blocks import UnetrBasicBlock
+from monai.networks.nets import SwinUNETR
+
 
 class MiniSwinUNETR(SwinUNETR):
     def __init__(
@@ -26,7 +28,7 @@ class MiniSwinUNETR(SwinUNETR):
         # Modifier depths et num_heads pour réduire la profondeur
         depths = (2, 2, 2, 2)  # Moins de niveaux
         num_heads = (3, 6, 12, 24)  # Ajusté en conséquence
-        
+
         super().__init__(
             img_size=img_size,
             in_channels=in_channels,
@@ -46,22 +48,21 @@ class MiniSwinUNETR(SwinUNETR):
         )
 
         self.encoder5 = UnetrBasicBlock(
-                spatial_dims=spatial_dims,
-                in_channels=8 * feature_size,
-                out_channels=8 * feature_size,
-                kernel_size=3,
-                stride=1,
-                norm_name=norm_name,
-                res_block=True,
-            )
+            spatial_dims=spatial_dims,
+            in_channels=8 * feature_size,
+            out_channels=8 * feature_size,
+            kernel_size=3,
+            stride=1,
+            norm_name=norm_name,
+            res_block=True,
+        )
 
-   
     def forward(self, x_in):
         if not torch.jit.is_scripting():
             self._check_input_size(x_in.shape[2:])
-        
+
         hidden_states_out = self.swinViT(x_in, self.normalize)
-        
+
         enc0 = self.encoder1(x_in)
         enc1 = self.encoder2(hidden_states_out[0])
         enc2 = self.encoder3(hidden_states_out[1])
@@ -70,15 +71,15 @@ class MiniSwinUNETR(SwinUNETR):
         dec1 = self.decoder3(dec2, enc2)
         dec0 = self.decoder2(dec1, enc1)
         out = self.decoder1(dec0, enc0)
-        
+
         logits = self.out(out)
         return logits
 
 
-if __name__=='__main__':
-    model = MiniSwinUNETR(img_size=(160,160), in_channels=2, out_channels=1,spatial_dims=2)
+if __name__ == "__main__":
+    model = MiniSwinUNETR(img_size=(160, 160), in_channels=2, out_channels=1, spatial_dims=2)
     model = model.float()
-    x = np.random.rand(1,2,160,160)
+    x = np.random.rand(1, 2, 160, 160)
     x = torch.tensor(x)
     y_hat = model(x.float())
     print(y_hat.shape)

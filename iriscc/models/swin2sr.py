@@ -1,10 +1,10 @@
-
 # -----------------------------------------------------------------------------------
 # Swin2SR: Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration, https://arxiv.org/abs/2209.11345
 # Written by Conde and Choi et al.
 # -----------------------------------------------------------------------------------
 
 import math
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ from timm.layers import DropPath, to_2tuple, trunc_normal_
 
 
 class Mlp(nn.Module):
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
+    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.0):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -61,8 +61,9 @@ def window_reverse(windows, window_size, H, W):
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return x
 
+
 class WindowAttention(nn.Module):
-    r""" Window based multi-head self attention (W-MSA) module with relative position bias.
+    r"""Window based multi-head self attention (W-MSA) module with relative position bias.
     It supports both of shifted and non-shifted window.
     Args:
         dim (int): Number of input channels.
@@ -74,8 +75,7 @@ class WindowAttention(nn.Module):
         pretrained_window_size (tuple[int]): The height and width of the window in pre-training.
     """
 
-    def __init__(self, dim, window_size, num_heads, qkv_bias=True, attn_drop=0., proj_drop=0.,
-                 pretrained_window_size=[0, 0]):
+    def __init__(self, dim, window_size, num_heads, qkv_bias=True, attn_drop=0.0, proj_drop=0.0, pretrained_window_size=[0, 0]):
 
         super().__init__()
         self.dim = dim
@@ -86,25 +86,22 @@ class WindowAttention(nn.Module):
         self.logit_scale = nn.Parameter(torch.log(10 * torch.ones((num_heads, 1, 1))), requires_grad=True)
 
         # mlp to generate continuous relative position bias
-        self.cpb_mlp = nn.Sequential(nn.Linear(2, 512, bias=True),
-                                     nn.ReLU(inplace=True),
-                                     nn.Linear(512, num_heads, bias=False))
+        self.cpb_mlp = nn.Sequential(nn.Linear(2, 512, bias=True), nn.ReLU(inplace=True), nn.Linear(512, num_heads, bias=False))
 
         # get relative_coords_table
         relative_coords_h = torch.arange(-(self.window_size[0] - 1), self.window_size[0], dtype=torch.float32)
         relative_coords_w = torch.arange(-(self.window_size[1] - 1), self.window_size[1], dtype=torch.float32)
-        relative_coords_table = torch.stack(
-            torch.meshgrid([relative_coords_h,
-                            relative_coords_w])).permute(1, 2, 0).contiguous().unsqueeze(0)  # 1, 2*Wh-1, 2*Ww-1, 2
+        relative_coords_table = (
+            torch.stack(torch.meshgrid([relative_coords_h, relative_coords_w])).permute(1, 2, 0).contiguous().unsqueeze(0)
+        )  # 1, 2*Wh-1, 2*Ww-1, 2
         if pretrained_window_size[0] > 0:
-            relative_coords_table[:, :, :, 0] /= (pretrained_window_size[0] - 1)
-            relative_coords_table[:, :, :, 1] /= (pretrained_window_size[1] - 1)
+            relative_coords_table[:, :, :, 0] /= pretrained_window_size[0] - 1
+            relative_coords_table[:, :, :, 1] /= pretrained_window_size[1] - 1
         else:
-            relative_coords_table[:, :, :, 0] /= (self.window_size[0] - 1)
-            relative_coords_table[:, :, :, 1] /= (self.window_size[1] - 1)
+            relative_coords_table[:, :, :, 0] /= self.window_size[0] - 1
+            relative_coords_table[:, :, :, 1] /= self.window_size[1] - 1
         relative_coords_table *= 8  # normalize to -8, 8
-        relative_coords_table = torch.sign(relative_coords_table) * torch.log2(
-            torch.abs(relative_coords_table) + 1.0) / np.log2(8)
+        relative_coords_table = torch.sign(relative_coords_table) * torch.log2(torch.abs(relative_coords_table) + 1.0) / np.log2(8)
 
         self.register_buffer("relative_coords_table", relative_coords_table)
 
@@ -148,13 +145,14 @@ class WindowAttention(nn.Module):
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
         # cosine attention
-        attn = (F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1))
-        logit_scale = torch.clamp(self.logit_scale, max=torch.log(torch.tensor(1. / 0.01)).to(self.logit_scale.device)).exp()
+        attn = F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1)
+        logit_scale = torch.clamp(self.logit_scale, max=torch.log(torch.tensor(1.0 / 0.01)).to(self.logit_scale.device)).exp()
         attn = attn * logit_scale
 
         relative_position_bias_table = self.cpb_mlp(self.relative_coords_table).view(-1, self.num_heads)
         relative_position_bias = relative_position_bias_table[self.relative_position_index.view(-1)].view(
-            self.window_size[0] * self.window_size[1], self.window_size[0] * self.window_size[1], -1)  # Wh*Ww,Wh*Ww,nH
+            self.window_size[0] * self.window_size[1], self.window_size[0] * self.window_size[1], -1
+        )  # Wh*Ww,Wh*Ww,nH
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
         relative_position_bias = 16 * torch.sigmoid(relative_position_bias)
         attn = attn + relative_position_bias.unsqueeze(0)
@@ -175,8 +173,7 @@ class WindowAttention(nn.Module):
         return x
 
     def extra_repr(self) -> str:
-        return f'dim={self.dim}, window_size={self.window_size}, ' \
-               f'pretrained_window_size={self.pretrained_window_size}, num_heads={self.num_heads}'
+        return f"dim={self.dim}, window_size={self.window_size}, pretrained_window_size={self.pretrained_window_size}, num_heads={self.num_heads}"
 
     def flops(self, N):
         # calculate flops for 1 window with token length of N
@@ -191,8 +188,9 @@ class WindowAttention(nn.Module):
         flops += N * self.dim * self.dim
         return flops
 
+
 class SwinTransformerBlock(nn.Module):
-    r""" Swin Transformer Block.
+    r"""Swin Transformer Block.
     Args:
         dim (int): Number of input channels.
         input_resolution (tuple[int]): Input resulotion.
@@ -209,9 +207,22 @@ class SwinTransformerBlock(nn.Module):
         pretrained_window_size (int): Window size in pre-training.
     """
 
-    def __init__(self, dim, input_resolution, num_heads, window_size=7, shift_size=0,
-                 mlp_ratio=4., qkv_bias=True, drop=0., attn_drop=0., drop_path=0.,
-                 act_layer=nn.GELU, norm_layer=nn.LayerNorm, pretrained_window_size=0):
+    def __init__(
+        self,
+        dim,
+        input_resolution,
+        num_heads,
+        window_size=7,
+        shift_size=0,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        drop=0.0,
+        attn_drop=0.0,
+        drop_path=0.0,
+        act_layer=nn.GELU,
+        norm_layer=nn.LayerNorm,
+        pretrained_window_size=0,
+    ):
         super().__init__()
         self.dim = dim
         self.input_resolution = input_resolution
@@ -227,11 +238,16 @@ class SwinTransformerBlock(nn.Module):
 
         self.norm1 = norm_layer(dim)
         self.attn = WindowAttention(
-            dim, window_size=to_2tuple(self.window_size), num_heads=num_heads,
-            qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop,
-            pretrained_window_size=to_2tuple(pretrained_window_size))
+            dim,
+            window_size=to_2tuple(self.window_size),
+            num_heads=num_heads,
+            qkv_bias=qkv_bias,
+            attn_drop=attn_drop,
+            proj_drop=drop,
+            pretrained_window_size=to_2tuple(pretrained_window_size),
+        )
 
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
@@ -242,17 +258,13 @@ class SwinTransformerBlock(nn.Module):
             attn_mask = None
 
         self.register_buffer("attn_mask", attn_mask)
-        
+
     def calculate_mask(self, x_size):
         # calculate attention mask for SW-MSA
         H, W = x_size
         img_mask = torch.zeros((1, H, W, 1))  # 1 H W 1
-        h_slices = (slice(0, -self.window_size),
-                    slice(-self.window_size, -self.shift_size),
-                    slice(-self.shift_size, None))
-        w_slices = (slice(0, -self.window_size),
-                    slice(-self.window_size, -self.shift_size),
-                    slice(-self.shift_size, None))
+        h_slices = (slice(0, -self.window_size), slice(-self.window_size, -self.shift_size), slice(-self.shift_size, None))
+        w_slices = (slice(0, -self.window_size), slice(-self.window_size, -self.shift_size), slice(-self.shift_size, None))
         cnt = 0
         for h in h_slices:
             for w in w_slices:
@@ -264,12 +276,12 @@ class SwinTransformerBlock(nn.Module):
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
         attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
 
-        return attn_mask        
+        return attn_mask
 
     def forward(self, x, x_size):
         H, W = x_size
         B, L, C = x.shape
-        #assert L == H * W, "input feature has wrong size"
+        # assert L == H * W, "input feature has wrong size"
 
         shortcut = x
         x = x.view(B, H, W, C)
@@ -289,7 +301,7 @@ class SwinTransformerBlock(nn.Module):
             attn_windows = self.attn(x_windows, mask=self.attn_mask)  # nW*B, window_size*window_size, C
         else:
             attn_windows = self.attn(x_windows, mask=self.calculate_mask(x_size).to(x.device))
-            
+
         # merge windows
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
         shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
@@ -308,8 +320,10 @@ class SwinTransformerBlock(nn.Module):
         return x
 
     def extra_repr(self) -> str:
-        return f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, " \
-               f"window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
+        return (
+            f"dim={self.dim}, input_resolution={self.input_resolution}, num_heads={self.num_heads}, "
+            f"window_size={self.window_size}, shift_size={self.shift_size}, mlp_ratio={self.mlp_ratio}"
+        )
 
     def flops(self):
         flops = 0
@@ -325,8 +339,9 @@ class SwinTransformerBlock(nn.Module):
         flops += self.dim * H * W
         return flops
 
+
 class PatchMerging(nn.Module):
-    r""" Patch Merging Layer.
+    r"""Patch Merging Layer.
     Args:
         input_resolution (tuple[int]): Resolution of input feature.
         dim (int): Number of input channels.
@@ -370,10 +385,11 @@ class PatchMerging(nn.Module):
         H, W = self.input_resolution
         flops = (H // 2) * (W // 2) * 4 * self.dim * 2 * self.dim
         flops += H * W * self.dim // 2
-        return flops    
+        return flops
+
 
 class BasicLayer(nn.Module):
-    """ A basic Swin Transformer layer for one stage.
+    """A basic Swin Transformer layer for one stage.
     Args:
         dim (int): Number of input channels.
         input_resolution (tuple[int]): Input resolution.
@@ -391,10 +407,23 @@ class BasicLayer(nn.Module):
         pretrained_window_size (int): Local window size in pre-training.
     """
 
-    def __init__(self, dim, input_resolution, depth, num_heads, window_size,
-                 mlp_ratio=4., qkv_bias=True, drop=0., attn_drop=0.,
-                 drop_path=0., norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False,
-                 pretrained_window_size=0):
+    def __init__(
+        self,
+        dim,
+        input_resolution,
+        depth,
+        num_heads,
+        window_size,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        drop=0.0,
+        attn_drop=0.0,
+        drop_path=0.0,
+        norm_layer=nn.LayerNorm,
+        downsample=None,
+        use_checkpoint=False,
+        pretrained_window_size=0,
+    ):
 
         super().__init__()
         self.dim = dim
@@ -403,17 +432,25 @@ class BasicLayer(nn.Module):
         self.use_checkpoint = use_checkpoint
 
         # build blocks
-        self.blocks = nn.ModuleList([
-            SwinTransformerBlock(dim=dim, input_resolution=input_resolution,
-                                 num_heads=num_heads, window_size=window_size,
-                                 shift_size=0 if (i % 2 == 0) else window_size // 2,
-                                 mlp_ratio=mlp_ratio,
-                                 qkv_bias=qkv_bias,
-                                 drop=drop, attn_drop=attn_drop,
-                                 drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
-                                 norm_layer=norm_layer,
-                                 pretrained_window_size=pretrained_window_size)
-            for i in range(depth)])
+        self.blocks = nn.ModuleList(
+            [
+                SwinTransformerBlock(
+                    dim=dim,
+                    input_resolution=input_resolution,
+                    num_heads=num_heads,
+                    window_size=window_size,
+                    shift_size=0 if (i % 2 == 0) else window_size // 2,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    drop=drop,
+                    attn_drop=attn_drop,
+                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                    norm_layer=norm_layer,
+                    pretrained_window_size=pretrained_window_size,
+                )
+                for i in range(depth)
+            ]
+        )
 
         # patch merging layer
         if downsample is not None:
@@ -448,9 +485,10 @@ class BasicLayer(nn.Module):
             nn.init.constant_(blk.norm1.weight, 0)
             nn.init.constant_(blk.norm2.bias, 0)
             nn.init.constant_(blk.norm2.weight, 0)
-            
+
+
 class PatchEmbed(nn.Module):
-    r""" Image to Patch Embedding
+    r"""Image to Patch Embedding
     Args:
         img_size (int): Image size.  Default: 224.
         patch_size (int): Patch token size. Default: 4.
@@ -493,7 +531,8 @@ class PatchEmbed(nn.Module):
         flops = Ho * Wo * self.embed_dim * self.in_chans * (self.patch_size[0] * self.patch_size[1])
         if self.norm is not None:
             flops += Ho * Wo * self.embed_dim
-        return flops           
+        return flops
+
 
 class RSTB(nn.Module):
     """Residual Swin Transformer Block (RSTB).
@@ -517,44 +556,61 @@ class RSTB(nn.Module):
         resi_connection: The convolutional block before residual connection.
     """
 
-    def __init__(self, dim, input_resolution, depth, num_heads, window_size,
-                 mlp_ratio=4., qkv_bias=True, drop=0., attn_drop=0.,
-                 drop_path=0., norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False,
-                 img_size=224, patch_size=4, resi_connection='1conv'):
+    def __init__(
+        self,
+        dim,
+        input_resolution,
+        depth,
+        num_heads,
+        window_size,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        drop=0.0,
+        attn_drop=0.0,
+        drop_path=0.0,
+        norm_layer=nn.LayerNorm,
+        downsample=None,
+        use_checkpoint=False,
+        img_size=224,
+        patch_size=4,
+        resi_connection="1conv",
+    ):
         super(RSTB, self).__init__()
 
         self.dim = dim
         self.input_resolution = input_resolution
 
-        self.residual_group = BasicLayer(dim=dim,
-                                         input_resolution=input_resolution,
-                                         depth=depth,
-                                         num_heads=num_heads,
-                                         window_size=window_size,
-                                         mlp_ratio=mlp_ratio,
-                                         qkv_bias=qkv_bias, 
-                                         drop=drop, attn_drop=attn_drop,
-                                         drop_path=drop_path,
-                                         norm_layer=norm_layer,
-                                         downsample=downsample,
-                                         use_checkpoint=use_checkpoint)
+        self.residual_group = BasicLayer(
+            dim=dim,
+            input_resolution=input_resolution,
+            depth=depth,
+            num_heads=num_heads,
+            window_size=window_size,
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
+            drop=drop,
+            attn_drop=attn_drop,
+            drop_path=drop_path,
+            norm_layer=norm_layer,
+            downsample=downsample,
+            use_checkpoint=use_checkpoint,
+        )
 
-        if resi_connection == '1conv':
+        if resi_connection == "1conv":
             self.conv = nn.Conv2d(dim, dim, 3, 1, 1)
-        elif resi_connection == '3conv':
+        elif resi_connection == "3conv":
             # to save parameters and memory
-            self.conv = nn.Sequential(nn.Conv2d(dim, dim // 4, 3, 1, 1), nn.LeakyReLU(negative_slope=0.2, inplace=True),
-                                      nn.Conv2d(dim // 4, dim // 4, 1, 1, 0),
-                                      nn.LeakyReLU(negative_slope=0.2, inplace=True),
-                                      nn.Conv2d(dim // 4, dim, 3, 1, 1))
+            self.conv = nn.Sequential(
+                nn.Conv2d(dim, dim // 4, 3, 1, 1),
+                nn.LeakyReLU(negative_slope=0.2, inplace=True),
+                nn.Conv2d(dim // 4, dim // 4, 1, 1, 0),
+                nn.LeakyReLU(negative_slope=0.2, inplace=True),
+                nn.Conv2d(dim // 4, dim, 3, 1, 1),
+            )
 
-        self.patch_embed = PatchEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=dim, embed_dim=dim,
-            norm_layer=None)
+        self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_chans=dim, embed_dim=dim, norm_layer=None)
 
-        self.patch_unembed = PatchUnEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=dim, embed_dim=dim,
-            norm_layer=None)
+        self.patch_unembed = PatchUnEmbed(img_size=img_size, patch_size=patch_size, in_chans=dim, embed_dim=dim, norm_layer=None)
 
     def forward(self, x, x_size):
         return self.patch_embed(self.conv(self.patch_unembed(self.residual_group(x, x_size), x_size))) + x
@@ -569,8 +625,9 @@ class RSTB(nn.Module):
 
         return flops
 
+
 class PatchUnEmbed(nn.Module):
-    r""" Image to Patch Unembedding
+    r"""Image to Patch Unembedding
 
     Args:
         img_size (int): Image size.  Default: 224.
@@ -621,9 +678,10 @@ class Upsample(nn.Sequential):
             m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
             m.append(nn.PixelShuffle(3))
         else:
-            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
+            raise ValueError(f"scale {scale} is not supported. Supported scales: 2^n and 3.")
         super(Upsample, self).__init__(*m)
-        
+
+
 class Upsample_hf(nn.Sequential):
     """Upsample module.
 
@@ -642,8 +700,8 @@ class Upsample_hf(nn.Sequential):
             m.append(nn.Conv2d(num_feat, 9 * num_feat, 3, 1, 1))
             m.append(nn.PixelShuffle(3))
         else:
-            raise ValueError(f'scale {scale} is not supported. ' 'Supported scales: 2^n and 3.')
-        super(Upsample_hf, self).__init__(*m)        
+            raise ValueError(f"scale {scale} is not supported. Supported scales: 2^n and 3.")
+        super(Upsample_hf, self).__init__(*m)
 
 
 class UpsampleOneStep(nn.Sequential):
@@ -660,7 +718,7 @@ class UpsampleOneStep(nn.Sequential):
         self.num_feat = num_feat
         self.input_resolution = input_resolution
         m = []
-        m.append(nn.Conv2d(num_feat, (scale ** 2) * num_out_ch, 3, 1, 1))
+        m.append(nn.Conv2d(num_feat, (scale**2) * num_out_ch, 3, 1, 1))
         m.append(nn.PixelShuffle(scale))
         super(UpsampleOneStep, self).__init__(*m)
 
@@ -668,11 +726,10 @@ class UpsampleOneStep(nn.Sequential):
         H, W = self.input_resolution
         flops = H * W * self.num_feat * 3 * 9
         return flops
-    
-    
+
 
 class Swin2SR(nn.Module):
-    r""" Swin2SR
+    r"""Swin2SR
         A PyTorch impl of : `Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration`.
 
     Args:
@@ -698,13 +755,31 @@ class Swin2SR(nn.Module):
         resi_connection: The convolutional block before residual connection. '1conv'/'3conv'
     """
 
-    def __init__(self, img_size=64, patch_size=1, in_chans=3, out_chans=3,
-                 embed_dim=96, depths=[6, 6, 6, 6], num_heads=[6, 6, 6, 6],
-                 window_size=7, mlp_ratio=4., qkv_bias=True, 
-                 drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
-                 norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
-                 use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
-                 **kwargs):
+    def __init__(
+        self,
+        img_size=64,
+        patch_size=1,
+        in_chans=3,
+        out_chans=3,
+        embed_dim=96,
+        depths=[6, 6, 6, 6],
+        num_heads=[6, 6, 6, 6],
+        window_size=7,
+        mlp_ratio=4.0,
+        qkv_bias=True,
+        drop_rate=0.0,
+        attn_drop_rate=0.0,
+        drop_path_rate=0.1,
+        norm_layer=nn.LayerNorm,
+        ape=False,
+        patch_norm=True,
+        use_checkpoint=False,
+        upscale=2,
+        img_range=1.0,
+        upsampler="",
+        resi_connection="1conv",
+        **kwargs,
+    ):
         super(Swin2SR, self).__init__()
         num_in_ch = in_chans
         num_out_ch = out_chans
@@ -734,21 +809,21 @@ class Swin2SR(nn.Module):
 
         # split image into non-overlapping patches
         self.patch_embed = PatchEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
-            norm_layer=norm_layer if self.patch_norm else None)
+            img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim, norm_layer=norm_layer if self.patch_norm else None
+        )
         num_patches = self.patch_embed.num_patches
         patches_resolution = self.patch_embed.patches_resolution
         self.patches_resolution = patches_resolution
 
         # merge non-overlapping patches into image
         self.patch_unembed = PatchUnEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim,
-            norm_layer=norm_layer if self.patch_norm else None)
+            img_size=img_size, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim, norm_layer=norm_layer if self.patch_norm else None
+        )
 
         # absolute position embedding
         if self.ape:
             self.absolute_pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim))
-            trunc_normal_(self.absolute_pos_embed, std=.02)
+            trunc_normal_(self.absolute_pos_embed, std=0.02)
 
         self.pos_drop = nn.Dropout(p=drop_rate)
 
@@ -758,105 +833,96 @@ class Swin2SR(nn.Module):
         # build Residual Swin Transformer blocks (RSTB)
         self.layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
-            layer = RSTB(dim=embed_dim,
-                         input_resolution=(patches_resolution[0],
-                                           patches_resolution[1]),
-                         depth=depths[i_layer],
-                         num_heads=num_heads[i_layer],
-                         window_size=window_size,
-                         mlp_ratio=self.mlp_ratio,
-                         qkv_bias=qkv_bias, 
-                         drop=drop_rate, attn_drop=attn_drop_rate,
-                         drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],  # no impact on SR results
-                         norm_layer=norm_layer,
-                         downsample=None,
-                         use_checkpoint=use_checkpoint,
-                         img_size=img_size,
-                         patch_size=patch_size,
-                         resi_connection=resi_connection
-
-                         )
+            layer = RSTB(
+                dim=embed_dim,
+                input_resolution=(patches_resolution[0], patches_resolution[1]),
+                depth=depths[i_layer],
+                num_heads=num_heads[i_layer],
+                window_size=window_size,
+                mlp_ratio=self.mlp_ratio,
+                qkv_bias=qkv_bias,
+                drop=drop_rate,
+                attn_drop=attn_drop_rate,
+                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],  # no impact on SR results
+                norm_layer=norm_layer,
+                downsample=None,
+                use_checkpoint=use_checkpoint,
+                img_size=img_size,
+                patch_size=patch_size,
+                resi_connection=resi_connection,
+            )
             self.layers.append(layer)
-            
-        if self.upsampler == 'pixelshuffle_hf':
+
+        if self.upsampler == "pixelshuffle_hf":
             self.layers_hf = nn.ModuleList()
             for i_layer in range(self.num_layers):
-                layer = RSTB(dim=embed_dim,
-                             input_resolution=(patches_resolution[0],
-                                               patches_resolution[1]),
-                             depth=depths[i_layer],
-                             num_heads=num_heads[i_layer],
-                             window_size=window_size,
-                             mlp_ratio=self.mlp_ratio,
-                             qkv_bias=qkv_bias, 
-                             drop=drop_rate, attn_drop=attn_drop_rate,
-                             drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],  # no impact on SR results
-                             norm_layer=norm_layer,
-                             downsample=None,
-                             use_checkpoint=use_checkpoint,
-                             img_size=img_size,
-                             patch_size=patch_size,
-                             resi_connection=resi_connection
-
-                             )
+                layer = RSTB(
+                    dim=embed_dim,
+                    input_resolution=(patches_resolution[0], patches_resolution[1]),
+                    depth=depths[i_layer],
+                    num_heads=num_heads[i_layer],
+                    window_size=window_size,
+                    mlp_ratio=self.mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    drop=drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],  # no impact on SR results
+                    norm_layer=norm_layer,
+                    downsample=None,
+                    use_checkpoint=use_checkpoint,
+                    img_size=img_size,
+                    patch_size=patch_size,
+                    resi_connection=resi_connection,
+                )
                 self.layers_hf.append(layer)
-                        
+
         self.norm = norm_layer(self.num_features)
 
         # build the last conv layer in deep feature extraction
-        if resi_connection == '1conv':
+        if resi_connection == "1conv":
             self.conv_after_body = nn.Conv2d(embed_dim, embed_dim, 3, 1, 1)
-        elif resi_connection == '3conv':
+        elif resi_connection == "3conv":
             # to save parameters and memory
-            self.conv_after_body = nn.Sequential(nn.Conv2d(embed_dim, embed_dim // 4, 3, 1, 1),
-                                                 nn.LeakyReLU(negative_slope=0.2, inplace=True),
-                                                 nn.Conv2d(embed_dim // 4, embed_dim // 4, 1, 1, 0),
-                                                 nn.LeakyReLU(negative_slope=0.2, inplace=True),
-                                                 nn.Conv2d(embed_dim // 4, embed_dim, 3, 1, 1))
+            self.conv_after_body = nn.Sequential(
+                nn.Conv2d(embed_dim, embed_dim // 4, 3, 1, 1),
+                nn.LeakyReLU(negative_slope=0.2, inplace=True),
+                nn.Conv2d(embed_dim // 4, embed_dim // 4, 1, 1, 0),
+                nn.LeakyReLU(negative_slope=0.2, inplace=True),
+                nn.Conv2d(embed_dim // 4, embed_dim, 3, 1, 1),
+            )
 
         #####################################################################################################
         ################################ 3, high quality image reconstruction ################################
-        if self.upsampler == 'pixelshuffle':
+        if self.upsampler == "pixelshuffle":
             # for classical SR
-            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
-                                                      nn.LeakyReLU(inplace=True))
+            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.upsample = Upsample(upscale, num_feat)
             self.conv_last = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
-        elif self.upsampler == 'pixelshuffle_aux':
+        elif self.upsampler == "pixelshuffle_aux":
             self.conv_bicubic = nn.Conv2d(num_in_ch, num_feat, 3, 1, 1)
-            self.conv_before_upsample = nn.Sequential(
-                nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
-                nn.LeakyReLU(inplace=True))
+            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.conv_aux = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
-            self.conv_after_aux = nn.Sequential(
-                nn.Conv2d(3, num_feat, 3, 1, 1),
-                nn.LeakyReLU(inplace=True))            
+            self.conv_after_aux = nn.Sequential(nn.Conv2d(3, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.upsample = Upsample(upscale, num_feat)
             self.conv_last = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
-            
-        elif self.upsampler == 'pixelshuffle_hf':
-            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
-                                                      nn.LeakyReLU(inplace=True))
+
+        elif self.upsampler == "pixelshuffle_hf":
+            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.upsample = Upsample(upscale, num_feat)
             self.upsample_hf = Upsample_hf(upscale, num_feat)
             self.conv_last = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
-            self.conv_first_hf = nn.Sequential(nn.Conv2d(num_feat, embed_dim, 3, 1, 1),
-                                                      nn.LeakyReLU(inplace=True))
+            self.conv_first_hf = nn.Sequential(nn.Conv2d(num_feat, embed_dim, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.conv_after_body_hf = nn.Conv2d(embed_dim, embed_dim, 3, 1, 1)
-            self.conv_before_upsample_hf = nn.Sequential(
-                nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
-                nn.LeakyReLU(inplace=True))
+            self.conv_before_upsample_hf = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.conv_last_hf = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
-            
-        elif self.upsampler == 'pixelshuffledirect':
+
+        elif self.upsampler == "pixelshuffledirect":
             # for lightweight SR (to save parameters)
-            self.upsample = UpsampleOneStep(upscale, embed_dim, num_out_ch,
-                                            (patches_resolution[0], patches_resolution[1]))
-        elif self.upsampler == 'nearest+conv':
+            self.upsample = UpsampleOneStep(upscale, embed_dim, num_out_ch, (patches_resolution[0], patches_resolution[1]))
+        elif self.upsampler == "nearest+conv":
             # for real-world SR (less artifacts)
-            assert self.upscale == 4, 'only support x4 now.'
-            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1),
-                                                      nn.LeakyReLU(inplace=True))
+            assert self.upscale == 4, "only support x4 now."
+            self.conv_before_upsample = nn.Sequential(nn.Conv2d(embed_dim, num_feat, 3, 1, 1), nn.LeakyReLU(inplace=True))
             self.conv_up1 = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
             self.conv_up2 = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
             self.conv_hr = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
@@ -870,7 +936,7 @@ class Swin2SR(nn.Module):
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
@@ -879,17 +945,17 @@ class Swin2SR(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
-        return {'absolute_pos_embed'}
+        return {"absolute_pos_embed"}
 
     @torch.jit.ignore
     def no_weight_decay_keywords(self):
-        return {'relative_position_bias_table'}
+        return {"relative_position_bias_table"}
 
     def check_image_size(self, x):
         _, _, h, w = x.size()
         mod_pad_h = (self.window_size - h % self.window_size) % self.window_size
         mod_pad_w = (self.window_size - w % self.window_size) % self.window_size
-        x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
+        x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), "reflect")
         return x
 
     def forward_features(self, x):
@@ -906,7 +972,7 @@ class Swin2SR(nn.Module):
         x = self.patch_unembed(x, x_size)
 
         return x
-    
+
     def forward_features_hf(self, x):
         x_size = (x.shape[2], x.shape[3])
         x = self.patch_embed(x)
@@ -920,7 +986,7 @@ class Swin2SR(nn.Module):
         x = self.norm(x)  # B L C
         x = self.patch_unembed(x, x_size)
 
-        return x    
+        return x
 
     def forward(self, x):
         H, W = x.shape[2:]
@@ -929,30 +995,30 @@ class Swin2SR(nn.Module):
         self.mean = self.mean.type_as(x)
         x = (x - self.mean) * self.img_range
 
-        if self.upsampler == 'pixelshuffle':
+        if self.upsampler == "pixelshuffle":
             # for classical SR
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
             x = self.conv_before_upsample(x)
             x = self.conv_last(self.upsample(x))
-        elif self.upsampler == 'pixelshuffle_aux':
-            bicubic = F.interpolate(x, size=(H * self.upscale, W * self.upscale), mode='bicubic', align_corners=False)
+        elif self.upsampler == "pixelshuffle_aux":
+            bicubic = F.interpolate(x, size=(H * self.upscale, W * self.upscale), mode="bicubic", align_corners=False)
             bicubic = self.conv_bicubic(bicubic)
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
             x = self.conv_before_upsample(x)
-            aux = self.conv_aux(x) # b, 3, LR_H, LR_W
+            aux = self.conv_aux(x)  # b, 3, LR_H, LR_W
             x = self.conv_after_aux(aux)
-            x = self.upsample(x)[:, :, :H * self.upscale, :W * self.upscale] + bicubic[:, :, :H * self.upscale, :W * self.upscale]
+            x = self.upsample(x)[:, :, : H * self.upscale, : W * self.upscale] + bicubic[:, :, : H * self.upscale, : W * self.upscale]
             x = self.conv_last(x)
             aux = aux / self.img_range + self.mean
-        elif self.upsampler == 'pixelshuffle_hf':
+        elif self.upsampler == "pixelshuffle_hf":
             # for classical SR with HF
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
             x_before = self.conv_before_upsample(x)
             x_out = self.conv_last(self.upsample(x_before))
-            
+
             x_hf = self.conv_first_hf(x_before)
             x_hf = self.conv_after_body_hf(self.forward_features_hf(x_hf)) + x_hf
             x_hf = self.conv_before_upsample_hf(x_hf)
@@ -960,35 +1026,39 @@ class Swin2SR(nn.Module):
             x = x_out + x_hf
             x_hf = x_hf / self.img_range + self.mean
 
-        elif self.upsampler == 'pixelshuffledirect':
+        elif self.upsampler == "pixelshuffledirect":
             # for lightweight SR
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
             x = self.upsample(x)
-        elif self.upsampler == 'nearest+conv':
+        elif self.upsampler == "nearest+conv":
             # for real-world SR
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
             x = self.conv_before_upsample(x)
-            x = self.lrelu(self.conv_up1(torch.nn.functional.interpolate(x, scale_factor=2, mode='nearest')))
-            x = self.lrelu(self.conv_up2(torch.nn.functional.interpolate(x, scale_factor=2, mode='nearest')))
+            x = self.lrelu(self.conv_up1(torch.nn.functional.interpolate(x, scale_factor=2, mode="nearest")))
+            x = self.lrelu(self.conv_up2(torch.nn.functional.interpolate(x, scale_factor=2, mode="nearest")))
             x = self.conv_last(self.lrelu(self.conv_hr(x)))
         else:
             # for image denoising and JPEG compression artifact reduction
             x_first = self.conv_first(x)
             res = self.conv_after_body(self.forward_features(x_first)) + x_first
             x = x + self.conv_last(res)
-        
+
         x = x / self.img_range + self.mean
         if self.upsampler == "pixelshuffle_aux":
-            return x[:, :, :H*self.upscale, :W*self.upscale], aux
-        
+            return x[:, :, : H * self.upscale, : W * self.upscale], aux
+
         elif self.upsampler == "pixelshuffle_hf":
             x_out = x_out / self.img_range + self.mean
-            return x_out[:, :, :H*self.upscale, :W*self.upscale], x[:, :, :H*self.upscale, :W*self.upscale], x_hf[:, :, :H*self.upscale, :W*self.upscale]
-        
+            return (
+                x_out[:, :, : H * self.upscale, : W * self.upscale],
+                x[:, :, : H * self.upscale, : W * self.upscale],
+                x_hf[:, :, : H * self.upscale, : W * self.upscale],
+            )
+
         else:
-            return x[:, :, :H*self.upscale, :W*self.upscale]
+            return x[:, :, : H * self.upscale, : W * self.upscale]
 
     def flops(self):
         flops = 0
@@ -1002,12 +1072,21 @@ class Swin2SR(nn.Module):
         return flops
 
 
-if __name__ == '__main__':
-
-    model = Swin2SR(upscale=1, img_size=(160, 160), out_chans=1, in_chans=4,
-                   window_size=8, img_range=1., depths=[6, 6, 6, 6],
-                   embed_dim=60, num_heads=[6, 6, 6, 6], mlp_ratio=2, upsampler='pixelshuffle')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if __name__ == "__main__":
+    model = Swin2SR(
+        upscale=1,
+        img_size=(160, 160),
+        out_chans=1,
+        in_chans=4,
+        window_size=8,
+        img_range=1.0,
+        depths=[6, 6, 6, 6],
+        embed_dim=60,
+        num_heads=[6, 6, 6, 6],
+        mlp_ratio=2,
+        upsampler="pixelshuffle",
+    )
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
     x = torch.randn((1, 4, 160, 160))
     x = x.to(device)
