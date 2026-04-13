@@ -20,7 +20,15 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, StandardNormalisation, Pad
+from iriscc.settings import DATES_EXP5_TEST, DATES_EXP5_TRAIN, DATES_EXP5_VAL
+from iriscc.transforms import (
+    FillMissingValue,
+    LandSeaMask,
+    Log10Transform,
+    MinMaxNormalisation,
+    Pad,
+    StandardNormalisation,
+)
 
 
 class IRISCC(Dataset):
@@ -44,9 +52,6 @@ class IRISCC(Dataset):
         test_end_limit = int(test_end_matches[0]) if len(test_end_matches) > 0 else len(list_data)
 
         valid_data = list_data[:test_end_limit]
-        n_samples = len(valid_data)
-
-        from iriscc.settings import DATES_EXP5_TRAIN, DATES_EXP5_VAL, DATES_EXP5_TEST
 
         if self.data_type == "train":
             start_date, end_date = DATES_EXP5_TRAIN[0], DATES_EXP5_TRAIN[-1]
@@ -56,10 +61,7 @@ class IRISCC(Dataset):
             start_date, end_date = DATES_EXP5_TEST[0], DATES_EXP5_TEST[-1]
 
         # Filter samples based on the exact start and end dates
-        self.samples = [
-            s for s in valid_data 
-            if str(start_date.strftime("%Y%m%d")) <= s.split("_")[-1].split(".")[0] <= str(end_date.strftime("%Y%m%d"))
-        ]
+        self.samples = [s for s in valid_data if str(start_date.strftime("%Y%m%d")) <= s.split("_")[-1].split(".")[0] <= str(end_date.strftime("%Y%m%d"))]
 
     def __len__(self) -> int:
         """

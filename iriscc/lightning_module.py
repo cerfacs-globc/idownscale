@@ -39,7 +39,9 @@ def get_model(model: str, in_channels: int, out_channels: int, img_size: tuple, 
 
     match model:
         case "unet":
-            return UNet(spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout, channels=(32, 64, 128, 256, 512), strides=(2, 2, 2, 2)).float()
+            return UNet(
+                spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout, channels=(32, 64, 128, 256, 512), strides=(2, 2, 2, 2)
+            ).float()
         case "miniunet":
             return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
         case "swinunetr":
