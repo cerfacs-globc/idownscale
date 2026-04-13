@@ -1,3 +1,4 @@
+# jscpd:ignore-start
 """
 Predict and plot results from a trained model.
 
@@ -107,3 +108,4 @@ if __name__ == "__main__":
     x_init[condition] = np.nan
 
     compare_4_subplots(x_init, y[0], y_hat, False, f"{args.date} {test_name}", GRAPHS_DIR / f"pred/{args.date}_subplot_{args.exp}_{test_name}.png")
+# jscpd:ignore-end

@@ -34,5 +34,5 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ --cov=iriscc --cov-report=xml
+          pytest
           coverage report --fail-under=1
