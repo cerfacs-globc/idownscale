@@ -77,7 +77,12 @@ if __name__ == "__main__":
                 raise FileNotFoundError(f"No version folders found in {run_dir_base}")
 
         # Sort to find the latest version (e.g., version_2 > version_1)
-        run_dir = Path(sorted(versions, key=lambda x: int(os.path.basename(x).split("_")[-1]))[-1])
+        # Filter for directories that follow the 'version_X' pattern (integer X)
+        valid_versions = [v for v in versions if os.path.basename(v).split("_")[-1].isdigit()]
+        if not valid_versions:
+             raise FileNotFoundError(f"No valid numeric version folders found in {versions}")
+        
+        run_dir = Path(sorted(valid_versions, key=lambda x: int(os.path.basename(x).split("_")[-1]))[-1])
         print(f"Automatically selected latest run directory: {run_dir}")
 
     # Robust search for best checkpoint
