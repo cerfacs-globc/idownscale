@@ -1,31 +1,31 @@
-"name": "CI - Tests"
-"on":
-  "push":
-  "pull_request":
-"permissions":
-  "contents": "read"
-  "actions": "read"
-"jobs":
-  "test":
-    "name": "Run Pytest with Coverage"
-    "runs-on": "ubuntu-24.04"
-    "env":
-      "FORCE_JAVASCRIPT_ACTIONS_TO_NODE24": "true"
-    "steps":
-      - "name": "Checkout code"
-        "uses": "actions/checkout@v4"
-        "with":
-          "fetch-depth": 0
-      - "name": "Set up Python"
-        "uses": "actions/setup-python@v5"
-        "with":
-          "python-version": "3.11"
-      - "name": "Install dependencies"
-        "run": |
+name: CI - Tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  test:
+    name: Run Pytest with Coverage
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
           python -m pip install --upgrade pip
           pip install .[dev] || pip install .
           pip install pytest pytest-cov
-      - "name": "Run tests with coverage"
-        "run": |
+      - name: Run tests with coverage
+        run: |
           pytest testing_suite/ -v
           coverage report --fail-under=1
