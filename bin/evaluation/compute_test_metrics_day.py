@@ -60,7 +60,13 @@ def get_config(exp: str, test_name: str, simu_test: Optional[str]) -> Tuple[Opti
             versions = glob.glob(str(run_dir_base / "version_*"))
             if not versions:
                 raise FileNotFoundError(f"No version folders found in {run_dir_base}")
-            run_dir = Path(sorted(versions, key=lambda x: int(x.split("_")[-1]))[-1])
+            
+            # Filter for purely numeric versions to avoid issues with renamed legacy folders
+            valid_versions = [v for v in versions if os.path.basename(v).split("_")[-1].isdigit()]
+            if not valid_versions:
+                 raise FileNotFoundError(f"No valid numeric version folders found in {run_dir_base}")
+
+            run_dir = Path(sorted(valid_versions, key=lambda x: int(os.path.basename(x).split("_")[-1]))[-1])
             print(f"Automatically selected latest run directory: {run_dir}")
 
         checkpoint_dir = glob.glob(str(run_dir / "checkpoints/best-checkpoint*.ckpt"))[0]

@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad
+from iriscc.transforms import FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, StandardNormalisation, Pad
 
 
 class IRISCC(Dataset):
@@ -46,16 +46,20 @@ class IRISCC(Dataset):
         valid_data = list_data[:test_end_limit]
         n_samples = len(valid_data)
 
-        # Use 80% for training, 10% for validation, 10% for testing
-        train_end = int(0.8 * n_samples)
-        val_end = int(0.9 * n_samples)
+        from iriscc.settings import DATES_EXP5_TRAIN, DATES_EXP5_VAL, DATES_EXP5_TEST
 
         if self.data_type == "train":
-            self.samples = valid_data[:train_end]
+            start_date, end_date = DATES_EXP5_TRAIN[0], DATES_EXP5_TRAIN[-1]
         elif self.data_type == "val":
-            self.samples = valid_data[train_end:val_end]
+            start_date, end_date = DATES_EXP5_VAL[0], DATES_EXP5_VAL[-1]
         elif self.data_type == "test":
-            self.samples = valid_data[val_end:]
+            start_date, end_date = DATES_EXP5_TEST[0], DATES_EXP5_TEST[-1]
+
+        # Filter samples based on the exact start and end dates
+        self.samples = [
+            s for s in valid_data 
+            if str(start_date.strftime("%Y%m%d")) <= s.split("_")[-1].split(".")[0] <= str(end_date.strftime("%Y%m%d"))
+        ]
 
     def __len__(self) -> int:
         """
@@ -92,10 +96,16 @@ def get_dataloaders(data_type: str) -> DataLoader:
     """
 
     hparams = IRISCCHyperParameters()
+    # Choose normalization based on hparams
+    if getattr(hparams, "norm_type", "minmax") == "standard":
+        normalization = StandardNormalisation(hparams.sample_dir, hparams.output_norm)
+    else:
+        normalization = MinMaxNormalisation(hparams.sample_dir, hparams.output_norm)
+
     transforms = v2.Compose(
         [
             Log10Transform(hparams.channels),
-            MinMaxNormalisation(hparams.sample_dir, hparams.output_norm),
+            normalization,
             LandSeaMask(hparams.mask, hparams.fill_value),
             FillMissingValue(hparams.fill_value),
             Pad(hparams.fill_value),
@@ -113,7 +123,7 @@ def get_dataloaders(data_type: str) -> DataLoader:
     else:
         batch_size = 1
 
-    dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+    dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle, num_workers=8, pin_memory=True)
     return dataloader
 
 

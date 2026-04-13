@@ -28,17 +28,13 @@ class StandardNormalisation:
     Applies Standard Normalisation applied to the data.
     """
 
-    def __init__(self, sample_dir: Union[str, Path]) -> None:
+    def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
         statistics_file = Path(sample_dir) / "statistics.json"
         with open(statistics_file) as f:
             stats = json.load(f)
-        mean = []
-        std = []
-        for channel in stats.keys():
-            mean.append(stats[channel]["mean"])
-            std.append(stats[channel]["std"])
-        self.mean = mean
-        self.std = std
+        self.mean = [stats[channel]["mean"] for channel in stats.keys()]
+        self.std = [stats[channel]["std"] for channel in stats.keys()]
+        self.output_norm = output_norm
 
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
@@ -48,7 +44,36 @@ class StandardNormalisation:
             y = torch.tensor(y)
         x = [(x[C, :, :] - self.mean[C]) / self.std[C] for C in range(len(x))]
         x = torch.stack(x, dim=0)
+        if self.output_norm:
+            y[0, :, :] = (y[0, :, :] - self.mean[-1]) / self.std[-1]
         return x, y
+
+
+class DeStandardNormalisation:
+    """
+    Reverts the Standard Normalisation applied to the data.
+    """
+
+    def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
+        statistics_file = Path(sample_dir) / "statistics.json"
+        with open(statistics_file) as f:
+            stats = json.load(f)
+        self.mean = [stats[channel]["mean"] for channel in stats.keys()]
+        self.std = [stats[channel]["std"] for channel in stats.keys()]
+        self.output_norm = output_norm
+
+    def __call__(self, sample: Tuple[Union[bool, torch.Tensor], torch.Tensor]) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+        x, y = sample
+        if x is False:
+            if self.output_norm:
+                y[0, :, :] = y[0, :, :] * self.std[-1] + self.mean[-1]
+            return torch.tensor(y)
+        else:
+            x = [x[C, :, :] * self.std[C] + self.mean[C] for C in range(len(x))]
+            x = torch.stack(x, axis=0)
+            if self.output_norm:
+                y[0, :, :] = y[0, :, :] * self.std[-1] + self.mean[-1]
+            return torch.tensor(x), torch.tensor(y)
 
 
 class MinMaxNormalisation:

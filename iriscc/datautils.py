@@ -9,8 +9,8 @@ import sys
 
 sys.path.append(".")
 
-import glob
 from datetime import datetime
+import glob
 from pathlib import Path
 
 import numpy as np

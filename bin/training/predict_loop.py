@@ -29,7 +29,7 @@ from iriscc.settings import (
     PREDICTION_DIR,
     RUNS_DIR,
 )
-from iriscc.transforms import DeMinMaxNormalisation, FillMissingValue, LandSeaMask, MinMaxNormalisation, Pad, UnPad
+from iriscc.transforms import DeMinMaxNormalisation, DeStandardNormalisation, FillMissingValue, LandSeaMask, MinMaxNormalisation, StandardNormalisation, Pad, UnPad
 
 
 def get_target_format(exp: str, dates):
@@ -104,16 +104,23 @@ if __name__ == "__main__":
     model.eval()
     hparams = model.hparams["hparams"]
 
+    # Dynamic normalization based on model hparams
+    norm_type = hparams.get("norm_type", "minmax")
+    if norm_type == "standard":
+        normalization = StandardNormalisation(hparams["sample_dir"], hparams["output_norm"])
+        de_norm = DeStandardNormalisation(hparams["sample_dir"], hparams["output_norm"])
+    else:
+        normalization = MinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"])
+        de_norm = DeMinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"])
+
     transforms = v2.Compose(
         [
-            MinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"]),
+            normalization,
             LandSeaMask(hparams["mask"], hparams["fill_value"]),
             FillMissingValue(hparams["fill_value"]),
             Pad(hparams["fill_value"]),
         ]
     )
-
-    de_norm = DeMinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"])
 
     sample_dir = hparams["sample_dir"]
     if args.simu_test is not None:
