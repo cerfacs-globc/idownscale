@@ -20,6 +20,7 @@ def test_generate_bounds_int32():
     # Apply patch
     iriscc.datautils.generate_bounds = gb_int32
     
+    try:
         # Test parameters representing standard experiment domains
         
         # We use a mocked or small sample for CI if possible, 
