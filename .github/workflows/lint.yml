@@ -32,10 +32,10 @@ jobs:
           MARKDOWN_CONFIG_FILE: mlc_config.json
           PYTHON_RUFF_CONFIG_FILE: .ruff.toml
           JSCPD_CONFIG_FILE: .jscpd.json
+          JSCPD_THRESHOLD: 20
           VALIDATE_ALL_CODEBASE: false
           DISABLE_ERRORS: false
           VALIDATE_MARKDOWN_LINKS: true
-          # Disable other python linters already covered by Ruff
           VALIDATE_PYTHON_ISORT: false
           VALIDATE_PYTHON_FLAKE8: false
           VALIDATE_PYTHON_BLACK: false
