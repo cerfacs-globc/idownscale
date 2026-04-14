@@ -38,4 +38,5 @@ class IRISCCHyperParameters:
         self.max_beta = 0.02
         self.scheduler_step_size = 50
         self.scheduler_gamma = 0.1
-        self.output_norm = False
+        self.output_norm = True
+        self.norm_type = "standard"
