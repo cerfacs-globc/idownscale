@@ -65,4 +65,13 @@ exclude = ["testing_suite*"]
 [tool.pytest.ini_options]
 testpaths = ["testing_suite"]
 python_files = "test_*.py"
+addopts = "--cov=iriscc --cov-report=term-missing --cov-report=xml"
+
+[tool.coverage.run]
+source = ["iriscc"]
+omit = ["testing_suite/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 1
 

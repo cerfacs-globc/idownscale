@@ -26,6 +26,4 @@ jobs:
           pip install .[dev] || pip install .
           pip install pytest pytest-cov
       - name: Run tests with coverage
-        run: |
-          pytest testing_suite/ -v
-          coverage report --fail-under=1
+        run: pytest

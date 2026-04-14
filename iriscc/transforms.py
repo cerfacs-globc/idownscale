@@ -67,13 +67,16 @@ class DeStandardNormalisation:
         if x is False:
             if self.output_norm:
                 y[0, :, :] = y[0, :, :] * self.std[-1] + self.mean[-1]
-            return torch.tensor(y)
+            return y.detach().clone() if torch.is_tensor(y) else torch.tensor(y)
         else:
             x = [x[C, :, :] * self.std[C] + self.mean[C] for C in range(len(x))]
             x = torch.stack(x, axis=0)
             if self.output_norm:
                 y[0, :, :] = y[0, :, :] * self.std[-1] + self.mean[-1]
-            return torch.tensor(x), torch.tensor(y)
+            return (
+                x.detach().clone() if torch.is_tensor(x) else torch.tensor(x),
+                y.detach().clone() if torch.is_tensor(y) else torch.tensor(y),
+            )
 
 
 class MinMaxNormalisation:
@@ -120,13 +123,16 @@ class DeMinMaxNormalisation:
         if x is False:
             if self.output_norm:
                 y[0, :, :] = y[0, :, :] * (self.max[-1] - self.min[-1]) + self.min[-1]
-            return torch.tensor(y)
+            return y.detach().clone() if torch.is_tensor(y) else torch.tensor(y)
         else:
             x = [x[C, :, :] * (self.max[C] - self.min[C]) + self.min[C] for C in range(len(x))]
             x = torch.stack(x, axis=0)
             if self.output_norm:
                 y[0, :, :] = y[0, :, :] * (self.max[-1] - self.min[-1]) + self.min[-1]
-            return torch.tensor(x), torch.tensor(y)
+            return (
+                x.detach().clone() if torch.is_tensor(x) else torch.tensor(x),
+                y.detach().clone() if torch.is_tensor(y) else torch.tensor(y),
+            )
 
 
 class LandSeaMask:

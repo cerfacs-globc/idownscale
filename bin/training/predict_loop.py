@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import torch
 import xarray as xr
 from torchvision.transforms import v2
 from tqdm import tqdm
@@ -28,7 +29,16 @@ from iriscc.settings import (
     PREDICTION_DIR,
     RUNS_DIR,
 )
-from iriscc.transforms import DeMinMaxNormalisation, DeStandardNormalisation, FillMissingValue, LandSeaMask, MinMaxNormalisation, StandardNormalisation, Pad, UnPad
+from iriscc.transforms import (
+    DeMinMaxNormalisation,
+    DeStandardNormalisation,
+    FillMissingValue,
+    LandSeaMask,
+    MinMaxNormalisation,
+    Pad,
+    StandardNormalisation,
+    UnPad,
+)
 
 
 def get_target_format(exp: str, dates):
