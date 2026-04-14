@@ -68,7 +68,10 @@ except Exception as e:
 
 ---
 
-## 💡 Troubleshooting Pittfalls
+## 💡 Troubleshooting & Performance
+*   **The I/O Bottleneck**: When evaluating thousands of files (e.g., in `compute_test_metrics_day.py`), recursive `glob` calls in a loop can slow down processing by 60x. **Always pre-scan the directory** and use a mapping for lookups.
+*   **Device Mismatch**: If you see `RuntimeError: Expected all tensors to be on the same device`, ensure your model AND your metrics (e.g., `rmse.to(device)`) are on the same GPU/CPU.
+*   **Normalization Sync**: Ensure `norm_type` in `hparams.py` matches the settings in your prediction and evaluation scripts. A mismatch here is the most common cause of "impossible" RMSE results (e.g., > 100 K).
 *   **Coordinate Names**: ESMF expects `lat` and `lon`. If your GCM data uses `latitude` or `nav_lat`, you **must** rename them:
     `ds = ds.rename({'latitude': 'lat', 'longitude': 'lon'})`
 *   **Longitude Bounds**: Many models use 0-360 range. Our pipeline uses -180 to 180.

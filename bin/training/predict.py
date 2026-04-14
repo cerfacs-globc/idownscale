@@ -64,17 +64,38 @@ if __name__ == "__main__":
     parser.add_argument("--simu-test", type=str, help="gcm, gcm_bc, rcm, rcm_bc", default=None)
     args = parser.parse_args()
 
-    run_dir = RUNS_DIR / f"{args.exp}/{args.test_name}/lightning_logs/version_best"
-    checkpoint_dir = glob.glob(str(run_dir / "checkpoints/best-checkpoint*.ckpt"))[0]
+    # Check for version_best or discover latest numeric version
+    from pathlib import Path
+    if (Path(RUNS_DIR) / f"{args.exp}/{args.test_name}/lightning_logs/version_best").exists():
+        run_dir = Path(RUNS_DIR) / f"{args.exp}/{args.test_name}/lightning_logs/version_best"
+    else:
+        all_dirs = glob.glob(str(Path(RUNS_DIR) / f"{args.exp}/{args.test_name}/lightning_logs/version_*"))
+        # Filter only directories with numeric suffixes
+        log_dirs = [d for d in all_dirs if d.split("_")[-1].isdigit()]
+        log_dirs = sorted(log_dirs, key=lambda x: int(x.split("_")[-1]))
+        if not log_dirs:
+             raise FileNotFoundError(f"No numeric version directories found in {Path(RUNS_DIR) / f'{args.exp}/{args.test_name}/lightning_logs/'}")
+        run_dir = Path(log_dirs[-1])
+    
+    checkpoint_dir = glob.glob(str(run_dir / "checkpoints/*.ckpt"))[0]
 
     model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location="cpu")
     model.eval()
     hparams = model.hparams["hparams"]
     arch = hparams["model"]
+    norm_type = hparams.get("norm_type", "minmax")
+    output_norm = hparams.get("output_norm", False)
+
+    from iriscc.transforms import StandardNormalisation, DeStandardNormalisation
+    
+    if norm_type == "standard":
+        norm_func = StandardNormalisation(hparams["sample_dir"], output_norm)
+    else:
+        norm_func = MinMaxNormalisation(hparams["sample_dir"], output_norm)
 
     transforms = v2.Compose(
         [
-            MinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"]),
+            norm_func,
             LandSeaMask(hparams["mask"], hparams["fill_value"]),
             FillMissingValue(hparams["fill_value"]),
             Pad(hparams["fill_value"]),
@@ -91,19 +112,45 @@ if __name__ == "__main__":
 
     sample = glob.glob(str(sample_dir / f"sample_{args.date}.npz"))[0]
     data = dict(np.load(sample), allow_pickle=True)
-    x_init, y = data["x"], data["y"]
+    x_init = data["x"]
 
-    condition = np.isnan(y[0])
-    x, _ = transforms((x_init, y))
+    # Handle missing target (common in future projections)
+    if "y" in data:
+        y = data["y"]
+        condition = np.isnan(y[0])
+        x, _ = transforms((x_init, y))
+    else:
+        y = None
+        condition = np.isnan(x_init[0]) # Use input mask as fallback
+        # Create dummy y for transforms if needed
+        dummy_y = np.zeros((1, *x_init.shape[1:]))
+        x, _ = transforms((x_init, dummy_y))
 
     x = torch.unsqueeze(x, dim=0).float()
     y_hat = model(x.to(device)).to(device)
     y_hat = y_hat.detach().cpu()
 
-    unpad_func = UnPad(CONFIG[args.exp]["shape"], hparams["fill_value"])
-    y_hat = unpad_func(y_hat[0])[0].numpy()
+    unpad_func = UnPad(CONFIG[args.exp]["shape"])
+    y_hat = unpad_func(y_hat[0]) # Keep (C, H, W)
+
+    if output_norm:
+        if norm_type == "standard":
+            de_norm = DeStandardNormalisation(hparams["sample_dir"], output_norm)
+            y_hat = de_norm((False, y_hat))
+        else:
+            pass # MinMax handles it differently
+    
+    y_hat = y_hat[0].numpy() # Now squeeze to (H, W) for plotting/masking
     y_hat[condition] = np.nan
     x_init = x_init[1]
     x_init[condition] = np.nan
 
-    compare_4_subplots(x_init, y[0], y_hat, False, f"{args.date} {test_name}", GRAPHS_DIR / f"pred/{args.date}_subplot_{args.exp}_{test_name}.png")
+    if y is not None:
+        compare_4_subplots(x_init, y[0], y_hat, False, f"{args.date} {test_name}", GRAPHS_DIR / f"pred/{args.date}_subplot_{args.exp}_{test_name}.png")
+    else:
+        # Simple plot for cases without target
+        fig, ax = plt.subplots(figsize=(6, 5))
+        cs = ax.imshow(np.flip(y_hat, axis=0), cmap="OrRd")
+        plt.colorbar(cs, ax=ax, label="tas (K)")
+        ax.set_title(f"{args.date} {test_name} (Prediction)")
+        plt.savefig(GRAPHS_DIR / f"pred/{args.date}_prediction_{args.exp}_{test_name}.png")

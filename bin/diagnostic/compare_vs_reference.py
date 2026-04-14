@@ -22,4 +22,4 @@ ref_file = "/scratch/globc/garcia/idownscale/prediction/tas_day_CNRM-CM6-1_histo
 
 print("--- SCIENTIFIC PARITY COMPARISON (2010) ---")
 check_file("Our Version_0", our_file)
-check_file("Garcia Reference", ref_file)
+check_file("Reference Reference", ref_file)

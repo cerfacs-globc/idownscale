@@ -25,7 +25,17 @@ from tqdm import tqdm
 
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.settings import CONFIG, DATASET_BC_DIR, DATASET_DIR, METRICS_DIR, RUNS_DIR
-from iriscc.transforms import DeMinMaxNormalisation, FillMissingValue, LandSeaMask, Log10Transform, MinMaxNormalisation, Pad, UnPad
+from iriscc.transforms import (
+    DeMinMaxNormalisation,
+    DeStandardNormalisation,
+    FillMissingValue,
+    LandSeaMask,
+    Log10Transform,
+    MinMaxNormalisation,
+    Pad,
+    StandardNormalisation,
+    UnPad,
+)
 
 
 def get_config(exp: str, test_name: str, simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
@@ -74,27 +84,32 @@ def get_config(exp: str, test_name: str, simu_test: Optional[str]) -> Tuple[Opti
         model.eval()
         hparams = model.hparams["hparams"]
 
+        norm_type = hparams.get("norm_type", "minmax")
+        if norm_type == "standard":
+            normalization = StandardNormalisation(hparams["sample_dir"], hparams["output_norm"])
+            de_norm = DeStandardNormalisation(hparams["sample_dir"], hparams["output_norm"])
+        else:
+            normalization = MinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"])
+            de_norm = DeMinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"])
+
         transforms = v2.Compose(
             [
                 Log10Transform(hparams["channels"]),
-                MinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"]),
+                normalization,
                 LandSeaMask(hparams["mask"], hparams["fill_value"]),
                 FillMissingValue(hparams["fill_value"]),
                 Pad(hparams["fill_value"]),
             ]
         )
-
         if simu_test:
-            sample_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{simu_test}"  # bc or not
+            sample_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{simu_test}"
         else:
             sample_dir = hparams["sample_dir"]
-
-        de_norm = DeMinMaxNormalisation(hparams["sample_dir"], hparams["output_norm"])
 
     return model, transforms, sample_dir, de_norm
 
 
-def preprocess(date, sample_dir: Path, model: Optional[nn.Module], transforms: Optional[Compose]) -> Tuple[np.ndarray, np.ndarray]:
+def preprocess(date, sample_dir: Path, model: Optional[nn.Module], transforms: Optional[v2.Compose], sample_path_map: dict) -> Tuple[np.ndarray, np.ndarray]:
     """
     Preprocesses input data and generates predictions using a given model.
     Args:
@@ -107,10 +122,9 @@ def preprocess(date, sample_dir: Path, model: Optional[nn.Module], transforms: O
     """
 
     date_str = date.date().strftime("%Y%m%d")
-    match = glob.glob(str(sample_dir / f"sample_{date_str}.npz"))
-    if not match:
+    sample = sample_path_map.get(f"sample_{date_str}.npz")
+    if not sample:
         raise FileNotFoundError(f"Sample not found for date {date_str} in {sample_dir}")
-    sample = match[0]
     data = dict(np.load(sample), allow_pickle=True)
     x, y = data["x"], data["y"]
     condition = np.isnan(y[0])
@@ -155,7 +169,9 @@ if __name__ == "__main__":
     metric_dir = METRICS_DIR / f"{exp}/mean_metrics"
     os.makedirs(metric_dir, exist_ok=True)
 
-    device = "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+    model = model.to(device)
     rmse = MeanSquaredError(squared=False).to(device)
     corr = PearsonCorrCoef().to(device)
 
@@ -174,15 +190,17 @@ if __name__ == "__main__":
     i_summer = []
     i_winter = []
 
+    # Pre-calculate sample path map for speed (avoid glob in loop)
+    sample_path_map = {os.path.basename(f): f for f in glob.glob(str(sample_dir / "sample_*.npz"))}
+
     for i, date in enumerate(tqdm(dates, desc="Computing metrics", mininterval=2, ascii=True)):
-        # print(date)
         if date.month in [6, 7, 8]:
             i_summer.append(i)
         if date.month in [1, 2, 12]:
             i_winter.append(i)
         date_str = date.date().strftime("%Y%m%d")
 
-        y, y_hat = preprocess(date, sample_dir, model, transforms)
+        y, y_hat = preprocess(date, sample_dir, model, transforms, sample_path_map)
 
         if de_norm is not None:
             # Denormalize to Kelvin before metrics (expects (C, H, W))
@@ -221,8 +239,8 @@ if __name__ == "__main__":
         rmse_temporal.append(rmse_value)
         corr_spatial.append(corr_value)
 
-        y_temporal.append(y_flat)
-        y_hat_temporal.append(y_hat_flat)
+        y_temporal.append(y_flat.cpu())
+        y_hat_temporal.append(y_hat_flat.cpu())
 
     dT = [y_temporal[i] - y_temporal[i - 1] for i in range(len(y_temporal) - 1)]
     dT_hat = [y_hat_temporal[i] - y_hat_temporal[i - 1] for i in range(len(y_hat_temporal) - 1)]
@@ -236,6 +254,9 @@ if __name__ == "__main__":
     var_winter = np.mean(np.abs(dT_hat_winter), axis=0) - np.mean(np.abs(dT_winter), axis=0)
 
     y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
+    # Move metrics to CPU for final aggregation on CPU data
+    rmse = rmse.to("cpu")
+    corr = corr.to("cpu")
     corr_temporal = [corr(y_hat_temporal[:, j], y_temporal[:, j]).cpu() for j in range(y_temporal.size(dim=1))]
     corr_temporal = np.stack(corr_temporal)
     y_temporal_summer = torch.stack([y_temporal[i, :] for i in i_summer])

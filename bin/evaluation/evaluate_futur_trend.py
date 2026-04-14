@@ -39,23 +39,20 @@ def plot_variability(fig, axes, df_var_temporal, periods, labels, colors, unit):
     axes[0].legend()
 
     dates = pd.date_range(*(pd.to_datetime([f"{periods[-2]}-01-01", f"{periods[-1]}-12-31"])))
-    dfs = pd.DataFrame.from_dict(
-        {
-            "dates": dates,
-            labels[0]: df_var_temporal[(df_var_temporal["period"] == f"{periods[-2]} - {periods[-1]}") & (df_var_temporal["label"] == labels[0])][
-                "Variability"
-            ].values,
-            labels[1]: df_var_temporal[(df_var_temporal["period"] == f"{periods[-2]} - {periods[-1]}") & (df_var_temporal["label"] == labels[1])][
-                "Variability"
-            ].values,
-            labels[2]: df_var_temporal[(df_var_temporal["period"] == f"{periods[-2]} - {periods[-1]}") & (df_var_temporal["label"] == labels[2])][
-                "Variability"
-            ].values,
-        }
-    )
+    data_dict = {"dates": dates}
+    valid_labels = []
+    for label in labels:
+        label_data = df_var_temporal[(df_var_temporal["period"] == f"{periods[-2]} - {periods[-1]}") & (df_var_temporal["label"] == label)][
+            "Variability"
+        ].values
+        if len(label_data) == len(dates):
+            data_dict[label] = label_data
+            valid_labels.append(label)
+
+    dfs = pd.DataFrame.from_dict(data_dict)
     dfs = dfs.groupby(dfs["dates"].dt.year).mean()
-    for i, label in enumerate(labels):
-        axes[1].plot(dfs["dates"], dfs[label], "^-", label=label, color=colors[i], linewidth=2.5)
+    for i, label in enumerate(valid_labels):
+        axes[1].plot(dfs.index, dfs[label], "^-", label=label, color=colors[labels.index(label)], linewidth=2.5)
     axes[1].set_title("Variability annual mean")
     axes[1].set_ylabel(f"Variability {unit}")
     return fig, axes
@@ -66,10 +63,12 @@ if __name__ == "__main__":
     parser.add_argument("--exp", type=str, help="Experiment name (e.g., exp1)")
     parser.add_argument("--ssp", type=str, help="Scenario name (e.g., ssp126, ssp585)")
     parser.add_argument("--simu", type=str, help="Simulation type (e.g., gcm, rcm)", default="gcm")
+    parser.add_argument("--test-name", type=str, help="Model test name", default="unet")
     args = parser.parse_args()
     exp = args.exp
     ssp = args.ssp
     simu = args.simu
+    test_name = args.test_name
 
     periods = ["2015", "2040", "2070", "2100"]
 
@@ -107,15 +106,23 @@ if __name__ == "__main__":
     tas_ref = data_ref.tas.values
     data_ref.close()
 
-    unet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR / f"tas*historical_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc"))).sel(time=slice("1980", "2010"))
-    unet_ref = unet_ref.mean(dim="time")
-    tas_unet_ref = unet_ref.tas.values
-    unet_ref.close()
+    unet_files = glob.glob(str(PREDICTION_DIR / f"tas*historical_r1i1p1f2*{exp}_{test_name}_{simu}_bc.nc"))
+    if unet_files:
+        unet_ref = xr.open_mfdataset(unet_files).sel(time=slice("1980", "2010"))
+        unet_ref = unet_ref.mean(dim="time")
+        tas_unet_ref = unet_ref.tas.values
+        unet_ref.close()
+    else:
+        tas_unet_ref = None
 
-    swinunet_ref = xr.open_mfdataset(glob.glob(str(PREDICTION_DIR / f"tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc"))).sel(time=slice("1980", "2010"))
-    swinunet_ref = swinunet_ref.mean(dim="time")
-    tas_swinunet_ref = swinunet_ref.tas.values
-    swinunet_ref.close()
+    swinunet_files = glob.glob(str(PREDICTION_DIR / f"tas*historical_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc"))
+    if swinunet_files:
+        swinunet_ref = xr.open_mfdataset(swinunet_files).sel(time=slice("1980", "2010"))
+        swinunet_ref = swinunet_ref.mean(dim="time")
+        tas_swinunet_ref = swinunet_ref.tas.values
+        swinunet_ref.close()
+    else:
+        tas_swinunet_ref = None
 
     for i in range(len(periods) - 1):
         # GET DATA
@@ -126,21 +133,29 @@ if __name__ == "__main__":
         tas_data = data.tas.values
         data.close()
 
-        file = glob.glob(str(PREDICTION_DIR / f"tas*{ssp}_r1i1p1f2*{exp}_unet_all_{simu}_bc.nc"))[0]
-        unet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i + 1]))
-        tas_unet = unet.tas.values
-        unet.close()
+        unet_files = glob.glob(str(PREDICTION_DIR / f"tas*{ssp}_r1i1p1f2*{exp}_{test_name}_{simu}_bc.nc"))
+        if unet_files:
+            unet = xr.open_dataset(unet_files[0]).sel(time=slice(periods[i], periods[i + 1]))
+            tas_unet = unet.tas.values
+            unet.close()
+        else:
+            tas_unet = None
 
-        file = glob.glob(str(PREDICTION_DIR / f"tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc"))[0]
-        swinunet = xr.open_dataset(file).sel(time=slice(periods[i], periods[i + 1]))
-        tas_swinunet = swinunet.tas.values
-        swinunet.close()
+        swinunet_files = glob.glob(str(PREDICTION_DIR / f"tas*{ssp}_r1i1p1f2*{exp}_swinunet_all_{simu}_bc.nc"))
+        if swinunet_files:
+            swinunet = xr.open_dataset(swinunet_files[0]).sel(time=slice(periods[i], periods[i + 1]))
+            tas_swinunet = swinunet.tas.values
+            swinunet.close()
+        else:
+            tas_swinunet = None
 
         tas_list = [tas_data, tas_unet, tas_swinunet]
         tref = [tas_ref, tas_unet_ref, tas_swinunet_ref]
 
         ## PLOT CHANGES MAPS
         for col in range(3):
+            if tas_list[col] is None or tref[col] is None:
+                continue
             ax1 = axes1[i, col]
             data_proj = inputs_projections[col]
             cs = ax1.contourf(
@@ -176,8 +191,10 @@ if __name__ == "__main__":
             var_temporal.extend([{"period": f"{periods[i]} - {periods[i + 1]}", "Variability": val, "label": labels[col]} for val in var_t.flatten()])
 
         ## PLOT HISTOGRAMS
-        plot_histogram([tas_data.flatten(), tas_unet.flatten()], axes2[i], [labels[0], labels[1]], [colors[0], colors[1]], f"{periods[i]} - {periods[i + 1]}")
-        plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], axes3[i], [labels[0], labels[2]], [colors[0], colors[2]], f"{periods[i]} - {periods[i + 1]}")
+        if tas_unet is not None:
+            plot_histogram([tas_data.flatten(), tas_unet.flatten()], axes2[i], [labels[0], labels[1]], [colors[0], colors[1]], f"{periods[i]} - {periods[i + 1]}")
+        if tas_swinunet is not None:
+            plot_histogram([tas_data.flatten(), tas_swinunet.flatten()], axes3[i], [labels[0], labels[2]], [colors[0], colors[2]], f"{periods[i]} - {periods[i + 1]}")
 
     for ax, col in zip(axes1[0], labels):
         ax.set_title(col, fontsize=14)

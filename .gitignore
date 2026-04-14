@@ -46,18 +46,17 @@ test_*.sh
 # test_*.py
 watchdog_*.py
 run_eval_*.sh
-run_repro_*.sh
-run_phases_*.sh
+# run_repro_*.sh
+# run_phases_*.sh
 run_singularity_template.sh
-run_full_production.sh
+# run_full_production.sh
 run_production_full_resume.sh
-validate_*.py
+# validate_*.py
 check_*.py
 install_*.sh
 job_id.txt
 lib_arm/
 scratch/
-bin/evaluation/validate_vs_garcia.py
 graph/
 runs/diagnostic_plot.py
 diagnostic_plot.py

@@ -68,7 +68,8 @@ This file defines geographic and structural parameters. It is now **path-neutral
 | `learning_rate` | `0.001` | Speed of model weight updates. |
 | `batch_size` | `32` | Samples per iteration. |
 | `max_epoch` | `60` | Full passes through the training set. |
-| `output_norm` | **`True`** | **MANDATORY**: Scaling targets to `[0, 1]` to prevent gradient explosion. |
+| `output_norm` | **`True`** | **MANDATORY**: Re-scaling targets to stable gradients (Mean 0, Std 1). |
+| `norm_type` | **`standard`** | Specifies **Standard Normalisation** for Gaussian-like variables. |
 
 ---
 
@@ -109,17 +110,40 @@ For a quick end-to-end execution of all phases on small test slices:
 
 ### 5.3 HPC & Singularity (Research Mode)
 For researchers working on High-Performance Computing (HPC) clusters like **Grace/Calypso**, we provide specialized scripts that utilize **Singularity** containers and **SLURM** job scheduling.
-*   **Production Script**: `run_garcia_clean.sh` (or `run_phases_5_7_singularity.sh`)
+*   **Production Script**: `run_production_pipeline.sh` (or `run_sample_workflow.sh`)
 *   **Workflow**: Submit these via `sbatch` to leverage GPU nodes and isolated container environments.
 
 ---
 
-## 6. Verification & Quality Benchmarks
+## 6. Scientific Lessons: Avoiding Common Pitfalls (Important)
+
+Developing a robust downscaling model reveals several critical numerical pitfalls that apply across climate-AI research.
+
+### 6.1 The 113 K Trap (Target Scale vs. Loss)
+*   **The Trap**: Attempting to train directly on absolute Kelvin values (~284 K) using Mean Squared Error (MSE).
+*   **Why it Fails**: $|284|^2 \approx 80,000$. The resulting gradients are too massive ($>500$), causing the optimizer to "explode" or stall at a high RMSE (typically around **113 K**).
+*   **Solution**: Use `StandardNormalisation` on targets (`output_norm=True`). Bringing inputs/targets into a $\sim 1$ range keeps gradients stable and allows convergence.
+
+### 6.2 The RMSE Gradient Advantage
+*   **The Lesson**: Using **RMSE** (the square root of the MSE loss) provides more linear gradients during the final stages of model refinement. This is key in reaching high-fidelity performance versus plateauing early.
+
+### 6.3 The Consistency Constraint
+*   **The Trap**: Changing the normalization strategy in the training configuration (`hparams.py`) but failing to update the evaluation script.
+*   **Why it Fails**: If the evaluation script is hardcoded to `MinMax`, but the model outputs `StandardNorm` units, it will report an erroneous result (e.g., **102 K RMSE**) even if the model is perfectly trained.
+*   **Solution**: Always ensure `train`, `predict`, and `evaluate` use a unified `norm_type` selection logic.
+
+### 6.4 The I/O Performance Wall
+*   **The Lesson**: When processing 15+ years of daily data (5,000+ files), simple `glob.glob` lookups inside a loop create a massive metadata bottleneck on HPC file systems.
+*   **Success**: Pre-scanning the dataset directory once and using a lookup map reduces evaluation time significantly (e.g., from **30 minutes to 30 seconds**).
+
+---
+
+## 7. Performance Benchmarks
 
 For a successful `exp5` run, evaluate your results against these targets:
-*   **RMSE**: Historically aligns around **~4.2 K** (specifically **4.27 K** in our benchmark).
-*   **Correlation**: Should hit **> 0.65** on the France spatial domain.
-*   **Bias Check**: The global cold bias should be eliminated (> -1.0 K) if normalization is correctly engaged.
+*   **RMSE**: Target validated benchmark is **4.15 K**.
+*   **Correlation**: Should hit **> 0.73** on the France spatial domain.
+*   **Bias Check**: The global cold bias should be eliminated (> -0.5 K) through correct target normalization.
 
 ---
 **Authors:** **Christian Pagé**, **Irida Lazić**, **Milica Tošić**  
