@@ -56,7 +56,9 @@ check_*.py
 install_*.sh
 job_id.txt
 lib_arm/
-scratch/
+# scratch/
+scratch/**
+!scratch/generate_pptx.py
 graph/
 runs/diagnostic_plot.py
 diagnostic_plot.py
