@@ -20,7 +20,7 @@ class IRISCCHyperParameters:
         self.mask = "target"
         self.learning_rate = 0.001
         self.batch_size = 32
-        self.max_epoch = 10
+        self.max_epoch = 60
         self.model = "unet"
         self.exp = f"{exp}/unet"
         self.runs_dir = RUNS_DIR / self.exp

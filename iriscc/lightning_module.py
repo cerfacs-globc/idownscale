@@ -20,14 +20,13 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from monai.networks.nets import SwinUNETR
+from monai.networks.nets import SwinUNETR, UNet
 from torchmetrics import PearsonCorrCoef
 
 from iriscc.loss import MaskedGammaMAELoss, MaskedMSELoss
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.miniswinunetr import MiniSwinUNETR
 from iriscc.models.miniunet import MiniUNet
-from iriscc.models.unet import UNet
 
 layout = {
     "Check Overfit": {
@@ -40,7 +39,9 @@ def get_model(model: str, in_channels: int, out_channels: int, img_size: tuple, 
 
     match model:
         case "unet":
-            return UNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+            return UNet(
+                spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout, channels=(32, 64, 128, 256, 512), strides=(2, 2, 2, 2)
+            ).float()
         case "miniunet":
             return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
         case "swinunetr":
@@ -90,7 +91,8 @@ class IRISCCLightningModule(pl.LightningModule):
         self.epoch_start_time = time.time()
 
     def common_step(self, x, y):
-        y_hat = self(x)
+        out = self(x)
+        y_hat = torch.relu(out)
         loss = self.loss(y_hat, y)
         return y_hat, loss
 
