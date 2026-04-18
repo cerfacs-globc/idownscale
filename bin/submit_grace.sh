@@ -24,16 +24,6 @@ echo "--- Job starting at $(date) ---"
 echo "Project Root: $ROOT_DIR"
 echo "Arguments: $@"
 
-# 1. Automated Git Commit
-if [[ $(git status --porcelain) ]]; then
-    echo "[GIT] Detected uncommitted changes. Committing before submission..."
-    git add .
-    git commit -m "Auto-commit before Grace submission: $(date +'%Y-%m-%d %H:%M:%S')"
-    git log -n 1 --oneline
-else
-    echo "[GIT] Working directory is clean."
-fi
-
 # 2. Run the job using the grace wrapper
 # Usage examples:
 # sbatch bin/submit_grace.sh bin/training/train.py

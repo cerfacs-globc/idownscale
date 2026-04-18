@@ -61,6 +61,9 @@ class DatasetBuilder:
         self.target_file = CONFIG[exp]['target_file']
         self.orog_file = CONFIG[exp]['orog_file']
         self.ssp = CONFIG[exp]['ssp']
+        
+        # Ensure dataset directory exists
+        os.makedirs(self.dataset, exist_ok=True)
     
     def process_date(self, 
                      date: datetime.date, 
