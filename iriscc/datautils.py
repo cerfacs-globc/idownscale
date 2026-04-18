@@ -27,7 +27,8 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
                              SAFRAN_PROJ_PYPROJ,
                              CONFIG,
                              RCM_RAW_DIR,
-                             ERA5_DIR)
+                             ERA5_DIR,
+                             ERA5_OROG_FILE)
 
 
 
@@ -376,7 +377,7 @@ class Data(object):
             data = data + 273.15
       return data
    
-   def get_era5_dataset(self, var:str, date):
+   def get_era5_dataset(self, var:str, date, lapse_rate_correction:bool=False, orog_target_file:str=None):
       # Localized path and naming convention for Grace Hopper production
       # Files are in rawdata/era5/tas_1d/ and named tas_1d_YYYY_ERA5.nc
       pattern = str(ERA5_DIR / f"{var}_1d" / f"{var}_1d_{date.year}_ERA5.nc")
@@ -395,6 +396,30 @@ class Data(object):
       ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
       ds = ds.reindex(lat=ds.lat[::-1])
+
+      if lapse_rate_correction and var == 'tas' and orog_target_file:
+          # --- Topographic Scientific Restoration ---
+          # Apply adiabatic lapse rate correction (-0.0065 K/m)
+          # H_source = ERA5 geopotential / 9.80665
+          ds_z = xr.open_dataset(ERA5_OROG_FILE).isel(time=0)
+          ds_z = standardize_dims_and_coords(ds_z)
+          h_source = ds_z['z'] / 9.80665
+          
+          # H_target = High-res target topography (e.g. E-OBS or ETOPO)
+          ds_target_orog = xr.open_dataset(orog_target_file)
+          ds_target_orog = standardize_dims_and_coords(ds_target_orog)
+          h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
+          
+          # Interpolate topography to ERA5 grid for delta calculation
+          h_target_coarse = h_target.interp(lon=ds.lon, lat=ds.lat, method='linear').transpose('lat', 'lon')
+          h_source_coarse = h_source.interp(lon=ds.lon, lat=ds.lat, method='linear').transpose('lat', 'lon')
+          
+          # Apply correction: T_adj = T + (H_source - H_target) * 0.0065
+          # (Matches Phase 1 archive process verified in Job 215294)
+          delta_h = h_target_coarse - h_source_coarse
+          correction = delta_h * (-0.0065)
+          ds[var].values = ds[var].values + correction.values
+
       ds = crop_domain_from_ds(ds, self.domain)
       ds = self.crop_time_dim(ds, date)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')

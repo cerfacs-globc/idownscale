@@ -99,7 +99,9 @@ class DatasetBuilder:
                 ds = xr.open_dataset(self.orog_file)
                 ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
             else:
-                ds_era5 = get_data.get_era5_dataset(var, date)
+                ds_era5 = get_data.get_era5_dataset(var, date, 
+                                                   lapse_rate_correction=CONFIG[self.exp].get('lapse_rate_correction', False),
+                                                   orog_target_file=self.orog_file)
                 ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) # default value
                 # Restore high-parity two-step regridding strategy
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
@@ -137,7 +139,9 @@ class DatasetBuilder:
         get_data = Data(self.domain)
         y_hat = []
         for var in self.input_vars:
-            ds_era5 = get_data.get_era5_dataset(var, date)
+            ds_era5 = get_data.get_era5_dataset(var, date,
+                                               lapse_rate_correction=CONFIG[self.exp].get('lapse_rate_correction', False),
+                                               orog_target_file=self.orog_file)
             ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp)
             ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                        ds_target=ds_gcm, 

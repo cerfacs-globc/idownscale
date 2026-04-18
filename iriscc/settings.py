@@ -36,6 +36,7 @@ LANDSEAMASK_GCM = GCM_RAW_DIR / 'CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p
 LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
+ERA5_OROG_FILE = ERA5_DIR / 'orography_ERA5.nc'
 
 # Results redirected to OUTPUT_DIR
 DATASET_DIR = OUTPUT_DIR / 'datasets'
@@ -120,7 +121,8 @@ CONFIG = {
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
-            'ssp': 'ssp585'        
+            'ssp': 'ssp585',
+            'lapse_rate_correction': True
             },
     'exp6':
         {'target':'eobs',
