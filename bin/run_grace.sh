@@ -14,9 +14,13 @@ export PYTHONPATH=
 # Load the ARM-native python environment
 module load python/gloenv3.12_arm
 
-# Ensure output directory exists (canonical path)
+# Ensure base output directories exist (canonical paths)
 export IDOWNSCALE_OUTPUT_DIR="/gpfs-calypso/scratch/globc/page/idownscale_output"
-mkdir -p "$IDOWNSCALE_OUTPUT_DIR"
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/datasets"
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/runs"
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/graph"
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/metrics"
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/prediction"
 
 # Execute command
 "$@"
