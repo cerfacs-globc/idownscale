@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Configuration
+# Configuration (using canonical paths to avoid symlink resolution issues in Singularity)
 IMAGE="/softs/local_arm/singularity/images/pytorch25.02.sif"
-VIRTUAL_ENV="/scratch/globc/page/idownscale_envs/env_idownscale_singularity"
+VIRTUAL_ENV="/gpfs-calypso/scratch/globc/page/idownscale_envs/env_idownscale_singularity"
 PYTHON_BIN="${VIRTUAL_ENV}/bin/python3"
 
-# Ensure output directory exists
-export IDOWNSCALE_OUTPUT_DIR="/scratch/globc/page/idownscale_output"
+# Ensure output directory exists (canonical path)
+export IDOWNSCALE_OUTPUT_DIR="/gpfs-calypso/scratch/globc/page/idownscale_output"
 mkdir -p "$IDOWNSCALE_OUTPUT_DIR"
 
 # Check if image exists
