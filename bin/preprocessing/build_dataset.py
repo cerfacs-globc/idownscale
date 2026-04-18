@@ -7,6 +7,7 @@ author : Zoé GARCIA
 '''
 
 import sys
+import os
 sys.path.append('.')
 
 import xarray as xr
