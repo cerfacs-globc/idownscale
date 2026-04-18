@@ -10,7 +10,11 @@
 #SBATCH --gres=gpu:1
 
 # Ensure we are in the project root
-ROOT_DIR="$(cd "$(dirname "$0")/.." || exit 1; pwd)"
+if [ -n "$SLURM_SUBMIT_DIR" ]; then
+    ROOT_DIR="$SLURM_SUBMIT_DIR"
+else
+    ROOT_DIR="$(cd "$(dirname "$0")/.." || exit 1; pwd)"
+fi
 cd "$ROOT_DIR" || exit 1
 
 # Ensure slurm_logs directory exists
