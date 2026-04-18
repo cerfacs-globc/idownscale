@@ -5,12 +5,16 @@ date : 16/07/2025
 author : Zoé GARCIA
 """
 
+import os
 from pathlib import Path
 import pandas as pd
 import cartopy.crs as ccrs
 import pyproj
 
-RAW_DIR = Path('/scratch/globc/garcia/rawdata/')
+# Base directories
+RAW_DIR = Path(os.getenv('IDOWNSCALE_RAW_DIR', '/scratch/globc/garcia/rawdata/'))
+OUTPUT_DIR = Path(os.getenv('IDOWNSCALE_OUTPUT_DIR', '/scratch/globc/page/idownscale_output/'))
+
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
@@ -30,7 +34,8 @@ LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
 
-DATASET_DIR = Path('/scratch/globc/garcia/datasets/')
+# Results redirected to OUTPUT_DIR
+DATASET_DIR = OUTPUT_DIR / 'datasets'
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
@@ -51,10 +56,10 @@ DATASET_EXP8_30Y_DIR = DATASET_DIR / 'dataset_exp8_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
 
-RUNS_DIR = Path('/scratch/globc/garcia/runs/')
-GRAPHS_DIR = Path('/scratch/globc/garcia/graph/')
-METRICS_DIR = Path('/scratch/globc/garcia/metrics/')
-PREDICTION_DIR = Path('/scratch/globc/garcia/prediction/')
+RUNS_DIR = OUTPUT_DIR / 'runs'
+GRAPHS_DIR = OUTPUT_DIR / 'graph'
+METRICS_DIR = OUTPUT_DIR / 'metrics'
+PREDICTION_DIR = OUTPUT_DIR / 'prediction'
 
 CONFIG = {
     'exp3':
