@@ -413,8 +413,8 @@ class Data(object):
           # Interpolate topography to ERA5 grid for delta calculation
           # Note: Camille Le Gloannec script (standardize_dims_and_coords) 
           # renames lat -> y and lon -> x. We must match these dims.
-          h_target_coarse = h_target.interp(x=ds.x, y=ds.y, method='linear').transpose('y', 'x')
-          h_source_coarse = h_source.interp(x=ds.x, y=ds.y, method='linear').transpose('y', 'x')
+          h_target_coarse = h_target.interp(x=ds.lon, y=ds.lat, method='linear').transpose('y', 'x')
+          h_source_coarse = h_source.interp(x=ds.lon, y=ds.lat, method='linear').transpose('y', 'x')
           
           # Apply correction: T_adj = T + (H_source - H_target) * 0.0065
           # (Matches Phase 1 archive process verified in Job 215294)
