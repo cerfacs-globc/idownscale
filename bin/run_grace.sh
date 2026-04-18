@@ -19,6 +19,10 @@ fi
 unset PYTHONHOME
 unset PYTHONPATH
 
+# Explicitly add Garcia's ESMF/esmpy build to the container's PYTHONPATH
+ESMPY_PATH="/scratch/globc/page/idownscale_exp5/utils/esmf/src/addon/esmpy/build/lib"
+export PYTHONPATH="$ESMPY_PATH"
+
 # Run command inside singularity
 # --nv: enable GPU support
 # -B /scratch/: mount scratch filesystem
