@@ -106,10 +106,10 @@ if __name__=='__main__':
     model = MiniUNet(in_channels=2, out_channels=1, init_features=32)
     model = model.float()
 
-    data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
+    data = dict(np.load('settings.DATASET_DIR/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
     x, y = data['x'], data['y']
     transforms = v2.Compose([
-            MinMaxNormalisation(Path('/scratch/globc/garcia/datasets/dataset_exp3_30y')), 
+            MinMaxNormalisation(Path('settings.DATASET_DIR/dataset_exp3_30y')), 
             LandSeaMask('france', 0),
             FillMissingValue(0),
             Pad(0)

@@ -12,6 +12,7 @@ import torch.nn as nn
 import numpy as np 
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
 from iriscc.plotutils import plot_test
+from iriscc import settings
 from torchvision.transforms import v2
 
 class UNet(nn.Module):

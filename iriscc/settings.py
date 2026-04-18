@@ -12,8 +12,11 @@ import cartopy.crs as ccrs
 import pyproj
 
 # Base directories
-RAW_DIR = Path(os.getenv('IDOWNSCALE_RAW_DIR', '/scratch/globc/garcia/rawdata/'))
-OUTPUT_DIR = Path(os.getenv('IDOWNSCALE_OUTPUT_DIR', '/scratch/globc/page/idownscale_output/'))
+# Redefining paths to be relative to the repository root for absolute portability.
+# The rawdata is located within the current working directory as per user confirmation.
+PROJECT_ROOT = Path(__file__).parents[1].resolve()
+RAW_DIR = Path(os.getenv('IDOWNSCALE_RAW_DIR', str(PROJECT_ROOT / 'rawdata')))
+OUTPUT_DIR = Path(os.getenv('IDOWNSCALE_OUTPUT_DIR', '/gpfs-calypso/scratch/globc/page/idownscale_output/'))
 
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'

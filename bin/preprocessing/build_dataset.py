@@ -101,6 +101,7 @@ class DatasetBuilder:
             else:
                 ds_era5 = get_data.get_era5_dataset(var, date)
                 ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) # default value
+                # Restore high-parity two-step regridding strategy
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                         ds_target=ds_gcm, 
                                                         method="conservative_normed")
@@ -109,7 +110,7 @@ class DatasetBuilder:
                                         method='conservative_normed', 
                                         domain=self.domain, 
                                         crop_target=True, mask=True)
-            data = ds[var].values
+            data = ds[var].values.astype(np.float64) # Force float64 for bit-parity
             x.append(data)
         x = np.stack(x, axis=0)
         return x
