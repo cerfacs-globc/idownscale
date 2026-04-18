@@ -20,12 +20,9 @@ echo "--- Job starting at $(date) ---"
 echo "Project Root: $ROOT_DIR"
 echo "Arguments: $@"
 
-# 1. Automated Git Commit
+# 1. Verification
 if [[ $(git status --porcelain) ]]; then
-    echo "[GIT] Detected uncommitted changes. Committing before submission..."
-    git add .
-    git commit -m "Auto-commit before Grace submission: $(date +'%Y-%m-%d %H:%M:%S')"
-    git log -n 1 --oneline
+    echo "[GIT] Warning: Detected uncommitted changes. Please commit manualy if needed."
 else
     echo "[GIT] Working directory is clean."
 fi
