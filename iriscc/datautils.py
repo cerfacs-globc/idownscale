@@ -411,13 +411,14 @@ class Data(object):
           h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
           
           # Interpolate topography to ERA5 grid for delta calculation
-          # Note: Camille Le Gloannec script (standardize_dims_and_coords) 
-          # renames lat -> y and lon -> x. We must match these dims.
-          h_target_coarse = h_target.interp(x=ds.lon, y=ds.lat, method='linear').transpose('y', 'x')
-          h_source_coarse = h_source.interp(x=ds.lon, y=ds.lat, method='linear').transpose('y', 'x')
+          # Dynamic regridding using xESMF to be dimension-agnostic (lon/lat vs x/y)
+          regridder_to_era5 = xe.Regridder(h_target, ds, 'bilinear')
+          h_target_coarse = regridder_to_era5(h_target)
+          
+          regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear')
+          h_source_coarse = regridder_z_to_era5(h_source)
           
           # Apply correction: T_adj = T + (H_source - H_target) * 0.0065
-          # (Matches Phase 1 archive process verified in Job 215294)
           delta_h = h_target_coarse - h_source_coarse
           correction = delta_h * (-0.0065)
           ds[var].values = ds[var].values + correction.values
