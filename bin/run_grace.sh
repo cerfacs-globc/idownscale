@@ -15,6 +15,10 @@ if [ ! -f "$IMAGE" ]; then
     exit 1
 fi
 
+# Unset host python variables to avoid interference inside container
+unset PYTHONHOME
+unset PYTHONPATH
+
 # Run command inside singularity
 # --nv: enable GPU support
 # -B /scratch/: mount scratch filesystem
