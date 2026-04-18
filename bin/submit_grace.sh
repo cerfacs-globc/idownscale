@@ -17,8 +17,8 @@ else
 fi
 cd "$ROOT_DIR" || exit 1
 
-# Ensure slurm_logs directory exists
-mkdir -p "$ROOT_DIR/slurm_logs"
+# Export PYTHONPATH for esmpy reference build
+export PYTHONPATH="/scratch/globc/page/idownscale_exp5/utils/esmf/src/addon/esmpy/build/lib:$PYTHONPATH"
 
 echo "--- Job starting at $(date) ---"
 echo "Project Root: $ROOT_DIR"
