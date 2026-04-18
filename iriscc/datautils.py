@@ -377,7 +377,20 @@ class Data(object):
       return data
    
    def get_era5_dataset(self, var:str, date):
-      file = glob.glob(str(ERA5_DIR/f'{var}/{var}*_{date.year}_*'))[0]
+      # Localized path and naming convention for Grace Hopper production
+      # Files are in rawdata/era5/tas_1d/ and named tas_1d_YYYY_ERA5.nc
+      pattern = str(ERA5_DIR / f"{var}_1d" / f"{var}_1d_{date.year}_ERA5.nc")
+      files = glob.glob(pattern)
+      
+      if not files:
+          # Fallback check for alternative structure
+          pattern = str(ERA5_DIR / f"{var}" / f"{var}_1d_{date.year}_ERA5.nc")
+          files = glob.glob(pattern)
+          
+      if not files:
+          raise FileNotFoundError(f"Missing ERA5 predictor file: {pattern}. Checked in tas_1d and tas.")
+          
+      file = files[0]
       ds = xr.open_dataset(file)
       ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
