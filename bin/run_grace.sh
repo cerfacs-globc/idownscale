@@ -19,13 +19,13 @@ fi
 unset PYTHONHOME
 unset PYTHONPATH
 
-# Point to the fixed ESMF installation
-ESMF_ROOT="/scratch/globc/page/idownscale_envs/esmf_fixed"
+# Point to the fixed ESMF installation (using canonical paths)
+ESMF_ROOT="/gpfs-calypso/scratch/globc/page/idownscale_envs/esmf_fixed"
 export PYTHONPATH="$ESMF_ROOT/lib/python3.12/site-packages:$PYTHONPATH"
 export LD_LIBRARY_PATH="$ESMF_ROOT/lib:$LD_LIBRARY_PATH"
 export ESMFMKFILE="$ESMF_ROOT/lib/esmf.mk"
 
 # Run command inside singularity
 # --nv: enable GPU support
-# -B /scratch/: mount scratch filesystem
-singularity run --nv -B /scratch/ "$IMAGE" "$PYTHON_BIN" "$@"
+# -B /gpfs-calypso/: mount the root gpfs to handle canonical symlinks and /scratch
+singularity run --nv -B /gpfs-calypso/ "$IMAGE" "$PYTHON_BIN" "$@"
