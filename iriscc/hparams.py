@@ -13,22 +13,22 @@ from iriscc.settings import RUNS_DIR, CONFIG
 
 class IRISCCHyperParameters():
     def __init__(self):
-        exp = 'exp8'
+        exp = 'exp5'
         self.img_size = CONFIG[exp]['shape']
-        self.in_channels = 13
+        self.in_channels = 2
         self.mask = 'target'
-        self.learning_rate = 0.0008
+        self.learning_rate = 0.001
         self.batch_size = 32
-        self.max_epoch = 30
+        self.max_epoch = 60
         self.model ='unet'
-        self.exp = f'{exp}/unet'
+        self.exp = f'{exp}/unet_all'
         self.runs_dir = RUNS_DIR / self.exp
         self.sample_dir = CONFIG[exp]['dataset']
-        self.fill_value = -1.
+        self.fill_value = 0.0
         self.domain = 'france'
         self.domain_crop = None
         self.channels = CONFIG[exp]['channels']
-        self.loss = 'masked_gamma_mae' # masked_mse or masked_gamma_mae
+        self.loss = 'masked_mse' # masked_mse or masked_gamma_mae
         self.dropout = 0.0
         
         # Diffusion hparams

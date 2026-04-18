@@ -207,14 +207,14 @@ SAFRAN_PROJ_PYPROJ = pyproj.Proj(
 
 
 # Phase 1 settings
-DATES = pd.date_range(start='19850101', end='2004-12-31', freq='D')
-DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
+#DATES = pd.date_range(start='19850101', end='2004-12-31', freq='D')
+#DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
 #DATES_TRAIN = ['1985', '2004', '2010'] # train, valid, test start
 DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
 
 # Phase 2 settings
-#DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
-#DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
+DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
+DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
 
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
