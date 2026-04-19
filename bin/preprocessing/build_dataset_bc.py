@@ -25,6 +25,7 @@ if __name__=='__main__':
     parser.add_argument('--simu', type=str, help='simu or rcm', default='simu')
     parser.add_argument('--ssp', type=str, help='ssp585 or historical', default='ssp585')
     parser.add_argument('--var', type=str, help='variable to use', default='tas') 
+    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp5)', default='exp5')
     args = parser.parse_args()
 
     domain = [-12.5, 27.5, 31., 71.]
@@ -36,7 +37,9 @@ if __name__=='__main__':
     simu_train_hist = []
     for i, date in enumerate(DATES_BC_TRAIN_HIST):
         print(date)
-        ds_era5 = get_data.get_era5_dataset(args.var, date)
+        ds_era5 = get_data.get_era5_dataset(args.var, date,
+                                           lapse_rate_correction=CONFIG[args.exp].get('lapse_rate_correction', False),
+                                           orog_target_file=CONFIG[args.exp].get('orog_file'))
 
         if args.simu == 'gcm':
             ds_simu = get_data.get_gcm_dataset(args.var, date)
@@ -71,7 +74,9 @@ if __name__=='__main__':
     simu_test_hist = []
     for date in DATES_BC_TEST_HIST:    
         print(date)
-        ds_era5 = get_data.get_era5_dataset(args.var, date)
+        ds_era5 = get_data.get_era5_dataset(args.var, date,
+                                           lapse_rate_correction=CONFIG[args.exp].get('lapse_rate_correction', False),
+                                           orog_target_file=CONFIG[args.exp].get('orog_file'))
 
         if args.simu == 'gcm':
             ds_simu = get_data.get_gcm_dataset(args.var, date)
