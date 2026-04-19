@@ -38,24 +38,30 @@ def standardize_dims_and_coords(ds) :
     # GCM models have inconsistent names of dimensions and coordinates, 
     # this function fix that at the dataset level by naming dimensions (x,y) and coordinates (lon,lat).
 
-    dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon'], 
-         'y' : ['j', 'nj', 'yh', 'lat', 'nlat'],
+    dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon', 'longitude'], 
+         'y' : ['j', 'nj', 'yh', 'lat', 'nlat', 'latitude'],
          'lev' : ['olevel']}
-    coord_mapping = {'lon' : ['longitude', 'nav_lon'],
-         'lat' : ['latitude', 'nav_lat']}
+    coord_mapping = {'lon' : ['longitude', 'nav_lon', 'lon', 'x', 'longitude'],
+         'lat' : ['latitude', 'nav_lat', 'lat', 'y', 'latitude']}
    
+    # 1. Rename Dimensions to archival names (x, y)
     for standard_name, possible_names in dim_mapping.items() :
         for name in possible_names :
             if name in ds.dims :
                 ds = ds.rename({name: standard_name})
                 break
    
+    # 2. Rename Coordinates and ensure physical aliases exist for xESMF
     for standard_name, possible_names in coord_mapping.items() :
        for name in possible_names :
            if name in ds.coords :
             ds = ds.rename({name: standard_name})
             break
-         
+            
+    # Clever Bridge: Ensure physical aliases exist for xESMF/cf-compliance
+    if 'x' in ds.coords and 'lon' not in ds.coords: ds = ds.assign_coords(lon=ds['x'])
+    if 'y' in ds.coords and 'lat' not in ds.coords: ds = ds.assign_coords(lat=ds['y'])
+          
     return ds
 
 
@@ -235,13 +241,34 @@ def reformat_as_target(ds:xr.Dataset,
 
 def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
    """
-   Crops the input dataset to a specified geographical domain based on latitude and longitude coordinates.
+   Crops the input dataset to a specified geographical domain based on coordinates.
+   Handles both ascending and descending orientations robustly.
    """
    if domain:
-      if 'x' in ds.dims:
-         ds = ds.sel(x=slice(domain[0], domain[1]), y=slice(domain[2], domain[3]))
+      lon_min, lon_max = domain[0], domain[1]
+      lat_min, lat_max = domain[2], domain[3]
+      
+      # Determine slicing direction (xarray requires slice(a,b) with a < b if ascending, a > b if descending)
+      if 'lat' in ds.coords and ds.lat.values.size > 1:
+          if ds.lat.values[1] < ds.lat.values[0]: # Descending
+              lat_slice = slice(lat_max, lat_min)
+          else:
+              lat_slice = slice(lat_min, lat_max)
       else:
-         ds = ds.sel(lon=slice(domain[0], domain[1]), lat=slice(domain[2], domain[3]))
+          lat_slice = slice(lat_min, lat_max)
+          
+      if 'lon' in ds.coords and ds.lon.values.size > 1:
+          if ds.lon.values[1] < ds.lon.values[0]: 
+              lon_slice = slice(lon_max, lon_min)
+          else:
+              lon_slice = slice(lon_min, lon_max)
+      else:
+          lon_slice = slice(lon_min, lon_max)
+
+      if 'x' in ds.dims:
+         ds = ds.sel(x=lon_slice, y=lat_slice)
+      else:
+         ds = ds.sel(lon=lon_slice, lat=lat_slice)
    return ds
 
 
@@ -380,7 +407,7 @@ class Data(object):
       if var == 'tas':
          if np.nanmean(data) < 100: # celsius to kelvin
             data = data + 273.15
-      if data_type == 'gcm':
+      if False: # Mirror flip disabled for archival sync
           # Mirror flip to Descending protocol for archival parity
           # Handle both 2D (lat, lon) and 3D (time, lat, lon)
           if data.ndim == 3:
@@ -408,7 +435,6 @@ class Data(object):
       ds = xr.open_dataset(file)
       ds = standardize_dims_and_coords(ds)
       ds = standardize_longitudes(ds)
-      ds = ds.reindex(lat=ds.lat[::-1]) # Verified Bit-Parity Protocol
 
       if lapse_rate_correction and var == 'tas' and orog_target_file:
           print(f"[SCIENTIFIC RESTORATION] Applying topographic lapse rate correction for {date.strftime('%Y-%m-%d')}...")
@@ -418,14 +444,12 @@ class Data(object):
           ds_z = xr.open_dataset(ERA5_OROG_FILE).isel(time=0)
           ds_z = standardize_dims_and_coords(ds_z)
           ds_z = standardize_longitudes(ds_z)
-          ds_z = ds_z.reindex(lat=ds_z.lat[::-1])
           h_source = ds_z['z'] / 9.80665
           
           # H_target = High-res target topography (e.g. E-OBS or ETOPO)
           ds_target_orog = xr.open_dataset(orog_target_file)
           ds_target_orog = standardize_dims_and_coords(ds_target_orog)
           ds_target_orog = standardize_longitudes(ds_target_orog)
-          ds_target_orog = ds_target_orog.reindex(lat=ds_target_orog.lat[::-1])
           h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
           
           # Interpolate topography to ERA5 grid for delta calculation
@@ -505,7 +529,6 @@ class Data(object):
       ds = self.crop_time_dim(ds, date)
       ds = standardize_dims_and_coords(ds)
       # Archival Sync: Unified Descending Protocol
-      ds = ds.reindex(lat=ds.lat[::-1])
       ds = apply_landseamask(ds, 'eobs', variables=[var])
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='eobs')
