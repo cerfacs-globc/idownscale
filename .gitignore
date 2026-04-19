@@ -13,3 +13,18 @@ PET0.ESMF_LogFile
 garcia.code-workspace
 __pycache__
 *.pyc
+# Audit Junk & Local Data
+*.log
+*.err
+*.out
+*.npz
+*.nc
+slurm_logs/
+data/
+rawdata/
+scratch/
+audit_structure.log
+full_parity_audit.diff
+Precise_audit.md
+final_audit_report.md
+"technical report Zoe\314\201 Garcia.pdf"
