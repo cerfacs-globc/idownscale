@@ -398,6 +398,7 @@ class Data(object):
       ds = ds.reindex(lat=ds.lat[::-1])
 
       if lapse_rate_correction and var == 'tas' and orog_target_file:
+          print(f"[SCIENTIFIC RESTORATION] Applying topographic lapse rate correction for {date.strftime('%Y-%m-%d')}...")
           # --- Topographic Scientific Restoration ---
           # Apply adiabatic lapse rate correction (-0.0065 K/m)
           # H_source = ERA5 geopotential / 9.80665
