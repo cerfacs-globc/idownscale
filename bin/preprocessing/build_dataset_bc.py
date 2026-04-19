@@ -17,7 +17,8 @@ from iriscc.datautils import (interpolation_target_grid,
 from iriscc.settings import (DATES_BC_TRAIN_HIST,
                              DATES_BC_TEST_HIST,
                              DATES_BC_TEST_FUTURE,
-                             DATASET_BC_DIR)
+                             DATASET_BC_DIR,
+                             CONFIG)
 
 if __name__=='__main__':
 
