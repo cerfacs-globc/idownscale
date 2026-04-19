@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=%x_%j.out
 #SBATCH --error=%x_%j.err
 
@@ -17,7 +17,7 @@ unset PYTHONHOME
 export PYTHONPATH=/scratch/globc/page/lib_idownscale_phase2:/scratch/globc/page/lib_idownscale_phase2/lib/python3.12/site-packages:/scratch/globc/page/lib_idownscale_phase2/lib64/python3.12/site-packages:$PYTHONPATH
 export PYTHONNOUSERSITE=1
 
-echo "--- Phase 2: Bias Correction Dataset Synthesis ---"
+echo "--- Phase 2: Ibicus Bias Correction Dataset Synthesis ---"
 echo "Date: $(date)"
 echo "Environment: gloenv3.12_arm"
 
