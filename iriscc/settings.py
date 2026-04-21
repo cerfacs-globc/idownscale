@@ -123,7 +123,7 @@ CONFIG = {
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
             'ssp': 'ssp585',
-            'lapse_rate_correction': True
+            'lapse_rate_correction': False
             },
     'exp6':
         {'target':'eobs',

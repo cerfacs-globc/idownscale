@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../idownscale_envs"
+		},
+		{
+			"path": "../../idownscale_output"
+		},
+		{
+			"path": "../../idownscale_exp5"
+		}
+	],
+	"settings": {}
+}
