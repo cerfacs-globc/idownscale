@@ -103,20 +103,20 @@ class DatasetBuilder:
         x = []
         get_data = Data(self.domain)
 
+        # Performance fix: load GCM once per day (always 'tas'), not once per variable
+        ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp,
+                                          lapse_rate_correction=True,
+                                          orog_target_file=self.orog_file,
+                                          reuse_weights=True).sortby('lat', ascending=False)
+
         for var in self.input_vars:
             if var == 'elevation':
                 ds = xr.open_dataset(self.orog_file)
                 ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
             else:
-                # v86.8 Scientific Alignment: Enable lapse rate correction for all predictors to resolve 8 K drift
                 ds_era5 = get_data.get_era5_dataset(var, date,
                                                    lapse_rate_correction=True,
                                                    orog_target_file=self.orog_file).sortby('lat', ascending=False)
-                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp,
-                                                  lapse_rate_correction=True,
-                                                  orog_target_file=self.orog_file,
-                                                  reuse_weights=True).sortby('lat', ascending=False)
-                # Restore high-parity two-step regridding strategy
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                         ds_target=ds_gcm, 
                                                         method="bilinear")
@@ -125,7 +125,7 @@ class DatasetBuilder:
                                         method='bilinear', 
                                         domain=self.domain, 
                                         crop_target=True, mask=True)
-            data = ds[var].values.astype(np.float64) # Force float64 for bit-parity
+            data = ds[var].values.astype(np.float64)
             x.append(data)
         x = np.stack(x, axis=0)
         return x
