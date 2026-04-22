@@ -39,7 +39,7 @@ if __name__=='__main__':
     for i, date in enumerate(DATES_BC_TRAIN_HIST):
         print(date)
         ds_era5 = get_data.get_era5_dataset(args.var, date,
-                                           lapse_rate_correction=CONFIG[args.exp].get('lapse_rate_correction', False),
+                                           lapse_rate_correction=False,
                                            orog_target_file=CONFIG[args.exp].get('orog_file'))
 
         if args.simu == 'gcm':
@@ -113,10 +113,10 @@ if __name__=='__main__':
     for date in DATES_BC_TEST_FUTURE:    
         print(date)
         if args.simu == 'gcm':
-            ds_simu = get_data.get_gcm_dataset(args.var, date, args.ssp) # 1er membre
+            ds_simu = get_data.get_gcm_dataset(args.var, date, args.ssp).sortby('lat', ascending=False)
         else :
             ds_simu = get_data.get_rcm_dataset(args.var, date, args.ssp)
-            ds_gcm = get_data.get_gcm_dataset(args.var, date=date, ssp=args.ssp)
+            ds_gcm = get_data.get_gcm_dataset(args.var, date=date, ssp=args.ssp).sortby('lat', ascending=False)
             ds_simu = interpolation_target_grid(ds_simu, 
                                    ds_target=ds_gcm, 
                                    method="conservative_normed",
