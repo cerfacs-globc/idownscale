@@ -227,7 +227,7 @@ DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq=
 
 CONFIG['exp5_audit'] = {
     'target':'eobs',
-    'domain': [-6., 10., 38, 54],
+    'domain': [-12.5, 27.5, 31., 71.],
     'data_projection' : ccrs.PlateCarree(),
     'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
     'pyproj_projection' : None,
@@ -239,6 +239,6 @@ CONFIG['exp5_audit'] = {
     'input_vars': ['elevation', 'tas'],
     'channels': ['elevation', 'tas input', 'tas target'],
     'ssp': 'ssp585',
-    'lapse_rate_correction': True
+    'lapse_rate_correction': False
 }
 
