@@ -6,6 +6,7 @@ author : Zoé GARCIA / Antigravity (v48)
 """
 
 import sys
+import os
 sys.path.append('.')
 
 import xarray as xr
@@ -308,9 +309,13 @@ class Data(object):
           h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
           if 'z' in ds_target_orog: h_target = h_target / 9.80665
           
-          regridder_to_era5 = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_weights)
+          w_file_to_era5 = f"weights_target_to_era5_{self.domain[0]}.nc"
+          reuse_to_era5 = reuse_weights and os.path.exists(w_file_to_era5)
+          regridder_to_era5 = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_to_era5, filename=w_file_to_era5)
           h_target_coarse = regridder_to_era5(h_target)
-          regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_weights)
+          w_file_z_to_era5 = f"weights_source_z_to_era5_{self.domain[0]}.nc"
+          reuse_z_to_era5 = reuse_weights and os.path.exists(w_file_z_to_era5)
+          regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_era5, filename=w_file_z_to_era5)
           h_source_coarse = regridder_z_to_era5(h_source)
           delta_h = h_target_coarse - h_source_coarse
           ds[var].values = ds[var].values + (delta_h.values * (-0.0065))
@@ -360,9 +365,13 @@ class Data(object):
           h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
           if 'z' in ds_target_orog: h_target = h_target / 9.80665
 
-          regridder_to_gcm = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_weights)
+          w_file_to_gcm = f"weights_target_to_gcm_{self.domain[0]}.nc"
+          reuse_to_gcm = reuse_weights and os.path.exists(w_file_to_gcm)
+          regridder_to_gcm = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_to_gcm, filename=w_file_to_gcm)
           h_target_coarse = regridder_to_gcm(h_target)
-          regridder_z_to_gcm = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_weights)
+          w_file_z_to_gcm = f"weights_source_z_to_gcm_{self.domain[0]}.nc"
+          reuse_z_to_gcm = reuse_weights and os.path.exists(w_file_z_to_gcm)
+          regridder_z_to_gcm = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_gcm, filename=w_file_z_to_gcm)
           h_source_coarse = regridder_z_to_gcm(h_source)
           
           delta_h = h_target_coarse - h_source_coarse
