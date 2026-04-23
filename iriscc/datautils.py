@@ -422,10 +422,22 @@ class Data(object):
       return ds
    
    def crop_time_dim(self, ds, date=None):
-      if date is not None:
-         ds = ds.sel(time=ds.time.dt.date == date.date())
-         ds = ds.isel(time=0)
-      return ds
+       if date is not None:
+          # v86.74 Primitive Match: Locate integer indices directly for absolute reliability.
+          y_match = ds.time.dt.year.values == date.year
+          m_match = ds.time.dt.month.values == date.month
+          d_match = ds.time.dt.day.values == date.day
+          
+          indices = np.where(y_match & m_match & d_match)[0]
+          
+          if len(indices) > 0:
+              ds = ds.isel(time=indices[0])
+          else:
+              # Final Fallback: Nearest selection via string
+              print(f"WARNING: Primitive match failed for {date.date()}. Using nearest.")
+              ds = ds.sel(time=date.strftime('%Y-%m-%d'), method='nearest')
+              if ds.time.size > 1: ds = ds.isel(time=0)
+       return ds
    
    def get_target_dataset(self, target:str, var:str='tas', date=None) -> xr.Dataset:
       if target == 'safran':
