@@ -37,6 +37,8 @@ LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
 COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
 ERA5_OROG_FILE = ERA5_DIR / 'orography_ERA5.nc'
+REGRID_WEIGHTS_DIR = Path('/scratch/globc/page/idownscale_output/weights')
+REGRID_WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Results redirected to OUTPUT_DIR
 DATASET_DIR = OUTPUT_DIR / 'datasets'

@@ -28,7 +28,8 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
                              CONFIG,
                              RCM_RAW_DIR,
                              ERA5_DIR,
-                             ERA5_OROG_FILE)
+                             ERA5_OROG_FILE,
+                             REGRID_WEIGHTS_DIR)
 
 def standardize_era5_geometry(ds):
     # v86.67 Native-First: Minimal Renaming for ESMF recognition
@@ -145,10 +146,10 @@ def interpolation_target_grid(ds:xr.Dataset,
          if data.ndim == 2 or data.ndim == 3:
             ds[var].values = np.asfortranarray(data)
             ds[var].values = np.ascontiguousarray(data)
-   w_file = f"weights_{method}_{ds.lon.shape[0]}x{ds.lat.shape[0]}_to_{ds_target.lon.shape[0]}x{ds_target.lat.shape[0]}.nc"
+   w_file = REGRID_WEIGHTS_DIR / f"weights_{method}_{ds.lon.shape[0]}x{ds.lat.shape[0]}_to_{ds_target.lon.shape[0]}x{ds_target.lat.shape[0]}.nc"
    reuse = reuse_weights and os.path.exists(w_file)
    if method == 'bilinear':
-      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse, filename=w_file)
+      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse, filename=str(w_file))
    else:
       # v49 Cornerstone Resolution: Force regeneration of bounds to ensure ESMF alignment.
       if 'lon' in ds.coords:
@@ -156,7 +157,7 @@ def interpolation_target_grid(ds:xr.Dataset,
       if 'lon' in ds_target.coords:
          ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
-      regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse, filename=w_file)
+      regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse, filename=str(w_file))
    ds_out = regridder(ds)
    return ds_out
 
@@ -300,13 +301,13 @@ class Data(object):
           h_target = (ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']).fillna(0)
           if 'z' in ds_target_orog: h_target = h_target / 9.80665
           
-          w_file_to_era5 = f"weights_target_to_era5_{self.domain[0]}.nc"
+          w_file_to_era5 = REGRID_WEIGHTS_DIR / f"weights_target_to_era5_{self.domain[0]}.nc"
           reuse_to_era5 = reuse_weights and os.path.exists(w_file_to_era5)
-          regridder_to_era5 = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_to_era5, filename=w_file_to_era5)
+          regridder_to_era5 = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_to_era5, filename=str(w_file_to_era5))
           h_target_coarse = regridder_to_era5(h_target)
-          w_file_z_to_era5 = f"weights_source_z_to_era5_{self.domain[0]}.nc"
+          w_file_z_to_era5 = REGRID_WEIGHTS_DIR / f"weights_source_z_to_era5_{self.domain[0]}.nc"
           reuse_z_to_era5 = reuse_weights and os.path.exists(w_file_z_to_era5)
-          regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_era5, filename=w_file_z_to_era5)
+          regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_era5, filename=str(w_file_z_to_era5))
           h_source_coarse = regridder_z_to_era5(h_source)
           
           # RAW Inductive Subtraction (No alias noise)
