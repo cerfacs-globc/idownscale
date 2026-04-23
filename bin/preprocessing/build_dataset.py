@@ -116,7 +116,8 @@ class DatasetBuilder:
             else:
                 ds_era5 = get_data.get_era5_dataset(var, date,
                                                    lapse_rate_correction=True,
-                                                   orog_target_file=self.orog_file).sortby('lat', ascending=False)
+                                                   orog_target_file=self.orog_file,
+                                                   reuse_weights=True).sortby('lat', ascending=False)
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                         ds_target=ds_gcm, 
                                                         method="bilinear")
