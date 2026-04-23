@@ -147,8 +147,10 @@ def interpolation_target_grid(ds:xr.Dataset,
          if data.ndim == 2 or data.ndim == 3:
             ds[var].values = np.asfortranarray(data)
             ds[var].values = np.ascontiguousarray(data)
+   w_file = f"weights_{method}_{ds.lon.shape[0]}x{ds.lat.shape[0]}_to_{ds_target.lon.shape[0]}x{ds_target.lat.shape[0]}.nc"
+   reuse = reuse_weights and os.path.exists(w_file)
    if method == 'bilinear':
-      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse_weights)
+      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse, filename=w_file)
    else:
       # v49 Cornerstone Resolution: Force regeneration of bounds to ensure ESMF alignment.
       if 'lon' in ds.coords:
@@ -156,7 +158,7 @@ def interpolation_target_grid(ds:xr.Dataset,
       if 'lon' in ds_target.coords:
          ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
-      regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse_weights)
+      regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse, filename=w_file)
    ds_out = regridder(ds)
    return ds_out
 
@@ -169,7 +171,8 @@ def reformat_as_target(ds:xr.Dataset,
                        crop_input:bool=False, 
                        crop_target:bool=False, 
                        input_projection=None,
-                       target_projection=None) -> xr.Dataset:
+                       target_projection=None,
+                       reuse_weights:bool=False) -> xr.Dataset:
    ds_target = xr.open_dataset(target_file, engine='netcdf4').isel(time=0)
    ds_target = standardize_dims_and_coords(ds_target)
    ds_target = standardize_longitudes(ds_target)
@@ -184,7 +187,8 @@ def reformat_as_target(ds:xr.Dataset,
                                   ds_target, 
                                   method, 
                                   input_projection,
-                                  target_projection)
+                                  target_projection,
+                                  reuse_weights=reuse_weights)
    return ds
 
 

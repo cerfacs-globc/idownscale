@@ -125,7 +125,8 @@ class DatasetBuilder:
                                         target_file=self.target_file, 
                                         method='bilinear', 
                                         domain=self.domain, 
-                                        crop_target=True, mask=True)
+                                        crop_target=True, mask=True,
+                                        reuse_weights=True)
             data = ds[var].values.astype(np.float64)
             x.append(data)
         x = np.stack(x, axis=0)
