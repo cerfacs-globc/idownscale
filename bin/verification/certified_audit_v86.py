@@ -12,7 +12,6 @@ from iriscc.settings import OROG_EOBS_FRANCE_FILE
 
 def check_parity(data_new, data_arch, layer_label, ds_orog_aligned, var_name="tas", units="K"):
     """Perform statistical parity audit with rigorous NaN and shape handling."""
-    # Stabilize dimensions to 2D for cross-reference with orography
     data_new = np.squeeze(data_new)
     data_arch = np.squeeze(data_arch)
     
@@ -22,8 +21,6 @@ def check_parity(data_new, data_arch, layer_label, ds_orog_aligned, var_name="ta
     
     orog_values = np.squeeze(ds_orog_aligned.elevation.values)
     if orog_values.shape != data_new.shape:
-        # Resize or pad if necessary (should be consistent 64x64)
-        print(f"WARNING: Shape mismatch - Orog: {orog_values.shape} vs Data: {data_new.shape}")
         orog_values = np.zeros_like(data_new)
 
     print(f"\nAUDIT LAYER: {layer_label}")
@@ -79,16 +76,21 @@ def audit_file(path_new, path_arch, phase_label, idx=0):
     
     # Extract based on available keys and index
     if 'era5' in data_new.keys():
+        # Step 2 files have ERA5/GCM keys and potentially multiple dates
         val_new = data_new['era5'][idx]
         val_arch = data_arch['era5'][idx]
+        gcm_new = data_new['gcm'][idx]
+        gcm_arch = data_arch['gcm'][idx]
     elif 'y' in data_new.keys():
+        # Step 1 files have x/y keys and are usually daily
         val_new = data_new['y']
         val_arch = data_arch['y']
+        gcm_new = None # GCM is in 'x' for p1, but we usually only audit 'y' (target)
     else:
         print("ERROR: Unknown dataset format.")
         return
 
-    # Dynamic target grid based on squeezed data
+    # Dynamic target grid
     sample_data = np.squeeze(val_new)
     h, w = sample_data.shape
     lons = np.linspace(-6.0, 10.0, w)
@@ -98,7 +100,7 @@ def audit_file(path_new, path_arch, phase_label, idx=0):
 
     if 'era5' in data_new.keys():
         check_parity(val_new, val_arch, "Baseline (ERA5)", ds_orog_aligned, "tas", "K")
-        check_parity(data_new['gcm'][idx], data_arch['gcm'][idx], "Predictor (GCM)", ds_orog_aligned, "tas", "K")
+        check_parity(gcm_new, gcm_arch, "Predictor (GCM)", ds_orog_aligned, "tas", "K")
     elif 'y' in data_new.keys():
         check_parity(val_new, val_arch, "Target (Phase 1)", ds_orog_aligned, "tas", "K")
 
@@ -106,10 +108,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--p1_new', type=str, required=True)
     parser.add_argument('--p2_new', type=str, required=True)
+    parser.add_argument('--idx', type=int, default=0, help="Index of the date to audit (e.g. 30 for Jan 31st in monthly file)")
     args = parser.parse_args()
 
-    p1_arch = "/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y/sample_19800101.npz"
-    p2_arch = "/scratch/globc/page/idownscale_exp5/datasets/dataset_bc/bc_train_hist_gcm.npz"
+    # Archival Anchors (v86.74 production baseline)
+    p1_arch_base = "/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y"
+    p2_arch_file = "/scratch/globc/page/idownscale_exp5/datasets/dataset_bc/bc_train_hist_gcm.npz"
+    
+    # Resolve Phase 1 Archival file based on the date of the new file
+    # This assumes p1_new is named 'sample_YYYYMMDD.npz'
+    fname = os.path.basename(args.p1_new)
+    p1_arch = os.path.join(p1_arch_base, fname)
     
     audit_file(args.p1_new, p1_arch, "Phase 1 Reconstruction", idx=0)
-    audit_file(args.p2_new, p2_arch, "Phase 2: BC Synthesis", idx=0)
+    audit_file(args.p2_new, p2_arch_file, "Phase 2: BC Synthesis", idx=args.idx)
