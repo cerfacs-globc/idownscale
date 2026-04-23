@@ -30,7 +30,6 @@ TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'tas_day_SAFRAN_1959_reformat.nc'
 TARGET_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc'
 TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
 OROG_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e_france.nc'
-OROG_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e.nc'
 OROG_SAFRAN_FILE = RAW_DIR / 'topography/topography_safran2.nc'
 IMERG_MASK = RAW_DIR / 'landseamask/IMERG_land_sea_mask_regrid.nc' # only continents
 LANDSEAMASK_GCM = GCM_RAW_DIR / 'CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
@@ -225,4 +224,21 @@ DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
 DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq='D')
+
+CONFIG['exp5_audit'] = {
+    'target':'eobs',
+    'domain': [-6., 10., 38, 54],
+    'data_projection' : ccrs.PlateCarree(),
+    'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+    'pyproj_projection' : None,
+    'shape': (64,64),
+    'target_file' : TARGET_EOBS_FRANCE_FILE,
+    'orog_file' : OROG_EOBS_FRANCE_FILE,
+    'dataset' : Path('/scratch/globc/page/idownscale_output/audit_month/p1'),
+    'target_vars': ['tas'],
+    'input_vars': ['elevation', 'tas'],
+    'channels': ['elevation', 'tas input', 'tas target'],
+    'ssp': 'ssp585',
+    'lapse_rate_correction': True
+}
 

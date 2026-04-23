@@ -30,58 +30,56 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
                              ERA5_DIR,
                              ERA5_OROG_FILE)
 
+def standardize_era5_geometry(ds):
+    # v86.67 Native-First: Minimal Renaming for ESMF recognition
+    rename_dict = {}
+    if 'longitude' in ds.coords: rename_dict['longitude'] = 'lon'
+    if 'latitude' in ds.coords: rename_dict['latitude'] = 'lat'
+    if rename_dict: ds = ds.rename(rename_dict)
+    return ds
 
-def standardize_dims_and_coords(ds) :
-    # v48 Unambiguous Restoration: Establish unique coordinate handles to satisfy cf-xarray lookup.
-    dim_mapping = {'x' : ['i', 'ni', 'xh', 'lon', 'nlon', 'longitude'], 
-                   'y' : ['j', 'nj', 'yh', 'lat', 'nlat', 'latitude'],
-                   'lev' : ['olevel']}
-    coord_mapping = {'lon' : ['longitude', 'nav_lon', 'x'],
-                     'lat' : ['latitude', 'nav_lat', 'y']}
-   
+def standardize_gcm_geometry(ds):
+    # v86.67 Native-First: Minimal Renaming for ESMF recognition
+    rename_dict = {}
+    if 'longitude' in ds.coords: rename_dict['longitude'] = 'lon'
+    if 'latitude' in ds.coords: rename_dict['latitude'] = 'lat'
+    if rename_dict: ds = ds.rename(rename_dict)
+    return ds
+
+def standardize_eobs_geometry(ds):
+    # v86.67 Post-Regrid Protocol: x/y Compatibility Bridge
+    rename_dict = {}
+    if 'longitude' in ds.coords: rename_dict['longitude'] = 'lon'
+    if 'latitude' in ds.coords: rename_dict['latitude'] = 'lat'
+    if rename_dict: ds = ds.rename(rename_dict)
+    
+    # x/y coordinate aliasing for pipeline compatibility
+    if 'lon' in ds.coords: ds = ds.assign_coords(x=ds.lon)
+    if 'lat' in ds.coords: ds = ds.assign_coords(y=ds.lat)
+    return ds
+
+def ARCHIVAL_standardize_dims_and_coords(ds) :
+    # v48 DEPRECATED: Standardize via Named Plugins instead
+    dim_mapping = {'x' : ['i', 'ni', 'xh', 'nlon'], 
+                   'y' : ['j', 'nj', 'yh', 'nlat']}
     for standard_name, possible_names in dim_mapping.items() :
         for name in possible_names :
             if name in ds.dims :
                 ds = ds.rename({name: standard_name})
                 break
-   
-    for standard_name, possible_names in coord_mapping.items() :
-       for name in possible_names :
-           if name in ds.coords :
-            # Unique Identity Restoration: Each spatial axis has exactly one coordinate name.
-            ds = ds.rename({name: standard_name})
-            break
-
-    # Identity Restoration (Grace Hopper Compliance):
-    if 'lon' in ds.coords:
-        ds.lon.attrs['standard_name'] = 'longitude'
-        ds.lon.attrs['units'] = 'degrees_east'
-        ds.lon.attrs['axis'] = 'X'
-    if 'lat' in ds.coords:
-        ds.lat.attrs['standard_name'] = 'latitude'
-        ds.lat.attrs['units'] = 'degrees_north'
-        ds.lat.attrs['axis'] = 'Y'
-         
     return ds
 
 
+
 def standardize_longitudes(ds) :
-    # v47 Deep Index Update: Re-synchronized for the Unambiguous Protocol
-    if 'lon' in ds.coords :
+    # v65faa6 Archival Sync: Mandatory -180..180 Shift and Monotonic Sort
+    if 'lon' in ds.coords:
         lon = ds.coords['lon']
         ds.coords['lon'] = ((lon+180)%360)-180
-        # Sync dimension index with standardized coordinate
-        if 'x' in ds.dims:
-            ds = ds.assign_coords(x=ds.lon)
-      
-        if len(ds.lon.shape) == 1 :
+        if len(ds.lon.shape) == 1:
             ds = ds.sortby('lon')
-        else :
-            for dim in ds.lon.dims :
-                ds = ds.sortby(dim)
     elif 'x' in ds.coords :
-        x = ds.coords['x']
-        ds.coords['x'] = ((x+180)%360)-180
+        ds = ds.assign_coords(x=(((ds.x + 180) % 360) - 180))
         ds = ds.sortby('x')
       
     return ds
@@ -174,7 +172,11 @@ def reformat_as_target(ds:xr.Dataset,
                        target_projection=None,
                        reuse_weights:bool=False) -> xr.Dataset:
    ds_target = xr.open_dataset(target_file, engine='netcdf4').isel(time=0)
-   ds_target = standardize_dims_and_coords(ds_target)
+   # v48 Plugin Target: Standardized according to dataset type (EOBS/SAFRAN)
+   if 'safran' in str(target_file).lower():
+       ds_target = ARCHIVAL_standardize_dims_and_coords(ds_target)
+   else:
+       ds_target = standardize_eobs_geometry(ds_target)
    ds_target = standardize_longitudes(ds_target)
    if crop_input:
       ds = crop_domain_from_ds(ds, domain)
@@ -209,7 +211,7 @@ def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
 
 def remove_countries(array:np.ndarray) -> np.ndarray:
    ds = xr.open_dataset(COUNTRIES_MASK, engine='netcdf4')
-   ds = standardize_dims_and_coords(ds)
+   ds = standardize_eobs_geometry(ds)
    # v48 Unambiguous Sync: Reindex dimension y using coordinate lat
    ds = ds.reindex(y=ds.lat.values[::-1]) 
    ds = crop_domain_from_ds(ds, CONFIG['exp3']['domain'])
@@ -221,7 +223,7 @@ def remove_countries(array:np.ndarray) -> np.ndarray:
    ds['index'].values = index
    ds["mask"] = xr.where(~np.isnan(ds["index"]), 1, 0)
    ds_saf = xr.open_dataset(TARGET_SAFRAN_FILE, engine='netcdf4').isel(time=0)
-   ds_saf = standardize_dims_and_coords(ds_saf)
+   ds_saf = ARCHIVAL_standardize_dims_and_coords(ds_saf)
    ds_saf["mask"] = xr.where(~np.isnan(ds_saf["tas"]), 1, 0)
    ds = interpolation_target_grid(ds, ds_saf, method='conservative_normed', target_projection=SAFRAN_PROJ_PYPROJ)
    index = ds['index'].values
@@ -237,14 +239,12 @@ def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> x
       condition = mask['sftlf'].values < 2
    elif mask_type == 'era5':
       mask = xr.open_dataset(LANDSEAMASK_ERA5, engine='netcdf4').isel(time=0)
-      mask = standardize_dims_and_coords(mask)
+      mask = standardize_era5_geometry(mask)
       mask = standardize_longitudes(mask)
-      # v48 Unambiguous Sync
-      mask = mask.reindex(y=mask.lat.values[::-1])
       condition = mask['lsm'].values < 0.1
    elif mask_type == 'eobs':
       mask = xr.open_dataset(LANDSEAMASK_EOBS, engine='netcdf4')
-      mask = standardize_dims_and_coords(mask)
+      mask = standardize_eobs_geometry(mask)
       condition = mask['landseamask'].values == 1.
    else:
       raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'.")
@@ -284,33 +284,20 @@ class Data(object):
       if not files: raise FileNotFoundError(f"Missing ERA5: {pattern}")
       file = files[0]
       ds = xr.open_dataset(file, engine='netcdf4')
-      ds = standardize_dims_and_coords(ds)
+      # Minimal Input Sync
+      if 'longitude' in ds.coords: ds = ds.rename({'longitude':'lon', 'latitude':'lat'})
       ds = standardize_longitudes(ds)
 
-      # v52.2 Solid Dynamic Orientation Protocol (Ascending Europe / Descending France)
-      if self.domain and (self.domain[0] == -12.5 or self.domain[2] == 31):
-          ds = ds.sortby('lat', ascending=True)
-      elif self.domain and (self.domain[0] == -6.0 or self.domain[2] == 38):
-          ds = ds.sortby('lat', ascending=False)
-
       if lapse_rate_correction and var == 'tas' and orog_target_file:
+          # Native-First Induction: Regrid Raw Orog to Target before Standardizing
           ds_z = xr.open_dataset(ERA5_OROG_FILE, engine='netcdf4').isel(time=0)
-          ds_z = standardize_dims_and_coords(ds_z)
+          # Minimal Input Sync
+          if 'longitude' in ds_z.coords: ds_z = ds_z.rename({'longitude':'lon', 'latitude':'lat'})
           ds_z = standardize_longitudes(ds_z)
-          if self.domain and (self.domain[0] == -12.5 or self.domain[2] == 31):
-              ds_z = ds_z.sortby('lat', ascending=True)
-          else:
-              ds_z = ds_z.sortby('lat', ascending=False)
-          h_source = ds_z['z'] / 9.80665
+          h_source = (ds_z['z'] / 9.80665).fillna(0)
           ds_target_orog = xr.open_dataset(orog_target_file, engine='netcdf4')
           if 'time' in ds_target_orog.dims: ds_target_orog = ds_target_orog.isel(time=0)
-          ds_target_orog = standardize_dims_and_coords(ds_target_orog)
-          ds_target_orog = standardize_longitudes(ds_target_orog)
-          if self.domain and (self.domain[0] == -12.5 or self.domain[2] == 31):
-              ds_target_orog = ds_target_orog.sortby('lat', ascending=True)
-          else:
-              ds_target_orog = ds_target_orog.sortby('lat', ascending=False)
-          h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
+          h_target = (ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']).fillna(0)
           if 'z' in ds_target_orog: h_target = h_target / 9.80665
           
           w_file_to_era5 = f"weights_target_to_era5_{self.domain[0]}.nc"
@@ -321,9 +308,17 @@ class Data(object):
           reuse_z_to_era5 = reuse_weights and os.path.exists(w_file_z_to_era5)
           regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_era5, filename=w_file_z_to_era5)
           h_source_coarse = regridder_z_to_era5(h_source)
+          
+          # RAW Inductive Subtraction (No alias noise)
           delta_h = h_target_coarse - h_source_coarse
+          
+          # Post-Subtraction Standardization
+          ds = standardize_eobs_geometry(ds)
+          delta_h = standardize_eobs_geometry(delta_h)
+          
           ds[var].values = ds[var].values + (delta_h.values * (-0.0065))
       
+      # v48 Reference: Crop AFTER correction
       ds = self.crop_time_dim(ds, date)
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
@@ -336,37 +331,22 @@ class Data(object):
       else:
          file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*{ssp}*'))[0]
       ds = xr.open_dataset(file, engine='netcdf4')
-      ds = standardize_dims_and_coords(ds)
+      # Minimal Input Sync
+      if 'longitude' in ds.coords: ds = ds.rename({'longitude':'lon', 'latitude':'lat'})
       ds = standardize_longitudes(ds)
 
-      # v52.2 Solid Dynamic Orientation Protocol
-      if self.domain and (self.domain[0] == -6.0 or self.domain[2] == 38): # France
-          ds = ds.sortby('lat', ascending=False)
-      elif self.domain and (self.domain[0] == -12.5 or self.domain[2] == 31): # Europe
-          ds = ds.sortby('lat', ascending=True)
-
-      # v86.7: Full Implementation of missing Lapse Rate Correction for GCM Gaussian grid
       if lapse_rate_correction and var == 'tas' and orog_target_file:
           gcm_orog_path = '/scratch/globc/page/idownscale_rerun/rawdata/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc'
           ds_z = xr.open_dataset(gcm_orog_path, engine='netcdf4')
           if 'time' in ds_z.dims: ds_z = ds_z.isel(time=0)
-          ds_z = standardize_dims_and_coords(ds_z)
+          # Minimal Input Sync
+          if 'longitude' in ds_z.coords: ds_z = ds_z.rename({'longitude':'lon', 'latitude':'lat'})
           ds_z = standardize_longitudes(ds_z)
-          if self.domain and (self.domain[0] == -12.5 or self.domain[2] == 31):
-              ds_z = ds_z.sortby('lat', ascending=True)
-          else:
-              ds_z = ds_z.sortby('lat', ascending=False)
-          h_source = ds_z['orog']
+          h_source = ds_z['orog'].fillna(0)
           
           ds_target_orog = xr.open_dataset(orog_target_file, engine='netcdf4')
           if 'time' in ds_target_orog.dims: ds_target_orog = ds_target_orog.isel(time=0)
-          ds_target_orog = standardize_dims_and_coords(ds_target_orog)
-          ds_target_orog = standardize_longitudes(ds_target_orog)
-          if self.domain and (self.domain[0] == -12.5 or self.domain[2] == 31):
-              ds_target_orog = ds_target_orog.sortby('lat', ascending=True)
-          else:
-              ds_target_orog = ds_target_orog.sortby('lat', ascending=False)
-          h_target = ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']
+          h_target = (ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']).fillna(0)
           if 'z' in ds_target_orog: h_target = h_target / 9.80665
 
           w_file_to_gcm = f"weights_target_to_gcm_{self.domain[0]}.nc"
@@ -378,9 +358,16 @@ class Data(object):
           regridder_z_to_gcm = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_gcm, filename=w_file_z_to_gcm)
           h_source_coarse = regridder_z_to_gcm(h_source)
           
+          # RAW Inductive Subtraction (No alias noise)
           delta_h = h_target_coarse - h_source_coarse
+          
+          # Post-Subtraction Standardization
+          ds = standardize_eobs_geometry(ds)
+          delta_h = standardize_eobs_geometry(delta_h)
+          
           ds[var].values = ds[var].values + (delta_h.values * (-0.0065))
       
+      # v48 Reference: Crop AFTER correction
       ds = self.crop_time_dim(ds, date)
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
@@ -425,7 +412,7 @@ class Data(object):
       file = glob.glob(str(EOBS_RAW_DIR/f'{var}*'))[0]
       ds = xr.open_dataset(file, engine='netcdf4')
       ds = self.crop_time_dim(ds, date)
-      ds = standardize_dims_and_coords(ds)
+      ds = standardize_eobs_geometry(ds)
       # v48 Unambiguous Sync
       ds = ds.reindex(y=ds.lat.values[::-1])
       ds = apply_landseamask(ds, 'eobs', variables=[var])

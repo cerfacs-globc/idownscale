@@ -22,5 +22,5 @@ mkdir -p "$IDOWNSCALE_OUTPUT_DIR/graph"
 mkdir -p "$IDOWNSCALE_OUTPUT_DIR/metrics"
 mkdir -p "$IDOWNSCALE_OUTPUT_DIR/prediction"
 
-# Execute command
-"$@"
+# Execute command explicitly with python3
+python3 -u "$@"

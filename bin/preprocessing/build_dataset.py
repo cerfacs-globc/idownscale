@@ -21,7 +21,8 @@ from typing import Tuple
 import iriscc
 
 from iriscc.plotutils import plot_test
-from iriscc.datautils import (standardize_dims_and_coords, 
+from iriscc.datautils import (standardize_era5_geometry, standardize_gcm_geometry,
+                              standardize_eobs_geometry, standardize_longitudes,
                               interpolation_target_grid, 
                               reformat_as_target,
                               crop_domain_from_ds,
@@ -107,17 +108,17 @@ class DatasetBuilder:
         ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp,
                                           lapse_rate_correction=True,
                                           orog_target_file=self.orog_file,
-                                          reuse_weights=True).sortby('lat', ascending=False)
+                                          reuse_weights=True)
 
         for var in self.input_vars:
             if var == 'elevation':
                 ds = xr.open_dataset(self.orog_file)
-                ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
+                ds = crop_domain_from_ds(standardize_eobs_geometry(ds), self.domain)
             else:
                 ds_era5 = get_data.get_era5_dataset(var, date,
                                                    lapse_rate_correction=True,
                                                    orog_target_file=self.orog_file,
-                                                   reuse_weights=True).sortby('lat', ascending=False)
+                                                   reuse_weights=True)
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
                                                         ds_target=ds_gcm, 
                                                         method="bilinear")
@@ -125,7 +126,7 @@ class DatasetBuilder:
                                         target_file=self.target_file, 
                                         method='bilinear', 
                                         domain=self.domain, 
-                                        crop_target=True, mask=True,
+                                        crop_target=True, mask=False,
                                         reuse_weights=True)
             data = ds[var].values.astype(np.float64)
             x.append(data)
