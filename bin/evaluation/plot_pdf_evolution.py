@@ -27,41 +27,59 @@ def load_data(path, exp):
     return data
 
 def main():
-    parser = argparse.ArgumentParser(description="Plot PDF evolution: Raw -> BC -> AI")
+    parser = argparse.ArgumentParser(description="Plot PDF evolution: 5-Curve Master Validator")
     parser.add_argument('--exp', type=str, required=True, help='Experiment name')
     parser.add_argument('--ssp', type=str, default='ssp585', help='Scenario')
     parser.add_argument('--raw', type=str, required=True, help='Path to raw GCM file')
     parser.add_argument('--bc', type=str, required=True, help='Path to BC file')
     parser.add_argument('--ai', type=str, required=True, help='Path to AI prediction file')
+    parser.add_argument('--era5', type=str, help='Path to ERA5 reformat file (Optional)')
+    parser.add_argument('--eobs', type=str, help='Path to EOBS target file (Optional)')
     args = parser.parse_args()
 
-    print(f"Loading data for {args.exp}...")
+    from iriscc.settings import TARGET_EOBS_FRANCE_FILE, ERA5_REFORMAT_FILE
+    path_era5 = args.era5 if args.era5 else ERA5_REFORMAT_FILE
+    path_eobs = args.eobs if args.eobs else TARGET_EOBS_FRANCE_FILE
+
+    print(f"Loading data for {args.exp} (5-Curve Mode)...")
     data_raw = load_data(args.raw, args.exp)
     data_bc = load_data(args.bc, args.exp)
     data_ai = load_data(args.ai, args.exp)
+    data_era5 = load_data(path_era5, args.exp)
+    data_eobs = load_data(path_eobs, args.exp)
 
-    # Filter constants/missing values if any (though iriscc handles some)
-    raw_flat = data_raw.flatten()
-    bc_flat = data_bc.flatten()
-    ai_flat = data_ai.flatten()
-
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Flatten and filter
+    data_list = [
+        data_raw.flatten(),
+        data_bc.flatten(),
+        data_ai.flatten(),
+        data_era5.flatten(),
+        data_eobs.flatten()
+    ]
     
-    data_list = [raw_flat, bc_flat, ai_flat]
-    labels = ['Raw GCM', 'Bias Corrected (Ibicus)', 'AI Downscaled (UNet)']
-    colors = ['gray', 'blue', 'red']
+    labels = [
+        'Raw GCM (Coarse)', 
+        'Bias Corrected (GCM-BC)', 
+        'UNet Downscaled',
+        'ERA5 (Reanalysis)',
+        'E-OBS (Observations)'
+    ]
     
+    # Matching EGU slide color palette
+    colors = ['gray', 'blue', 'red', 'green', 'black']
+    
+    fig, ax = plt.subplots(figsize=(12, 7))
     plot_histogram(data_list, ax, labels, colors, "Temperature [K]")
     
-    ax.set_title(f"PDF Evolution: {args.exp} ({args.ssp})", fontsize=16, weight='bold')
+    ax.set_title(f"Scientific Validation PDF: {args.exp} vs Observers", fontsize=16, weight='bold')
     
     output_dir = GRAPHS_DIR / 'metrics' / args.exp
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f'{args.exp}_pdf_evolution_{args.ssp}.png'
+    output_path = output_dir / f'{args.exp}_master_5curve_validation_{args.ssp}.png'
     
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.savefig(output_path, dpi=200, bbox_inches='tight')
     plt.close()
-    print(f"PDF evolution plot saved to: {output_path}")
+    print(f"Master 5-curve plot saved to: {output_path}")
 
 if __name__ == '__main__':
     main()
