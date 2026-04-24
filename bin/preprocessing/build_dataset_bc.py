@@ -89,13 +89,23 @@ if __name__=='__main__':
         print(f"--- {label} Isolated Volume Saved to {output_path} ---", flush=True)
         return simu_stack
     
+    # Apply CLI Overrides for 31-Day Certification Benchmarking
+    if args.start_date and args.end_date:
+        print(f"--- Applying Benchmark Date Overrides: {args.start_date} to {args.end_date} ---", flush=True)
+        DATES_BC_TRAIN_HIST = pd.date_range(start=args.start_date, end=args.end_date, freq='D')
+        DATES_BC_TEST_HIST = pd.Index([])
+        DATES_BC_TEST_FUTURE = pd.Index([])
+
     # 1. Historical Train (with reanalysis)
-    process_period(DATES_BC_TRAIN_HIST, "train_hist")
+    if len(DATES_BC_TRAIN_HIST) > 0:
+        process_period(DATES_BC_TRAIN_HIST, "train_hist")
     
     # 2. Historical Test (with reanalysis)
-    process_period(DATES_BC_TEST_HIST, "test_hist")
+    if len(DATES_BC_TEST_HIST) > 0:
+        process_period(DATES_BC_TEST_HIST, "test_hist")
     
     # 3. Future Projection (decoupled, no reanalysis)
-    process_period(DATES_BC_TEST_FUTURE, "test_future")
+    if len(DATES_BC_TEST_FUTURE) > 0:
+        process_period(DATES_BC_TEST_FUTURE, "test_future")
 
     print(f"--- ISOLATED PRODUCTION SYNTHESIS COMPLETE ---", flush=True)

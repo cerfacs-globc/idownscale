@@ -112,7 +112,7 @@ CONFIG = {
             },
     'exp5':
         {'target':'eobs',
-            'domain': [-6., 10., 38, 54],
+            'domain': [-5.875, 9.875, 38.125, 53.875],
             'data_projection' : ccrs.PlateCarree(),
             'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
             'pyproj_projection' : None,
@@ -229,14 +229,14 @@ DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq=
 
 CONFIG['exp5_audit'] = {
     'target':'eobs',
-    'domain': [-12.5, 27.5, 31., 71.],
+    'domain': [-5.875, 9.875, 38.125, 53.875],
     'data_projection' : ccrs.PlateCarree(),
     'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
     'pyproj_projection' : None,
     'shape': (64,64),
     'target_file' : TARGET_EOBS_FRANCE_FILE,
     'orog_file' : OROG_EOBS_FRANCE_FILE,
-    'dataset' : Path('/scratch/globc/page/idownscale_output/audit_month/p1'),
+    'dataset' : DATASET_DIR / 'dataset_exp5_30y',
     'target_vars': ['tas'],
     'input_vars': ['elevation', 'tas'],
     'channels': ['elevation', 'tas input', 'tas target'],

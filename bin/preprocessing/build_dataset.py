@@ -11,7 +11,7 @@ import pandas as pd
 from iriscc.settings import (RAW_DIR, 
                              DATASET_DIR, 
                              CONFIG)
-from iriscc.datautils import Data, interpolation_target_grid, crop_domain_from_ds, return_unit
+from iriscc.datautils import Data, interpolation_target_grid, crop_domain_from_ds, return_unit, reformat_as_target
 
 # Standard temporal axis for 1980 calibration
 DATES = pd.date_range('1980-01-01', '2014-12-31', freq='D')
@@ -41,21 +41,47 @@ class DatasetBuilder(Data):
 
     def process_date(self, date, plot=False, baseline=False):
         """Reconstruct the predictors and target for a specific date."""
-        # 1. Prediction variables (Predictors)
+        # 1. Target variable
+        target_file = CONFIG[self.exp].get('target_file')
+        y_ds = xr.open_dataset(target_file)
+        if 'time' in y_ds.dims:
+            # v86.74 Target Alignment: Strictly select date to avoid temporal drift
+            y_ds = y_ds.sel(time=str(date.date()))
+        var_target = 'tas' if 'tas' in y_ds else list(y_ds.data_vars)[0]
+        y = y_ds[var_target].values
+        
+        # 2. Prediction variables (Predictors)
         x = []
         for var in CONFIG[self.exp]['input_vars']:
             if var == 'elevation':
-                # Skip re-getting elevation as a dynamic variable if it's static
-                continue
-            # Native-First acquisition via modular plugins
-            ds = self.get_era5_dataset(var, date)
-            data = ds[var].values
-            x.append(data)
+                msg = f"Getting {var} as static predictor with exact target mask..."
+                print(msg, flush=True)
+                ds_elev = xr.open_dataset(CONFIG[self.exp]['orog_file'])
+                if 'time' in ds_elev.dims:
+                    ds_elev = ds_elev.isel(time=0, drop=True)
+                
+                data = ds_elev['elevation'].values if 'elevation' in ds_elev else ds_elev['z'].values
+                if data.shape != y.shape:
+                    raise ValueError(f"Shape mismatch: {var} shape {data.shape} != target {y.shape}")
+                
+                # Enforce identical exact target mask! (1566 NaNs)
+                data = np.where(np.isnan(y), np.nan, data)
+                x.append(data)
+            else:
+                # Native-First acquisition via modular plugins
+                ds = self.get_era5_dataset(var, date)
+                ds = reformat_as_target(ds, target_file, method='bilinear', domain=self.domain, mask=False)
+                
+                var_era5 = var if var in ds.data_vars else list(ds.data_vars)[0]
+                data = ds[var_era5].values
+                
+                if data.shape != y.shape:
+                    raise ValueError(f"Shape mismatch: {var} shape {data.shape} != target {y.shape}")
+                
+                # Enforce identical exact target mask! (1566 NaNs)
+                data = np.where(np.isnan(y), np.nan, data)
+                x.append(data)
         x = np.stack(x, axis=0)
-
-        # 2. Target variable
-        y_ds = self.get_target_dataset(self.target, 'tas', date)
-        y = y_ds['tas'].values
 
         return x, y
 
