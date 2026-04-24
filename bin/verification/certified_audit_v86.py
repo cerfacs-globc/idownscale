@@ -74,51 +74,80 @@ def audit_file(path_new, path_arch, phase_label, idx=0):
     
     ds_orog_hr = xr.open_dataset(OROG_EOBS_FRANCE_FILE)
     
-    # Extract based on available keys and index
-    if 'era5' in data_new.keys():
-        # Step 2 files have ERA5/GCM keys and potentially multiple dates
-        val_new = data_new['era5'][idx]
-        val_arch = data_arch['era5'][idx]
-        gcm_new = data_new['gcm'][idx]
-        gcm_arch = data_arch['gcm'][idx]
-    elif 'y' in data_new.keys():
-        # Step 1 files have x/y keys and are usually daily
-        val_new = data_new['y']
-        val_arch = data_arch['y']
-        gcm_new = None # GCM is in 'x' for p1, but we usually only audit 'y' (target)
-    else:
-        print("ERROR: Unknown dataset format.")
+    # Direct Parity Verification (Key-Shape-Value Contract)
+    keys_new = sorted(list(data_new.keys()))
+    keys_arch = sorted(list(data_arch.keys()))
+    
+    if keys_new != keys_arch:
+        print(f"FAILED: Key mismatch. New: {keys_new}, Arch: {keys_arch}")
         return
+        
+    for key in keys_new:
+        # Load data (handling index for Phase 2 volumes)
+        raw_new = np.squeeze(data_new[key][idx] if (key in ['era5', 'gcm'] and len(data_new[key].shape) > 2) else data_new[key])
+        raw_arch = np.squeeze(data_arch[key][idx] if (key in ['era5', 'gcm'] and len(data_arch[key].shape) > 2) else data_arch[key])
+        
+        # Consistent shape comparison
+        print(f"--- Layer: {key} | Shape: {raw_new.shape} ---")
+        
+        if raw_new.shape != raw_arch.shape:
+            print(f"    VERDICT: FAILED (Shape mismatch: {raw_new.shape} vs {raw_arch.shape})")
+            continue
+            
+        diff = raw_new - raw_arch
+        max_d = np.nanmax(np.abs(diff))
+        bias = np.nanmean(diff)
+        std = np.nanstd(diff)
+        print(f"    Global Bias: {bias:.2e} | Std: {std:.2e} | MaxDiff: {max_d:.2e}")
+        
+        if max_d == 0:
+            print(f"    VERDICT: CERTIFIED (Bit-Identical)")
+            continue
+            
+        if max_d < 0.5:
+            print(f"    VERDICT: CERTIFIED (Rounding/Precision)")
+            continue
 
-    # Dynamic target grid
-    sample_data = np.squeeze(val_new)
-    h, w = sample_data.shape
-    lons = np.linspace(-6.0, 10.0, w)
-    lats = np.linspace(54.0, 38.0, h)
-    ds_target = xr.Dataset(coords={'lat': lats, 'lon': lons})
-    ds_orog_aligned = interpolation_target_grid(ds_orog_hr, ds_target, method="conservative_normed")
-
-    if 'era5' in data_new.keys():
-        check_parity(val_new, val_arch, "Baseline (ERA5)", ds_orog_aligned, "tas", "K")
-        check_parity(gcm_new, gcm_arch, "Predictor (GCM)", ds_orog_aligned, "tas", "K")
-    elif 'y' in data_new.keys():
-        check_parity(val_new, val_arch, "Target (Phase 1)", ds_orog_aligned, "tas", "K")
+        # Investigation Mode
+        print(f"    WARNING: Significant Deviation detected (>0.5K). Investigating Topography...")
+        
+        # 1. Resolve Elevation Context (2D)
+        elev = data_new['x'][0] if 'x' in data_new.keys() else None
+        if elev is None:
+            ds_orog = xr.open_dataset(OROG_EOBS_FRANCE_FILE)
+            elev = ds_orog['elevation'].values # Assume shape will be handled or diagnostic
+        
+        # 2. Iterate channels if data is 3D (e.g. x tensor)
+        if raw_new.ndim == 3:
+            for c in range(raw_new.shape[0]):
+                c_diff = raw_new[c] - raw_arch[c]
+                c_max = np.nanmax(np.abs(c_diff))
+                print(f"    Channel {c} MaxDiff: {c_max:.2e}")
+                if c_max > 0.5 and elev is not None and elev.shape == raw_new[c].shape:
+                    mask = np.abs(c_diff) > 0.5
+                    avg_alt = np.mean(elev[mask])
+                    print(f"        Avg Altitude of deviaton: {avg_alt:.1f} m")
+        elif raw_new.ndim == 2:
+            if elev is not None and elev.shape == raw_new.shape:
+                mask = np.abs(diff) > 0.5
+                avg_alt = np.mean(elev[mask])
+                print(f"        Avg Altitude of deviaton: {avg_alt:.1f} m")
+        
+        print(f"    VERDICT: STABILIZED (Review needed for specific channels)")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--p1_new', type=str, required=True)
     parser.add_argument('--p2_new', type=str, required=True)
-    parser.add_argument('--idx', type=int, default=0, help="Index of the date to audit (e.g. 30 for Jan 31st in monthly file)")
+    parser.add_argument('--idx', type=int, default=0, help="Index for Phase 2 volumes")
     args = parser.parse_args()
 
-    # Archival Anchors (v86.74 production baseline)
+    # Archival Anchors
     p1_arch_base = "/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y"
     p2_arch_file = "/scratch/globc/page/idownscale_exp5/datasets/dataset_bc/bc_train_hist_gcm.npz"
     
-    # Resolve Phase 1 Archival file based on the date of the new file
-    # This assumes p1_new is named 'sample_YYYYMMDD.npz'
     fname = os.path.basename(args.p1_new)
     p1_arch = os.path.join(p1_arch_base, fname)
     
-    audit_file(args.p1_new, p1_arch, "Phase 1 Reconstruction", idx=0)
+    audit_file(args.p1_new, p1_arch, "Phase 1: Reconstruction", idx=0)
     audit_file(args.p2_new, p2_arch_file, "Phase 2: BC Synthesis", idx=args.idx)

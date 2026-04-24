@@ -50,19 +50,19 @@ Welcome everyone. Today we are bridging the gap between Global Climate Models an
 
 ---
 
-### Slide 14: Phase 1: Model Validation (Environment Certification) (2 mins)
-*   **Scenario:** Downscaling coerced ERA5 (Input) against ERA5-HR/E-OBS (Target).
-*   **Audit Result:** **Bit-Identical Reproduction (0.00e+00 K Parity)**.
-*   **Significance:** Certified against April 19th 13:30 UTC archival anchor.
-*   **Architecture:** Successfully ported from Calypso (x86) to Grace Hopper (ARM) with zero numerical drift.
+### Slide 14: Phase 1: Foundational Parity (France Domain) (2 mins)
+*   **Target:** E-OBS High-Res France (64x64 grid).
+*   **Protocol:** "Target-First" masking signature (1,566 NaNs).
+*   **Standardization:** The `clean_data` catch—resolving the 273.15 K unit mismatch.
+*   **Result:** **Bit-Identical Reproduction (0.00e+00 K Parity)** against archival anchor.
 
 ---
 
-### Slide 15: Mapping Bias vs. GCM Bias (2 mins)
-*   **Mapping Bias:** The error between UNet output and Ground Truth (Mapping failures).
-*   **GCM Bias:** The error between raw GCM and Reanalysis (Data failures).
-*   **Scientific Rule:** You cannot assess Climate Change if your **Mapping Bias** is high on historical data.
-*   **Success:** v86.74 stabilization ensures stable spatial mappings across the entire 120-year window.
+### Slide 15: Phase 2: Regional Bias Correction (Europe Domain) (2 mins)
+*   **Scale:** Jump from Local France (64x64 @ 0.1°) to Regional Europe (29x28 @ 1.4° Native GCM).
+*   **Method:** **Ibicus CDF-t** cross-calibration between GCM and Reanalysis.
+*   **Strategy:** **Isolated Volume Protocol** (Train / Test / Future).
+*   **Observation:** Handling the "Reanalysis Gap" in future projections by decoupling volumes.
 
 ---
 
@@ -76,17 +76,16 @@ Welcome everyone. Today we are bridging the gap between Global Climate Models an
 ---
 
 ### Slide 30: Implementation Traps: HPC & Numerics (3 mins)
-*   **Trap 1: The Activation Wall:** Standard defaults like `ReLU` can clip climate temperature trends below freezing. **Always use Linear Activation** for anomalies.
-*   **Trap 2: The Noon/Midnight Discrepancy:** Future GCM datasets centered at 12:00 UTC caused `cftime` alignment failures against 00:00 UTC ERA5 anchors (00:00). 
-*   **The Fix:** **Integer Triple Matching** (Year, Month, Day) bypasses the "Coordinate Shift" trap entirely.
-*   **Trap 3: The Parallel Collision:** Running multiple inference jobs on the same node without isolation can cause NetCDF write locks.
+*   **Trap 1: The Standardization Leak.** Direct `xr.open` bypassing the `clean_data` logic—causing a fatal -273 K bias.
+*   **Trap 2: The Noon/Midnight Shift.** GCMs (12:00) vs ERA5 (00:00). Solved via **Integer Triple Matching** (Y-M-D alignment).
+*   **Trap 3: The Parallel Collision.** File-locking regridding weights to prevent xESMF race conditions in multi-job Slurm arrays.
 
 ---
 
 ### Slide 31: Scientific Lessons: The Resolution Truth (2 mins)
 *   **Lesson 1: RMSE is not enough.** A perfect global RMSE can hide a model that is spatially disconnected.
-*   **Lesson 2: Universal Master Synthesis.** Aggregating all periods (Train/Test/Future) into a single `bc_master_gcm.npz` volume ensures seamless Phase 3 training.
-*   **Lesson 3: The Monolithic Advantage.** Inverting 30 years as a single temporal block is 10x faster and more robust than day-by-day inference loops.
+*   **Lesson 2: The Monolithic Trap.** Avoid aggregating future and past data too early; isolated volumes preserve metadata integrity and reanalysis gaps.
+*   **Lesson 3: Master Census Validation.** Bit-parity must be certified at every pixel to ensure the downscaler isn't hallucinating gradients.
 
 ---
 

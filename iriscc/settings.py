@@ -229,13 +229,13 @@ DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq=
 
 CONFIG['exp5_audit'] = {
     'target':'eobs',
-    'domain': [-5.875, 9.875, 38.125, 53.875],
+    'domain': [-12.5, 27.5, 31.0, 71.0],
     'data_projection' : ccrs.PlateCarree(),
-    'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+    'fig_projection' : ccrs.LambertConformal(central_latitude=51., central_longitude=7.5),
     'pyproj_projection' : None,
-    'shape': (64,64),
-    'target_file' : TARGET_EOBS_FRANCE_FILE,
-    'orog_file' : OROG_EOBS_FRANCE_FILE,
+    'shape': (29, 28),
+    'target_file' : EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc',
+    'orog_file' : OROG_EOBS_FRANCE_FILE, # elevation is for reference, build_dataset_bc doesn't use it for BC
     'dataset' : DATASET_DIR / 'dataset_exp5_30y',
     'target_vars': ['tas'],
     'input_vars': ['elevation', 'tas'],

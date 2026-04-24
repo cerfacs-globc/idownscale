@@ -49,6 +49,8 @@ class DatasetBuilder(Data):
             y_ds = y_ds.sel(time=str(date.date()))
         var_target = 'tas' if 'tas' in y_ds else list(y_ds.data_vars)[0]
         y = y_ds[var_target].values
+        # Restore standardization (Celsius -> Kelvin)
+        y = self.clean_data(y, 'tas', data_type='eobs')
         
         # 2. Prediction variables (Predictors)
         x = []
