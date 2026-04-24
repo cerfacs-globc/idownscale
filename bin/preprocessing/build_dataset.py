@@ -20,6 +20,7 @@ class DatasetBuilder(Data):
     """
     Stabilized Reconstruction Engine (v86.74)
     Handles the reconstruction of high-resolution predictors via modular handlers.
+    Fixed for 3D parity and Conservative Interpolation.
     """
     def __init__(self, exp:str, args):
         self.exp = exp
@@ -52,6 +53,9 @@ class DatasetBuilder(Data):
         # Restore standardization (Celsius -> Kelvin)
         y = self.clean_data(y, 'tas', data_type='eobs')
         
+        # v86.74 Parity: Ensure target is 3D (1, H, W)
+        y = np.expand_dims(y, axis=0)
+        
         # 2. Prediction variables (Predictors)
         x = []
         for var in CONFIG[self.exp]['input_vars']:
@@ -63,25 +67,26 @@ class DatasetBuilder(Data):
                     ds_elev = ds_elev.isel(time=0, drop=True)
                 
                 data = ds_elev['elevation'].values if 'elevation' in ds_elev else ds_elev['z'].values
-                if data.shape != y.shape:
-                    raise ValueError(f"Shape mismatch: {var} shape {data.shape} != target {y.shape}")
+                if data.shape != y[0].shape:
+                    raise ValueError(f"Shape mismatch: {var} shape {data.shape} != target {y[0].shape}")
                 
                 # Enforce identical exact target mask! (1566 NaNs)
-                data = np.where(np.isnan(y), np.nan, data)
+                data = np.where(np.isnan(y[0]), np.nan, data)
                 x.append(data)
             else:
                 # Native-First acquisition via modular plugins
                 ds = self.get_era5_dataset(var, date)
-                ds = reformat_as_target(ds, target_file, method='bilinear', domain=self.domain, mask=False)
+                # v86.74 Archival Sync: Transition from 'bilinear' to 'conservative_normed'
+                ds = reformat_as_target(ds, target_file, method='conservative_normed', domain=self.domain, mask=False)
                 
                 var_era5 = var if var in ds.data_vars else list(ds.data_vars)[0]
                 data = ds[var_era5].values
                 
-                if data.shape != y.shape:
-                    raise ValueError(f"Shape mismatch: {var} shape {data.shape} != target {y.shape}")
+                if data.shape != y[0].shape:
+                    raise ValueError(f"Shape mismatch: {var} shape {data.shape} != target {y[0].shape}")
                 
                 # Enforce identical exact target mask! (1566 NaNs)
-                data = np.where(np.isnan(y), np.nan, data)
+                data = np.where(np.isnan(y[0]), np.nan, data)
                 x.append(data)
         x = np.stack(x, axis=0)
 
@@ -113,10 +118,13 @@ if __name__=='__main__':
             x, y = dataset_builder.process_date(date, baseline=args.baseline)
             
             # Persistence Logic
-            if args.output_dir:
-                output_path = Path(args.output_dir) / f"sample_{date.strftime('%Y%m%d')}.npz"
-                np.savez(output_path, x=x, y=y)
-                print(f"--- Snapshot Saved: {output_path} ---", flush=True)
+            # v86.74 Standard: Save to CONFIG[exp]['dataset'] if output_dir not specified
+            output_dir = dataset_builder.dataset
+            output_path = Path(output_dir) / f"sample_{date.strftime('%Y%m%d')}.npz"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            np.savez(output_path, x=x, y=y)
+            # print(f"--- Snapshot Saved: {output_path} ---", flush=True)
         except Exception as e:
             print(f"ERROR: Failed to process {date.date()}: {e}", flush=True)
             raise e
