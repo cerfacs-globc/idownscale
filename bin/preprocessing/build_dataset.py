@@ -60,8 +60,6 @@ class DatasetBuilder(Data):
         x = []
         for var in CONFIG[self.exp]['input_vars']:
             if var == 'elevation':
-                msg = f"Getting {var} as static predictor with exact target mask..."
-                print(msg, flush=True)
                 ds_elev = xr.open_dataset(CONFIG[self.exp]['orog_file'])
                 if 'time' in ds_elev.dims:
                     ds_elev = ds_elev.isel(time=0, drop=True)
