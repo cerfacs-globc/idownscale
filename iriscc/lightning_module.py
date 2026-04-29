@@ -19,11 +19,12 @@ import pytorch_lightning as pl
 import pandas as pd
 import matplotlib.pyplot as plt
 from torchmetrics import PearsonCorrCoef
-from monai.networks.nets import SwinUNETR, UNet
+from monai.networks.nets import SwinUNETR, UNet as MonaiUNet
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.miniunet import MiniUNet
 from iriscc.models.miniswinunetr import MiniSwinUNETR
+from iriscc.models.unet import UNet
 from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
 
 layout = {
@@ -31,6 +32,10 @@ layout = {
         "loss": ["Multiline", ["loss/train", "loss/val"]],
     },
 }
+
+
+def _skip_test_figures() -> bool:
+    return os.getenv("IDOWNSCALE_SKIP_TEST_FIGURES", "").lower() in {"1", "true", "yes", "on"}
 
 def get_model(model:str, 
               in_channels:int, 
@@ -40,8 +45,16 @@ def get_model(model:str,
     
     match model:
         case 'unet':
-            return UNet(spatial_dims=2, in_channels=in_channels, out_channels=out_channels, dropout=dropout,
-                        channels=(4, 8, 16, 32), strides=(2,2,2)).float()
+            return UNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
+        case 'monai_unet':
+            return MonaiUNet(
+                spatial_dims=2,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                dropout=dropout,
+                channels=(4, 8, 16, 32),
+                strides=(2, 2, 2),
+            ).float()
         case 'miniunet':
             return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
         case 'swinunetr':
@@ -56,17 +69,24 @@ class IRISCCLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
  
-        self.fill_value = hparams['fill_value']    
-        self.learning_rate = hparams['learning_rate']
-        self.runs_dir = hparams['runs_dir']
-        self.scheduler_step_size = hparams['scheduler_step_size']
-        self.scheduler_gamma = hparams['scheduler_gamma']
+        self.fill_value = hparams['fill_value']
+        self.learning_rate = hparams.get('learning_rate', 1e-3)
+        self.runs_dir = Path(hparams.get('runs_dir', './runs'))
+        self.scheduler_step_size = hparams.get('scheduler_step_size', 30)
+        self.scheduler_gamma = hparams.get('scheduler_gamma', 0.5)
         self.in_channels = hparams['in_channels']
         self.img_size = hparams['img_size']
-        self.dropout = hparams['dropout']
-        os.makedirs(self.runs_dir, exist_ok=True)
+        self.dropout = hparams.get('dropout', 0.0)
+        try:
+            self.runs_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            # Archival checkpoints may point to historical run directories that are
+            # readable but not writable on the current system. Inference does not
+            # need to recreate those locations, so fall back to a local writable path.
+            self.runs_dir = Path('./runs')
+            self.runs_dir.mkdir(parents=True, exist_ok=True)
 
-        self.loss_name = hparams['loss']
+        self.loss_name = hparams.get('loss', 'masked_mse')
         if self.loss_name == 'masked_gamma_mae':
             self.loss = MaskedGammaMAELoss(ignore_value=self.fill_value,
                                            sample_dir=hparams['sample_dir'])
@@ -90,12 +110,26 @@ class IRISCCLightningModule(pl.LightningModule):
         self.save_hyperparameters()
         self.epoch_start_time = None
 
+    def _logger_experiment(self):
+        logger = getattr(self, "logger", None)
+        return getattr(logger, "experiment", None) if logger is not None else None
+
+    def _log_dir(self) -> Path:
+        logger = getattr(self, "logger", None)
+        if logger is not None and getattr(logger, "log_dir", None):
+            return Path(logger.log_dir)
+        return self.runs_dir
+
     def forward(self, x):
         return self.model(x) 
 
     def on_train_start(self):
-        self.logger.experiment.add_custom_scalars(layout)
-        self.logger.log_hyperparams(vars(self.hparams))
+        experiment = self._logger_experiment()
+        if experiment is not None and hasattr(experiment, "add_custom_scalars"):
+            experiment.add_custom_scalars(layout)
+        logger = getattr(self, "logger", None)
+        if logger is not None and hasattr(logger, "log_hyperparams"):
+            logger.log_hyperparams(vars(self.hparams))
 
     def on_train_epoch_start(self):
         self.epoch_start_time = time.time()
@@ -115,7 +149,9 @@ class IRISCCLightningModule(pl.LightningModule):
     
     def on_train_epoch_end(self):
         epoch_average = torch.stack(self.train_step_outputs).mean()
-        self.logger.experiment.add_scalar("loss/train", epoch_average, self.current_epoch)
+        experiment = self._logger_experiment()
+        if experiment is not None and hasattr(experiment, "add_scalar"):
+            experiment.add_scalar("loss/train", epoch_average, self.current_epoch)
         self.train_step_outputs.clear()
         epoch_duration = time.time() - self.epoch_start_time
         self.log("epoch_time", epoch_duration, on_step=False, on_epoch=True, prog_bar=True)
@@ -129,7 +165,9 @@ class IRISCCLightningModule(pl.LightningModule):
 
     def on_validation_epoch_end(self):
         epoch_average = torch.stack(self.val_step_outputs).mean()
-        self.logger.experiment.add_scalar("loss/val", epoch_average, self.current_epoch)
+        experiment = self._logger_experiment()
+        if experiment is not None and hasattr(experiment, "add_scalar"):
+            experiment.add_scalar("loss/val", epoch_average, self.current_epoch)
         self.val_step_outputs.clear()
 
         
@@ -139,10 +177,12 @@ class IRISCCLightningModule(pl.LightningModule):
         self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
             
         batch_dict = {"loss": loss}
+        experiment = self._logger_experiment()
         for metric_name, metric in self.metrics_dict.items():
             metric.update(y_hat, y)
             batch_dict[metric_name] = metric.compute()
-            self.logger.experiment.add_scalar(metric_name, metric.compute(), batch_idx)
+            if experiment is not None and hasattr(experiment, "add_scalar"):
+                experiment.add_scalar(metric_name, metric.compute(), batch_idx)
             metric.reset()
         self.test_metrics[batch_idx] = batch_dict
 
@@ -155,32 +195,38 @@ class IRISCCLightningModule(pl.LightningModule):
                 y_hat_masked = y_hat_flat[i][mask]
             self.spatial_corr_metric.update(y_hat_masked, y_masked)
 
-        if batch_idx == 0:
+        if batch_idx == 0 and not _skip_test_figures():
+            try:
+                fig, ax = plt.subplots()
+                y[y == self.fill_value] = torch.nan
+                vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
+                levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
+                cs = ax.contourf(y[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_y_0', fig)
 
-            fig, ax = plt.subplots()
-            y[y == self.fill_value] = torch.nan
-            vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
-            levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
-            cs = ax.contourf(y[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_y_0', fig)
-    
-            fig, ax = plt.subplots()
-            x[x == self.fill_value] = torch.nan
-            cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd')
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_x_0', fig)
+                fig, ax = plt.subplots()
+                x[x == self.fill_value] = torch.nan
+                cs = ax.contourf(x[batch_idx,-1,:,:].cpu().numpy(), cmap='OrRd')
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_x_0', fig)
 
-            fig, ax = plt.subplots()
-            cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd')
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_yhat_raw_0', fig)
+                fig, ax = plt.subplots()
+                cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd')
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_yhat_raw_0', fig)
 
-            fig, ax = plt.subplots()
-            y_hat[torch.isnan(y)] = torch.nan 
-            cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
+                fig, ax = plt.subplots()
+                y_hat[torch.isnan(y)] = torch.nan
+                cs = ax.contourf(y_hat[batch_idx,0,:,:].cpu().numpy(), cmap='OrRd', levels=levels)
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_yhat_0', fig)
+            except Exception as exc:
+                print(f"[warn] skipping test figures: {exc}")
  
             
     def build_metrics_dataframe(self):
@@ -192,7 +238,7 @@ class IRISCCLightningModule(pl.LightningModule):
         return pd.DataFrame(data, columns=["Name"] + metrics)
 
     def save_test_metrics_as_csv(self, df):
-        path_csv = Path(self.logger.log_dir) / "metrics_test_set.csv"
+        path_csv = self._log_dir() / "metrics_test_set.csv"
         df.to_csv(path_csv, index=False)
     
     def on_test_epoch_end(self):
@@ -210,5 +256,3 @@ class IRISCCLightningModule(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
         return [optimizer], [scheduler]
-
-

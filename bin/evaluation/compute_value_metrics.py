@@ -69,11 +69,14 @@ def main():
         if sample_path.exists():
             data = np.load(sample_path)
             # Get target from sample
-            y = data['y'][0] # Target is typically the first channel
+            y = np.squeeze(data['y']) # Squeeze to handle (64,64) or (1,64,64)
+            condition = np.isnan(y)
             obs_list.append(y)
             
             # Get prediction from netcdf for the same date
             y_hat = ds_pred.tas.sel(time=date, method='nearest').values
+            y_hat = np.array(y_hat, copy=True)
+            y_hat[condition] = np.nan
             pred_list.append(y_hat)
             dates.append(date)
 

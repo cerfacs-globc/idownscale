@@ -1,52 +1,71 @@
 Getting Started
 ===============
 
-The **idownscale** project provides a set of tools for high-resolution climate downscaling using representative deep learning architectures. While the project is optimized for the CERFACS infrastructure, it is designed to be portable to other environments.
+The **idownscale** project provides tools for climate downscaling that can run on
+local workstations as well as HPC systems.
 
 Installation
 ------------
 
-The project requires Python 3.11+. We recommend using a Conda environment to manage dependencies.
-
-**General Installation:**
+We recommend a Conda-based setup because ``xesmf`` depends on ``ESMF``/``esmpy``.
 
 .. code-block:: bash
 
-   conda create -n idownscale_env python=3.11
-   conda activate idownscale_env
-   pip install -r requirements.txt
+   conda env create -f environment.yml
+   conda activate idownscale
+   pip install -e .
 
-**HPC Cluster Example (CERFACS Grace):**
+Runtime Configuration
+---------------------
+
+The main runtime paths are configured with environment variables:
 
 .. code-block:: bash
 
-   module load python/anaconda3.11_arm
-   conda activate idownscale_env
+   export IDOWNSCALE_RAW_DIR=/path/to/rawdata
+   export IDOWNSCALE_OUTPUT_DIR=/path/to/output
+   export IDOWNSCALE_REGRID_WEIGHTS_DIR=/path/to/output/weights
+   export IDOWNSCALE_RUNS_DIR=/path/to/runs
+   export IDOWNSCALE_PREDICTION_DIR=/path/to/prediction
+   export IDOWNSCALE_METRICS_DIR=/path/to/metrics
 
-Customizing for Your Environment
---------------------------------
+Optional archival parity reference:
 
-To adapt the project to your own cluster or local workstation, you must update the global paths in:
+.. code-block:: bash
 
-.. code-block:: none
+   export IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR=/path/to/archive/dataset_exp5_30y
 
-   iriscc/settings.py
+For more detail, see ``doc/ENVIRONMENT_SETUP.md`` in the repository root.
 
-Key variables to adjust:
+First Workflow Run
+------------------
 
-* **DATASET_DIR**: Root directory where generated ``.npz`` samples will be stored.
-* **RAW_DATA_DIR**: Directory containing the input NetCDF files (ERA5, GCM, RCM).
-* **GRAPHS_DIR**: Output directory for evaluation plots.
-* **RUNS_DIR**: Directory for training logs and model weights.
+The cleaned exp5 entrypoint is:
 
-Directory Structure
--------------------
+.. code-block:: bash
 
-The project expects a structured data environment. By default, it looks for:
+   python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850103
 
-* ``datasets/``: Generated samples.
-* ``rawdata/``: Input climate data (NetCDF).
-* ``graphs/``: Output figures.
-* ``runs/``: Training output and checkpoints.
+On Grace, you can use the local wrapper:
 
-You can modify these mapping in the ``CONFIG`` dictionary inside ``iriscc/settings.py`` for each experiment.
+.. code-block:: bash
+
+   bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+
+Once coarse bias correction is built, the same runner can also package raw GCM test samples
+and drive downstream prediction or VALUE evaluation steps if a trained checkpoint is available.
+
+Grace GPU training
+------------------
+
+For Grace GPU training, the currently validated route is:
+
+* modules:
+  
+  * ``python/gloenv3.12_arm``
+  * ``nvidia/cuda/12.4``
+* venv:
+  
+  * ``/scratch/globc/page/idownscale_envs/production_final_v22_312``
+
+The longer engineering note is stored in ``doc/GRACE_TRAINING_ENGINEER_NOTE.md``.

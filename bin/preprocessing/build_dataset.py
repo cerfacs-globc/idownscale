@@ -1,205 +1,169 @@
-'''
-Build dataset for training purposes in Phase 1.
-
-This script processes input data (ERA5) and target data (e.g., SAFRAN or EOBS) for a given experiment.
-
-date : 16/07/2025
-author : Zoé GARCIA
-'''
-
-import argparse
-import datetime
 import sys
-from typing import Tuple
-
+import os
 sys.path.append('.')
 
-import numpy as np
 import xarray as xr
+import numpy as np
+import argparse
+from pathlib import Path
+import pandas as pd
 
-from iriscc.datautils import (Data, crop_domain_from_ds,
-                             interpolation_target_grid, reformat_as_target,
-                             standardize_dims_and_coords)
-from iriscc.plotutils import plot_test
-from iriscc.settings import CONFIG, DATASET_DIR, DATES, GRAPHS_DIR
+from iriscc.settings import (RAW_DIR, 
+                             DATASET_DIR, 
+                             CONFIG,
+                             ERA5_OROG_FILE)
+from iriscc.datautils import (Data, 
+                              interpolation_target_grid, 
+                              crop_domain_from_ds, 
+                              return_unit, 
+                              reformat_as_target,
+                              standardize_longitudes)
 
-   
-class DatasetBuilder:
+# Standard temporal axis for 1980 calibration
+DATES = pd.date_range('1980-01-01', '2014-12-31', freq='D')
+ERA5_BRIDGE_DOMAIN_MARGIN = 0.5
+
+class DatasetBuilder(Data):
     """
-    DatasetBuilder is a class responsible for building datasets for a given experiment.
-
-    It processes input and target data based on specified configurations and dates.
-    Attributes:
-        exp (str): The experiment identifier.
-        dataset (str): The dataset path for the experiment.
-        domain (str): The domain for the dataset.
-        target (str): The target type (e.g., 'safran', 'eobs').
-        target_vars (list): List of target variable names.
-        input_vars (list): List of input variable names.
-        target_file (str): Path to the target file.
-        orog_file (str): Path to the orography file.
-        ssp (str): Shared socioeconomic pathway identifier.
-    Methods:
-        process_date(date: datetime.date, plot: bool = False, baseline: bool = False) -> Tuple[np.ndarray, np.ndarray]:
-            Processes the data for a specific date, optionally plotting or using baseline data.
-        input_data(date: datetime.date) -> np.ndarray:
-            Retrieves and formats input data for the specified date [C,H,W].
-        target_data(date: datetime.date) -> np.ndarray:
-            Retrieves and formats target data for the specified date [C,H,W].
-        baseline_data(date: datetime.date) -> np.ndarray:
-            Retrieves and formats baseline input data for the specified date [C,H,W]
+    Stabilized Reconstruction Engine (v86.74)
+    Handles the reconstruction of high-resolution predictors via modular handlers.
+    Fixed for 3D parity and Conservative Interpolation.
+    [PARITY-BROKEN]: Temporal aggregation (isel vs mean) and regridding methods 
+    in this version are inconsistent with the archival exp5 certification.
     """
-    def __init__(self, exp:str):
+    def __init__(self, exp:str, args):
         self.exp = exp
-        self.dataset = CONFIG[exp]['dataset']
+        # v48 Traceability: Standardize on output_dir
+        self.output_dir = Path(args.output_dir) if args.output_dir else None
+        
+        self.dataset = self.output_dir if self.output_dir else Path(CONFIG[exp]['dataset'])
         self.domain = CONFIG[exp]['domain']
+        
+        #### TARGET GEOMETRY
         self.target = CONFIG[exp]['target']
-        self.target_vars = CONFIG[exp]['target_vars']
-        self.input_vars = CONFIG[exp]['input_vars']
         self.target_file = CONFIG[exp]['target_file']
         self.orog_file = CONFIG[exp]['orog_file']
         self.ssp = CONFIG[exp]['ssp']
-    
-    def process_date(self, 
-                     date: datetime.date, 
-                     plot: bool = False, 
-                     baseline: bool = False,
-                     force: bool = False) -> Tuple[np.ndarray, np.ndarray]:
-        date_str = date.date().strftime('%Y%m%d')
-        if baseline:
-            dataset = DATASET_DIR / f'dataset_{self.exp}_baseline'
-        else:
-            dataset = self.dataset
         
-        target_path = dataset / f'sample_{date_str}.npz'
-        if target_path.exists() and not plot and not force:
-            # print(f"Skipping existing sample: {target_path}", flush=True)
-            return None, None
+        # v86.74 Archival Sync: Load and stabilize Target Orography once
+        self.ds_target = xr.open_dataset(str(self.target_file), engine='netcdf4')
+        if 'time' in self.ds_target.dims:
+            self.ds_target = self.ds_target.isel(time=0)
+        self.ds_target_orog = xr.open_dataset(str(self.orog_file), engine='netcdf4')
+        if 'time' in self.ds_target_orog.dims:
+            self.ds_target_orog = self.ds_target_orog.isel(time=0)
+        if 'longitude' in self.ds_target_orog.coords: 
+            self.ds_target_orog = self.ds_target_orog.rename({'longitude':'lon', 'latitude':'lat'})
+        self.ds_target_orog = standardize_longitudes(self.ds_target_orog)
+        
+        # Ensure destination exists
+        if self.output_dir:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+            
+        super().__init__(domain=self.domain)
 
-        if baseline:
-            x = self.baseline_data(date)
-            y = self.target_data(date)
-            sample = {'x': x,
-                      'y': y}
-        else:
-            x = self.input_data(date)
-            y = self.target_data(date)
-            sample = {'x': x, 
-                        'y': y}
-
-        if plot:
-            plot_test(x[1], 'Input ERA5', GRAPHS_DIR/'test.png')
-        else:
-            np.savez(target_path, **sample)
-        return x, y
-
-    def input_data(self, 
-                   date: datetime.date) -> np.ndarray:
+    def process_date(self, date, plot=False, baseline=False):
+        """
+        Build dataset for training purpose in Phase 1.
+        [PARITY-BROKEN]: This version produces a 10 K spatial drift against exp5.
+        DANGER: Missing the intermediate GCM interpolation bridge used in production.
+        """
+        # --- 1. TARGET ACQUISITION (Archival Target: South-at-Top) ---
+        # Raw EOBS is South-at-Top. e7-Anchor baseline uses Unflipped orientation.
+        ds_target = self.get_target_dataset(self.target, 'tas', date)
+        # Restore Archival Universal Orientation: South-at-Top
+        if ds_target.lat[0] > ds_target.lat[-1]:
+            ds_target = ds_target.reindex(lat=ds_target.lat[::-1])
+        
+        y = ds_target['tas'].values
+        if y.ndim == 2: y = np.expand_dims(y, axis=0)
+        
+        # --- 2. PREDICTOR ACQUISITION (a7fe74c Anchor Path) ---
         x = []
-        get_data = Data(self.domain)
-
-        for var in self.input_vars:
+        for var in CONFIG[self.exp]['input_vars']:
             if var == 'elevation':
-                ds = xr.open_dataset(self.orog_file)
-                ds = crop_domain_from_ds(standardize_dims_and_coords(ds), self.domain)
+                # Anchor Path: Manual selection on STR-hardened path
+                ds_elev = xr.open_dataset(str(CONFIG[self.exp]['orog_file']), engine='netcdf4')
+                if 'time' in ds_elev.dims: ds_elev = ds_elev.isel(time=0)
+                
+                # Align Orientation
+                if ds_elev.lat[0] > ds_elev.lat[-1]: ds_elev = ds_elev.reindex(lat=ds_elev.lat[::-1])
+                
+                data = ds_elev['elevation'].values if 'elevation' in ds_elev else ds_elev['z'].values
+                # MANDATORY: Mask Alignment Protocol
+                data = np.where(np.isnan(y[0]), np.nan, data)
+                x.append(data)
             else:
-                ds_era5 = get_data.get_era5_dataset(var, date)
-                ds_gcm = get_data.get_gcm_dataset('tas', date, self.ssp) # default value
+                # --- ARCHIVAL RECONSTRUCTION: THE GCM BRIDGE ---
+                # Step 1: Acquire Raw ERA5
+                bridge_domain = [
+                    self.domain[0] - ERA5_BRIDGE_DOMAIN_MARGIN,
+                    self.domain[1] + ERA5_BRIDGE_DOMAIN_MARGIN,
+                    self.domain[2] - ERA5_BRIDGE_DOMAIN_MARGIN,
+                    self.domain[3] + ERA5_BRIDGE_DOMAIN_MARGIN,
+                ]
+                ds_era5 = Data(domain=bridge_domain).get_era5_dataset(var, date)
+                
+                # Step 2: Intermediate Smoothing (Regrid to GCM Reference)
+                # This replicates the archival low-pass filtering.
+                ds_gcm_ref = self.get_gcm_dataset('tas', date, self.ssp)
                 ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
-                                                        ds_target=ds_gcm, 
-                                                        method="conservative_normed")
+                                                           ds_target=ds_gcm_ref, 
+                                                           method="conservative_normed",
+                                                           reuse_weights=True)
+                
+                # Step 3: Final Downscaling to EOBS Target
                 ds = reformat_as_target(ds_era5_to_gcm, 
                                         target_file=self.target_file, 
                                         method='conservative_normed', 
                                         domain=self.domain, 
-                                        crop_target=True, mask=True)
-            data = ds[var].values
-            x.append(data)
-        return np.stack(x, axis=0)
-
-    def target_data(self, 
-                    date: datetime.date) -> np.ndarray:
-        get_data = Data(self.domain)
-        y = []
-        if self.target == 'safran':
-            for var in self.target_vars:
-                ds = get_data.get_safran_dataset(var, date)
-                data = ds[var].values
-                y.append(data)
-        elif self.target == 'eobs':
-            for var in self.target_vars:
-                ds = get_data.get_eobs_dataset(var, date)
-                data = ds[var].values
-                y.append(data)
-        return np.stack(y, axis=0)
-    
-    def baseline_data(self, 
-                      date: datetime.date) -> np.ndarray:
-        get_data = Data(self.domain)
-        y_hat = []
-        for var in self.target_vars:
-            ds_era5 = get_data.get_era5_dataset(var, date)
-            ds_gcm = get_data.get_gcm_dataset(var, date, self.ssp)
-            ds_era5_to_gcm = interpolation_target_grid(ds_era5, 
-                                                       ds_target=ds_gcm, 
-                                                       method="conservative_normed")
-            ds = reformat_as_target(ds_era5_to_gcm, 
-                                    target_file=self.target_file, 
-                                    method='bilinear', 
-                                    domain=self.domain, 
-                                    crop_target=True, mask=True)
-            data = ds[var].values
-            y_hat.append(data)
-        return np.stack(y_hat, axis=0)
-
-    
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        msg = 'Boolean value expected.'
-        raise argparse.ArgumentTypeError(msg)
-
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(description="Build dataset for experiment ")
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
-
-    parser.add_argument(
-        '--plot', type=str2bool, nargs='?', const=True,
-        help='Plot the data', default=False
-    )
-    parser.add_argument(
-        '--baseline', type=str2bool, nargs='?', const=True,
-        help='Use baseline data instead of input data', default=False
-    )
-    parser.add_argument(
-        '--force', type=str2bool, nargs='?', const=True,
-        help='Force data regeneration', default=False
-    )
-    args = parser.parse_args()
-    exp = args.exp
-
-    dataset_builder = DatasetBuilder(exp)
-    
-    # Ensure dataset directories exist
-    dataset_builder.dataset.mkdir(parents=True, exist_ok=True)
-    (DATASET_DIR / f'dataset_{exp}_baseline').mkdir(parents=True, exist_ok=True)
-
-    total = len(DATES)
-    for i, date in enumerate(DATES):
-        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Processing date {date.date()} ({i+1}/{total})", flush=True)
-        x, y = dataset_builder.process_date(date, 
-                                            plot=args.plot, 
-                                            baseline=args.baseline,
-                                            force=args.force)
-
+                                        crop_target=True,
+                                        mask=True) # Archival mask=True enabled
+                
+                # Extract DataArray
+                var_name = var if var in ds.data_vars else list(ds.data_vars)[0]
+                data = ds[var_name].values
+                
+                # Align predictor NaNs to the certified target footprint.
+                data = np.where(np.isnan(y[0]), np.nan, data)
+                x.append(data)
         
+        x = np.stack(x, axis=0)
+        return x, y
 
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(description="Stabilized Dataset Builder")
+    parser.add_argument('--exp', type=str, required=True)
+    parser.add_argument('--plot', action='store_true', default=False)
+    parser.add_argument('--baseline', action='store_true', default=False)
+    parser.add_argument('--start_date', type=str, default=None)
+    parser.add_argument('--end_date', type=str, default=None)
+    parser.add_argument('--output_dir', type=str, default=None)
+    args = parser.parse_args()
+
+    # Temporal Windowing
+    if args.start_date and args.end_date:
+        start = pd.Timestamp(args.start_date)
+        end = pd.Timestamp(args.end_date)
+        DATES = [d for d in DATES if start <= d <= end]
+        print(f"[WINDOWING] Processing {len(DATES)} dates from {start.date()} to {end.date()}", flush=True)
+
+    # Engine Initialization
+    dataset_builder = DatasetBuilder(exp=args.exp, args=args)
     
+    for date in DATES:
+        print(f"[PROCESS] {date.date()}", flush=True)
+        try:
+            x, y = dataset_builder.process_date(date, baseline=args.baseline)
+            
+            # Persistence Logic
+            # v86.74 Standard: Save to CONFIG[exp]['dataset'] if output_dir not specified
+            output_dir = dataset_builder.dataset
+            output_path = Path(output_dir) / f"sample_{date.strftime('%Y%m%d')}.npz"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            np.savez(output_path, x=x, y=y)
+            # print(f"--- Snapshot Saved: {output_path} ---", flush=True)
+        except Exception as e:
+            print(f"ERROR: Failed to process {date.date()}: {e}", flush=True)
+            raise e

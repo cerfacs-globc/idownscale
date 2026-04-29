@@ -3,45 +3,72 @@ Experimental settings for all configurations.
 
 date : 16/07/2025
 author : Zoé GARCIA
-
-date : 18/02/2026
-modifications: Christian Pagé
-
 """
 
-from pathlib import Path
-import pandas as pd
-import sys
 import os
+from pathlib import Path
+
 import cartopy.crs as ccrs
+import pandas as pd
 import pyproj
 
-REPO_DIR = Path(os.getenv('GITHUB_WORKSPACE', Path(__file__).resolve().parents[1]))
-RAW_DIR = REPO_DIR / 'rawdata'
-LOCAL_RAW_DIR = REPO_DIR / 'rawdata'
+
+def env_path(name: str, default: Path | str) -> Path:
+    return Path(os.getenv(name, str(default))).expanduser()
+
+
+def default_output_dir() -> Path:
+    if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
+        return env_path("IDOWNSCALE_OUTPUT_DIR", PROJECT_ROOT / "idownscale_output")
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        return PROJECT_ROOT / "idownscale_output"
+    return Path("/gpfs-calypso/scratch/globc/page/idownscale_output/").expanduser()
+
+
+def safe_mkdir(directory: Path) -> None:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # CI and other restricted environments may not be allowed to materialize
+        # research/HPC default paths at import time.
+        pass
+
+# Base directories
+PROJECT_ROOT = Path(__file__).parents[1].resolve()
+REPO_DIR = PROJECT_ROOT
+RAW_DIR = env_path('IDOWNSCALE_RAW_DIR', PROJECT_ROOT / 'rawdata')
+OUTPUT_DIR = default_output_dir()
+
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
 SAFRAN_REFORMAT_DIR = SAFRAN_DIR / 'safran_reformat_day'
 GCM_RAW_DIR = RAW_DIR / 'gcm'
 RCM_RAW_DIR = RAW_DIR / 'rcm'
-ERA5_DIR = RAW_DIR / 'era5'
+ERA5_DIR = RAW_DIR / "era5"
 EOBS_RAW_DIR = RAW_DIR / 'eobs'
-LOCAL_EOBS_RAW_DIR = LOCAL_RAW_DIR / 'eobs'
 ALADIN_RAW_DIR = RAW_DIR / 'ALADIN'
 TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / 'tas_day_SAFRAN_1959_reformat.nc'
 TARGET_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc'
-TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/historical/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
-OROG_EOBS_FRANCE_FILE = LOCAL_EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e_france.nc'
-OROG_SAFRAN_FILE = RAW_DIR / 'topography/topography_safran.nc'
+TARGET_GCM_FILE = GCM_RAW_DIR / 'CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc'
+OROG_EOBS_FRANCE_FILE = EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e_france.nc'
+OROG_SAFRAN_FILE = RAW_DIR / 'topography/topography_safran2.nc'
 IMERG_MASK = RAW_DIR / 'landseamask/IMERG_land_sea_mask_regrid.nc' # only continents
-LANDSEAMASK_GCM = GCM_RAW_DIR / 'sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
+LANDSEAMASK_GCM = GCM_RAW_DIR / 'CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc'
 LANDSEAMASK_ERA5 = ERA5_DIR / 'lsm_ERA5.nc'
 LANDSEAMASK_EOBS = EOBS_RAW_DIR / 'eobs_landseamask.nc'
-COUNTRIES_MASK = RAW_DIR / 'landseamask/CNTR_RG_10M_2024_4326.nc'
-UTILS_DIR = Path('/scratch/globc/garcia/utils/')
-DEFAULT_GRID_FILE = UTILS_DIR / 'tasmax_1d_21000101_21001231.nc'
+COUNTRIES_MASK = RAW_DIR /'landseamask/CNTR_RG_10M_2024_4326.nc'
+ERA5_OROG_FILE = ERA5_DIR / 'orography_ERA5.nc'
+GCM_OROG_FILE = GCM_RAW_DIR / 'orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc'
+GCM_BC_DIR = env_path('IDOWNSCALE_GCM_BC_DIR', GCM_RAW_DIR / 'CNRM-CM6-1-BC')
+RCM_BC_DIR = env_path('IDOWNSCALE_RCM_BC_DIR', RCM_RAW_DIR / 'ALADIN-BC')
+EXP5_ARCHIVE_DATASET_DIR = env_path(
+    'IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR',
+    '/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y',
+)
+REGRID_WEIGHTS_DIR = env_path('IDOWNSCALE_REGRID_WEIGHTS_DIR', OUTPUT_DIR / 'weights')
 
-DATASET_DIR = Path('/scratch/globc/page/idownscale_active/datasets/')
+# Results redirected to OUTPUT_DIR
+DATASET_DIR = env_path('IDOWNSCALE_DATASET_DIR', OUTPUT_DIR / 'datasets')
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
 DATASET_EXP1_CONTINENTS_DIR = DATASET_DIR / 'dataset_exp1_continents'
 DATASET_EXP1_30Y_DIR = DATASET_DIR / 'dataset_exp1_30y'
@@ -60,17 +87,30 @@ DATASET_EXP6_BASELINE_DIR = DATASET_DIR / 'dataset_exp6_baseline'
 DATASET_EXP7_30Y_DIR = DATASET_DIR / 'dataset_exp7_30y'
 DATASET_EXP8_30Y_DIR = DATASET_DIR / 'dataset_exp8_30y'
 DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
-DATASET_BC_DIR = DATASET_DIR / 'dataset_bc'
+DATASET_BC_DIR = env_path('IDOWNSCALE_DATASET_BC_DIR', DATASET_DIR / 'dataset_bc')
 
-RUNS_DIR = Path('/scratch/globc/page/idownscale_active/runs/')
-GRAPHS_DIR = Path('/scratch/globc/page/idownscale_active/graph/')
-METRICS_DIR = Path('/scratch/globc/page/idownscale_active/metrics/')
-PREDICTION_DIR = Path('/scratch/globc/page/idownscale_active/prediction/')
-OUTPUT_DIR = Path('/scratch/globc/page/idownscale_active/output/')
+RUNS_DIR = env_path('IDOWNSCALE_RUNS_DIR', OUTPUT_DIR / 'runs')
+GRAPHS_DIR = env_path('IDOWNSCALE_GRAPHS_DIR', OUTPUT_DIR / 'graph')
+METRICS_DIR = env_path('IDOWNSCALE_METRICS_DIR', OUTPUT_DIR / 'metrics')
+PREDICTION_DIR = env_path('IDOWNSCALE_PREDICTION_DIR', OUTPUT_DIR / 'prediction')
+
+for directory in [
+    OUTPUT_DIR,
+    REGRID_WEIGHTS_DIR,
+    DATASET_DIR,
+    DATASET_BC_DIR,
+    RUNS_DIR,
+    GRAPHS_DIR,
+    METRICS_DIR,
+    PREDICTION_DIR,
+    GCM_BC_DIR,
+    RCM_BC_DIR,
+]:
+    safe_mkdir(directory)
 
 CONFIG = {
     'exp3':
-        {'target': 'safran',
+        {'target':'safran',
             'domain': [-6., 12., 40., 52.],
             'domain_xy' : [60000, 1196000, 1617000, 2681000],
             'data_projection' : ccrs.LambertConformal(central_longitude=2.337229,
@@ -78,15 +118,16 @@ CONFIG = {
                                     false_easting=600000,
                                     false_northing=2200000,
                                     standard_parallels=(45.89892, 47.69601)),
-            'pyproj_projection': pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000"),
-            'shape': (134, 143),
-            'target_file': OROG_SAFRAN_FILE,
-            'orog_file': OROG_SAFRAN_FILE, 
-            'dataset': DATASET_EXP3_30Y_DIR,
+            'fig_projection' :ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+            'pyproj_projection' : pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000"),
+            'shape' : (134,143),
+            'target_file' : OROG_SAFRAN_FILE,
+            'orog_file' : OROG_SAFRAN_FILE, 
+            'dataset' : DATASET_EXP3_30Y_DIR,
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target']
-        },
+            },
 
     'exp4': # obsolete, use exp5 
         {'target':'eobs',
@@ -99,21 +140,21 @@ CONFIG = {
                 {'france' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
                 'europe' : ccrs.LambertConformal(central_latitude=51., central_longitude=7.5),
                 'tchequie' : ccrs.LambertConformal(central_latitude=45.75, central_longitude=11.5)},
-            'shape': {
-                'france': (64, 64),
-                'europe': (160, 160),
-                'tchequie': (32, 32)
-            },
+            'shape': 
+                    {'france': (64,64),
+                    'europe' : (160,160),
+                    'tchequie' : (32,32)},
             'target_file' : EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc',
             'orog_file' : EOBS_RAW_DIR / 'elevation_ens_025deg_reg_v29_0e_france.nc',
             'dataset' : DATASET_EXP4_30Y_DIR,
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
-            'channels': ['elevation', 'tas input', 'tas target']
-        },
+            'channels': ['elevation', 'tas input', 'tas target']       
+            },
     'exp5':
         {'target':'eobs',
-            'domain': [-6., 10., 38, 54],
+            'domain': [-6.0, 10.0, 38.0, 54.0],
+            'bc_domain': [-12.5, 27.5, 31.0, 71.0],
             'data_projection' : ccrs.PlateCarree(),
             'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
             'pyproj_projection' : None,
@@ -124,8 +165,11 @@ CONFIG = {
             'target_vars': ['tas'],
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
-            'ssp': 'ssp585', 'mask': 'target', 'fill_value': 0.0, 'output_norm': True, 'model': 'unet'
-        },
+            'ssp': 'ssp585',
+            'model': 'unet',
+            'lapse_rate_correction': False,
+            'fill_value': 0.0,
+            },
     'exp6':
         {'target':'eobs',
             'domain': [-6., 10., 38, 54],
@@ -139,8 +183,8 @@ CONFIG = {
             'target_vars': ['pr'],
             'input_vars': ['elevation', 'pr'],
             'channels': ['elevation', 'pr input', 'pr target'], # to not get lost for normalization
-            'ssp': 'ssp585'
-        },
+            'ssp' : 'ssp585'
+            },
     'exp7':
         {'target':'eobs',
             'domain': [-6., 10., 38, 54],
@@ -154,8 +198,8 @@ CONFIG = {
             'target_vars': ['pr'],
             'input_vars': ['elevation', 'huss', 'psl', 'tas'],
             'channels': ['elevation', 'huss input', 'psl input', 'tas input', 'pr target'], # to not get lost for normalization
-            'ssp': 'ssp585'
-        },
+            'ssp' : 'ssp585'   
+            },
     'exp8':
         {'target':'eobs',
             'domain': [-6., 10., 38, 54],
@@ -194,8 +238,8 @@ CONFIG = {
                         'uas input',
                         'psl input',
                         'pr target'], # to not get lost for normalization
-            'ssp': 'ssp585'
-        }
+            'ssp' : 'ssp585'   
+            }
     }
 
 COLORS = {'SAFRAN 8km': 'purple',
@@ -214,16 +258,32 @@ SAFRAN_PROJ_PYPROJ = pyproj.Proj(
 
 
 # Phase 1 settings
-DATES = pd.date_range(start='19850101', end='2004-12-31', freq='D')
-DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
-# DATES_TRAIN = ['1985', '2004', '2010'] # train, valid, test start
+#DATES = pd.date_range(start='19850101', end='2004-12-31', freq='D')
+#DATES_TRAIN = ['1985', '2001', '2003'] # train, valid, test start (ex8 mini dataset fior test)
+#DATES_TRAIN = ['1985', '2004', '2010'] # train, valid, test start
 DATES_TEST = pd.date_range(start='2010-01-01', end='2014-12-31', freq='D') 
 
 # Phase 2 settings
-# DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
-# DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
+DATES = pd.date_range(start='1980-01-01', end='2014-12-31', freq='D') # all data for phase 2
+DATES_TRAIN = ['1980', '2010', '2014'] # train, valid, test start
 
 DATES_BC_TRAIN_HIST = pd.date_range(start='1980-01-01', end='1999-12-31', freq='D')
 DATES_BC_TEST_HIST = pd.date_range(start='2000-01-01', end='2014-12-31', freq='D')
 DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq='D')
 
+CONFIG['exp5_audit'] = {
+    'target':'eobs',
+    'domain': [-12.5, 27.5, 31.0, 71.0],
+    'data_projection' : ccrs.PlateCarree(),
+    'fig_projection' : ccrs.LambertConformal(central_latitude=51., central_longitude=7.5),
+    'pyproj_projection' : None,
+    'shape': (29, 28),
+    'target_file' : EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc',
+    'orog_file' : OROG_EOBS_FRANCE_FILE, # elevation is for reference, build_dataset_bc doesn't use it for BC
+    'dataset' : DATASET_DIR / 'dataset_exp5_30y',
+    'target_vars': ['tas'],
+    'input_vars': ['elevation', 'tas'],
+    'channels': ['elevation', 'tas input', 'tas target'],
+    'ssp': 'ssp585',
+    'lapse_rate_correction': False
+}

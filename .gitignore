@@ -1,35 +1,32 @@
-# Standard Python ignores
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-dist/
-build/
-.pytest_cache/
-.coverage
-coverage.xml
-
-# Slurm & Environment ignores
-*.out
-*.err
-*.log
-logs/
-output/
-metrics/
+.git
+!.gitignore
+log
 name.e
 name2.e
 nameh.e
 name.o
-*.zip
-*.nc
-*.marker
-.markers/
+.gitignore
+run_batch_globc.sh
+run_batch_grace.sh
+run_batch_hybrid.sh
 PET0.ESMF_LogFile
 garcia.code-workspace
+__pycache__
+*.pyc
 
-# Data ignores
-runs/
+# Local agent/editor noise
+.codex
+
+# Runtime / generated outputs
+slurm_logs/
+scratch/
 rawdata/
-datasets/
-graph/
-*~
+
+# Large local helper trees not meant for release commits
+utils/
+
+# Generated presentation artifacts
+EGU26_Downscaling_ML_preview.html
+EGU26_Downscaling_ML_preview_selfcontained.html
+EGU26_Downscaling_ML_review_cerfacs.pptx
+egu26_cpage.pdf

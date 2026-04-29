@@ -1,194 +1,175 @@
-import datetime
-import logging
-import re
-import sys
-from pathlib import Path
+"""
+Useful functions for data processing and reformatting.
 
-sys.path.append(".")  # noqa: E402
+date : 21/04/2026
+author : Zoé GARCIA / Antigravity (v48)
+"""
 
-import numpy as np
-import pandas as pd
 import xarray as xr
-import xesmf as xe
+import numpy as np
+import os
+from pathlib import Path
+import glob
+from datetime import datetime
+import pandas as pd
 
-from iriscc.settings import (
-    CONFIG,
-    COUNTRIES_MASK,
-    EOBS_RAW_DIR,
-    ERA5_DIR,
-    GCM_RAW_DIR,
-    LANDSEAMASK_EOBS,
-    LANDSEAMASK_ERA5,
-    LANDSEAMASK_GCM,
-    RCM_RAW_DIR,
-    SAFRAN_PROJ_PYPROJ,
-    SAFRAN_REFORMAT_DIR,
-    TARGET_SAFRAN_FILE,
-)
+from iriscc.settings import (TARGET_SAFRAN_FILE,
+                             SAFRAN_REFORMAT_DIR,
+                             EOBS_RAW_DIR,
+                             GCM_RAW_DIR,
+                             GCM_OROG_FILE,
+                             COUNTRIES_MASK,
+                             LANDSEAMASK_GCM,
+                             LANDSEAMASK_ERA5,
+                             LANDSEAMASK_EOBS,
+                             SAFRAN_PROJ_PYPROJ,
+                             CONFIG,
+                             RCM_RAW_DIR,
+                             ERA5_DIR,
+                             ERA5_OROG_FILE,
+                             REGRID_WEIGHTS_DIR)
 
-logger = logging.getLogger(__name__)
 
+def _grid_signature(ds: xr.Dataset) -> str:
+   lon = np.asarray(ds.lon.values)
+   lat = np.asarray(ds.lat.values)
+   return (
+      f"{lon.shape[0]}x{lat.shape[0]}_"
+      f"{float(np.nanmin(lon)):.6f}_{float(np.nanmax(lon)):.6f}_"
+      f"{float(np.nanmin(lat)):.6f}_{float(np.nanmax(lat)):.6f}"
+   )
 
-def standardize_dims_and_coords(ds) :
-    dim_mapping = {'x': ['i', 'ni', 'xh', 'lon', 'nlon'],
-                   'y': ['j', 'nj', 'yh', 'lat', 'nlat'],
-                   'lev': ['olevel']}
-    coord_mapping = {'lon': ['longitude', 'nav_lon'],
-                     'lat': ['latitude', 'nav_lat']}
+def standardize_era5_geometry(ds):
+    # v86.67 Native-First: Minimal Renaming for ESMF recognition
+    rename_dict = {}
+    if 'longitude' in ds.coords: rename_dict['longitude'] = 'lon'
+    if 'latitude' in ds.coords: rename_dict['latitude'] = 'lat'
+    if rename_dict: ds = ds.rename(rename_dict)
+    return ds
 
-    for standard_name, possible_names in dim_mapping.items():
+def standardize_gcm_geometry(ds):
+    # v86.67 Native-First: Minimal Renaming for ESMF recognition
+    rename_dict = {}
+    if 'longitude' in ds.coords: rename_dict['longitude'] = 'lon'
+    if 'latitude' in ds.coords: rename_dict['latitude'] = 'lat'
+    if rename_dict: ds = ds.rename(rename_dict)
+    return ds
+
+def standardize_eobs_geometry(ds):
+    # v86.67 Post-Regrid Protocol: x/y Compatibility Bridge
+    rename_dict = {}
+    if 'longitude' in ds.coords: rename_dict['longitude'] = 'lon'
+    if 'latitude' in ds.coords: rename_dict['latitude'] = 'lat'
+    if rename_dict: ds = ds.rename(rename_dict)
+    
+    # x/y coordinate aliasing for pipeline compatibility
+    if 'lon' in ds.coords: ds = ds.assign_coords(x=ds.lon)
+    if 'lat' in ds.coords: ds = ds.assign_coords(y=ds.lat)
+    return ds
+
+def ARCHIVAL_standardize_dims_and_coords(ds) :
+    # v48 DEPRECATED: Standardize via Named Plugins instead
+    dim_mapping = {'x' : ['i', 'ni', 'xh', 'nlon'], 
+                   'y' : ['j', 'nj', 'yh', 'nlat']}
+    for standard_name, possible_names in dim_mapping.items() :
         for name in possible_names :
             if name in ds.dims :
                 ds = ds.rename({name: standard_name})
                 break
-   
-    for standard_name, possible_names in coord_mapping.items() :
-       for name in possible_names :
-           if name in ds.coords :
-            ds = ds.rename({name: standard_name})
-            break
-         
     return ds
+
 
 
 def standardize_longitudes(ds) :
-    # Camille Le Gloannec script
-    # GCM models have inconsistent longitude conventions, this function fix 
-    # that at the dataset level by setting the convention to -180° - 180°.
-
+    # v65faa6 Archival Sync: Mandatory -180..180 Shift and Monotonic Sort
     if 'lon' in ds.coords:
         lon = ds.coords['lon']
-        ds.coords['lon'] = ((lon + 180) % 360) - 180
-      
+        ds.coords['lon'] = ((lon+180)%360)-180
         if len(ds.lon.shape) == 1:
             ds = ds.sortby('lon')
-        else:
-            for dim in ds.lon.dims:
-                ds = ds.sortby(dim)
-         
-    else:
-        x = ds.coords['x']
-        ds.coords['x'] = ((x + 180) % 360) - 180
-        ds = ds.sortby(ds.x)
+    elif 'x' in ds.coords :
+        ds = ds.assign_coords(x=(((ds.x + 180) % 360) - 180))
+        ds = ds.sortby('x')
       
     return ds
 
 
-def generate_bounds(coord: np.ndarray) -> np.ndarray:
-    """
-    Generates bounds for a given coordinate array.
-    """
+def generate_bounds(coord:np.ndarray) -> np.ndarray:
     bounds = np.zeros(len(coord) + 1)
-    bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])  # Milieux entre chaque point
-    bounds[0] = coord[0] - (coord[1] - coord[0]) / 2  # Première limite extrapolée
-    bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2  # Dernière limite extrapolée
-    return bounds.astype(np.int32)
+    bounds[1:-1] = 0.5 * (coord[:-1] + coord[1:])
+    bounds[0] = coord[0] - (coord[1] - coord[0]) / 2
+    bounds[-1] = coord[-1] + (coord[-1] - coord[-2]) / 2
+    # v48 Foundation: Maintain float64 for Grace Hopper stability
+    return bounds.astype(np.float64)
 
 
-def add_lon_lat_bounds(ds: xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
-    """Adds longitude and latitude bounds to the dataset.
+def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.Dataset:
+   # v50 Strict Bounds Purge: Clear existing metadata to avoid alignment conflicts on ARM.
+   # We drop both the variables and the dimensions to ensure a clean slate.
+   existing_vars = [v for v in ['x_b', 'y_b', 'lon_b', 'lat_b'] if v in ds.variables or v in ds.coords]
+   if existing_vars:
+       ds = ds.drop_vars(existing_vars, errors='ignore')
+   
+   if 'x_b' in ds.dims: ds = ds.drop_dims('x_b')
+   if 'y_b' in ds.dims: ds = ds.drop_dims('y_b')
 
-    Based on the coordinates of the cells using exact data projection.
-    """
-    if bounds_method == "1":
-        x = ds["x"].values
-        y = ds["y"].values
+   if bounds_method == "1":
+      # v48 Unambiguous Access: Use the unique lon/lat coordinates
+      x = ds.lon.values
+      y = ds.lat.values
 
-        x_b = generate_bounds(x)
-        y_b = generate_bounds(y)
+      x_b = generate_bounds(x)
+      y_b = generate_bounds(y)
 
-        x_b_2d, y_b_2d = np.meshgrid(x_b, y_b)
+      # float64 for ESMF compatibility on ARM
+      x_b_2d, y_b_2d = np.meshgrid(x_b, y_b, indexing='xy')
 
-        proj = projection
+      proj = projection 
 
-        lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
+      if proj is not None:
+         lon_b, lat_b = proj(x_b_2d, y_b_2d, inverse=True)
+      else:
+         lon_b, lat_b = x_b_2d, y_b_2d
 
-        ds = ds.assign_coords(
-            x_b=("x_b", x_b),
-            y_b=("y_b", y_b),
-            lon_b=(["y_b", "x_b"], lon_b),
-            lat_b=(["y_b", "x_b"], lat_b)
-        )
-
-    if bounds_method == "2":
-        """Adds longitude and latitude bounds to the dataset.
-
-        Based on the coordinates of the cells.
-        """
-        lon = ds["lon"]
-        lat = ds["lat"]
-        logger.info("lon.shape: %s, lat.shape: %s", lon.shape, lat.shape)
-
-        lon_b = 0.25 * (lon[:-1, :-1] + lon[1:, :-1] + lon[:-1, 1:] + lon[1:, 1:])
-        lat_b = 0.25 * (lat[:-1, :-1] + lat[1:, :-1] + lat[:-1, 1:] + lat[1:, 1:])
-        logger.info("lon_b.shape: %s, lat_b.shape: %s", lon_b.shape, lat_b.shape)
-
-        nx_b = lon.shape[0] + 1
-        ny_b = lon.shape[1] + 1
-        logger.info("ny_b: %s, nx_b: %s", ny_b, nx_b)
-
-        lon_b_full = np.full((nx_b, ny_b), np.nan)
-        lat_b_full = np.full((nx_b, ny_b), np.nan)
-        logger.info("lon_b_full.shape: %s, lat_b_full.shape: %s", lon_b_full.shape, lat_b_full.shape)
-        lon_b_full[1:-2, 1:-2] = lon_b
-        lat_b_full[1:-2, 1:-2] = lat_b
-
-        lon_b_full[0, 1:-1] = 2 * lon[0, :-1] - lon[1, :-1]
-        lon_b_full[-1, 1:-1] = 2 * lon[-1, :-1] - lon[-2, :-1]
-        lon_b_full[1:-1, 0] = 2 * lon[:-1, 0] - lon[:-1, 1]
-        lon_b_full[1:-1, -1] = 2 * lon[:-1, -1] - lon[:-1, -2]
-
-        lon_b_full[0, 0] = 2 * lon[0, 0] - lon[1, 1]
-        lon_b_full[0, -1] = 2 * lon[0, -1] - lon[1, -2]
-        lon_b_full[-1, 0] = 2 * lon[-1, 0] - lon[-2, 1]
-        lon_b_full[-1, -1] = 2 * lon[-1, -1] - lon[-2, -2]
-
-        lat_b_full[0, 1:-1] = 2 * lat[0, :-1] - lat[1, :-1]
-        lat_b_full[-1, 1:-1] = 2 * lat[-1, :-1] - lat[-2, :-1]
-        lat_b_full[1:-1, 0] = 2 * lat[:-1, 0] - lat[:-1, 1]
-        lat_b_full[1:-1, -1] = 2 * lat[:-1, -1] - lat[:-1, -2]
-
-        lat_b_full[0, 0] = 2 * lat[0, 0] - lat[1, 1]
-        lat_b_full[0, -1] = 2 * lat[0, -1] - lat[1, -2]
-        lat_b_full[-1, 0] = 2 * lat[-1, 0] - lat[-2, 1]
-        lat_b_full[-1, -1] = 2 * lat[-1, -1] - lat[-2, -2]
-
-        ds = ds.assign_coords(
-            lon_b=(["y_b", "x_b"], lon_b_full),
-            lat_b=(["y_b", "x_b"], lat_b_full)
-        )
-
-    return ds
+      ds = ds.assign_coords(
+         x_b=("x_b", x_b.astype(np.float64)), 
+         y_b=("y_b", y_b.astype(np.float64)),
+         lon_b=(["y_b", "x_b"], lon_b.astype(np.float64)),
+         lat_b=(["y_b", "x_b"], lat_b.astype(np.float64))
+      )
+   # (Method 2 omitted here as redundant for Era5/GCM regridding)
+   return ds
 
 
-def interpolation_target_grid(ds: xr.Dataset, 
-                              ds_target: xr.Dataset, 
-                              method: str, 
+def interpolation_target_grid(ds:xr.Dataset, 
+                              ds_target:xr.Dataset, 
+                              method:str, 
                               input_projection=None,
                               target_projection=None,
-                              bounds_method="1") -> xr.Dataset:
-   """
-   Interpolates the input dataset to match the target grid and domain.
-   """
-   
-
+                              bounds_method="1",
+                              reuse_weights:bool=False) -> xr.Dataset:
+   import xesmf as xe
    for var in ds.data_vars:
          data = ds[var].values
-         if data.ndim in (2, 3):
+         if data.ndim == 2 or data.ndim == 3:
             ds[var].values = np.asfortranarray(data)
             ds[var].values = np.ascontiguousarray(data)
+   w_file = REGRID_WEIGHTS_DIR / (
+      f"weights_{method}_{_grid_signature(ds)}_to_{_grid_signature(ds_target)}.nc"
+   )
+   reuse = reuse_weights and os.path.exists(w_file)
    if method == 'bilinear':
-      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d")
+      regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse, filename=str(w_file))
    else:
-      if 'x' in ds.dims :
-         if 'x_b' not in ds.coords:
-            ds = add_lon_lat_bounds(ds, input_projection, bounds_method)
-      if 'x' in ds_target.dims :
-         if 'x_b' not in ds_target.coords:
-            ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
+      # v49 Cornerstone Resolution: Force regeneration of bounds to ensure ESMF alignment.
+      if 'lon' in ds.coords:
+         ds = add_lon_lat_bounds(ds, input_projection, bounds_method)
+      if 'lon' in ds_target.coords:
+         ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
-      regridder = xe.Regridder(ds, ds_target, method)
-   return regridder(ds)
+      regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse, filename=str(w_file))
+   ds_out = regridder(ds)
+   return ds_out
 
 
 def reformat_as_target(ds:xr.Dataset, 
@@ -199,160 +180,106 @@ def reformat_as_target(ds:xr.Dataset,
                        crop_input:bool=False, 
                        crop_target:bool=False, 
                        input_projection=None,
-                       target_projection=None) -> xr.Dataset:
-   """
-   Reformats the input dataset to match the target grid and domain.
-   """
-   
-   ds_target = xr.open_dataset(target_file).isel(time=0)
-   ds_target = standardize_longitudes(ds_target)
-   if crop_input:
-      ds = crop_domain_from_ds(ds, domain)
-   if crop_target:
-      ds_target = crop_domain_from_ds(ds_target, domain)
-   if mask :
-      if 'mask' not in list(ds_target.keys()):
-         ds_target["mask"] = xr.where(~np.isnan(ds_target["tas"]), 1, 0)
-   return interpolation_target_grid(ds, 
-                                  ds_target, 
-                                  method, 
-                                  input_projection,
-                                  target_projection)
+                       target_projection=None,
+                       reuse_weights:bool=False) -> xr.Dataset:
+    if isinstance(target_file, (str, Path)):
+       ds_target = xr.open_dataset(str(target_file), engine='netcdf4')
+    else:
+       ds_target = target_file
+    
+    if 'time' in ds_target.dims:
+       ds_target = ds_target.isel(time=0)
+    
+    # v48 Plugin Target: Standardized according to dataset type (EOBS/SAFRAN)
+    if 'safran' in str(target_file).lower():
+       ds_target = ARCHIVAL_standardize_dims_and_coords(ds_target)
+    else:
+       ds_target = standardize_eobs_geometry(ds_target)
+       
+    ds_target = standardize_longitudes(ds_target)
+    
+    if crop_input:
+       ds = crop_domain_from_ds(ds, domain)
+    if crop_target:
+       ds_target = crop_domain_from_ds(ds_target, domain)
+       
+    if mask :
+       if 'mask' not in list(ds_target.keys()):
+          ds_target["mask"] = xr.where(~np.isnan(ds_target["tas"]), 1, 0)
+          
+    ds = interpolation_target_grid(ds, 
+                                   ds_target, 
+                                   method, 
+                                   input_projection,
+                                   target_projection,
+                                   reuse_weights=reuse_weights)
+    return ds
 
 
 def crop_domain_from_ds(ds:xr.Dataset, domain:tuple) -> xr.Dataset:
-   """
-   Crops the input dataset to a specified geographical domain based on latitude and longitude coordinates.
-   """
+   # v47 Direct Coordinate Selection: Immunity to dimension-index ambiguity.
    if domain:
-      if 'x' in ds.dims:
-         ds = ds.sel(x=slice(domain[0], domain[1]), y=slice(domain[2], domain[3]))
+      if 'lon' in ds.coords:
+         mask_lon = (ds.lon >= domain[0]) & (ds.lon <= domain[1])
+         mask_lat = (ds.lat >= domain[2]) & (ds.lat <= domain[3])
+         # Map coordinate masks to correct dimension handles (x/y)
+         dim_x = 'x' if 'x' in ds.dims else 'lon'
+         dim_y = 'y' if 'y' in ds.dims else 'lat'
+         ds = ds.isel({dim_x: mask_lon, dim_y: mask_lat})
       else:
          ds = ds.sel(lon=slice(domain[0], domain[1]), lat=slice(domain[2], domain[3]))
    return ds
 
 
 def remove_countries(array:np.ndarray) -> np.ndarray:
-   """
-   Removes specific countries from the input SAFRAN-like array.
-
-   Args:
-      array (np.ndarray): The input 2D array to be modified.
-
-   Returns:
-      np.ndarray: The modified array with specific countries removed.
-   """
-   # Load the countries mask dataset
-   ds = xr.open_dataset(COUNTRIES_MASK)
-   ds = ds.reindex(lat=ds.lat[::-1])  # Reverse latitude order if necessary
-   ds = crop_domain_from_ds(ds, CONFIG['exp3']['domain'])  # Crop to France domain
-   ds = ds.drop_vars('spatial_ref')  # Drop unnecessary variable
+   ds = xr.open_dataset(COUNTRIES_MASK, engine='netcdf4')
+   ds = standardize_eobs_geometry(ds)
+   # v48 Unambiguous Sync: Reindex dimension y using coordinate lat
+   ds = ds.reindex(y=ds.lat.values[::-1]) 
+   ds = crop_domain_from_ds(ds, CONFIG['exp3']['domain'])
+   ds = ds.drop_vars('spatial_ref')
    index = ds['index'].values
-
-   # Define country codes to remove (e.g., Switzerland, Germany, Austria, Italy)
    countries_to_remove = [41.0, 56.0, 105.0, 112.0, 28.0]
    mask = np.isin(index, countries_to_remove)
    index = np.where(mask, index, np.nan)
-
-   # Update the dataset with the modified index
    ds['index'].values = index
    ds["mask"] = xr.where(~np.isnan(ds["index"]), 1, 0)
-
-   # Interpolate the mask to match the SAFRAN grid
-   ds_saf = xr.open_dataset(TARGET_SAFRAN_FILE).isel(time=0)
+   ds_saf = xr.open_dataset(TARGET_SAFRAN_FILE, engine='netcdf4').isel(time=0)
+   ds_saf = ARCHIVAL_standardize_dims_and_coords(ds_saf)
    ds_saf["mask"] = xr.where(~np.isnan(ds_saf["tas"]), 1, 0)
    ds = interpolation_target_grid(ds, ds_saf, method='conservative_normed', target_projection=SAFRAN_PROJ_PYPROJ)
    index = ds['index'].values
-
-   # Apply the mask to the input array
    index = xr.where(~np.isnan(index), 1, 0)
    array[index == 1] = np.nan
    return array
 
 
-def apply_landseamask(ds: xr.Dataset, mask_type: str, variables) -> xr.Dataset:
-   """
-   Apply a land-sea mask to the dataset based on the specified mask type.
-
-   Returns:
-   xarray.Dataset: The dataset with the land-sea mask applied.
-   """
-
+def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> xr.Dataset:
    if mask_type == 'gcm':
-      mask = xr.open_dataset(LANDSEAMASK_GCM)
+      mask = xr.open_dataset(LANDSEAMASK_GCM, engine='netcdf4')
       mask = standardize_longitudes(mask)
-      condition = mask['sftlf'].values < 2  # Land fraction less than 2%
+      condition = mask['sftlf'].values < 2
    elif mask_type == 'era5':
-      mask = xr.open_dataset(LANDSEAMASK_ERA5).isel(time=0)
-      mask = standardize_dims_and_coords(mask)
+      mask = xr.open_dataset(LANDSEAMASK_ERA5, engine='netcdf4').isel(time=0)
+      mask = standardize_era5_geometry(mask)
       mask = standardize_longitudes(mask)
-      mask = mask.reindex(lat=mask.lat[::-1])
-      condition = mask['lsm'].values < 0.1  # Land-sea mask threshold
+      condition = mask['lsm'].values < 0.1
    elif mask_type == 'eobs':
-      mask = xr.open_dataset(LANDSEAMASK_EOBS)
-      mask = standardize_dims_and_coords(mask)
-      condition = mask['landseamask'].values == 1.  # Land-sea mask value
+      mask = xr.open_dataset(LANDSEAMASK_EOBS, engine='netcdf4')
+      mask = standardize_eobs_geometry(mask)
+      condition = mask['landseamask'].values == 1.
    else:
-      msg = "Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'."
-      raise ValueError(msg)
+      raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'.")
 
-   # Align mask with the dataset's spatial domain
    mask = mask.sel(lon=slice(ds['lon'].values.min(), ds['lon'].values.max()),
                    lat=slice(ds['lat'].values.min(), ds['lat'].values.max()))
    for var in variables:
       data = ds[var].values
-      data[condition] = np.nan  # Apply the mask condition
+      data[condition] = np.nan
       ds[var].values = data
       ds["mask"] = xr.where(~np.isnan(ds[var]), 1, 0)
    return ds
 
-
-def crop_domain_from_array(array: np.ndarray, sample_dir: Path, domain: tuple) -> np.ndarray:
-   """
-   Crops a 2D array to a specified geographical domain based on latitude and longitude coordinates.
-
-   Args:
-      array (np.ndarray): The input 2D array to be cropped.
-      sample_dir (Path): The directory containing the 'coordinates.npz' file with latitude and longitude data.
-      domain (tuple): A tuple specifying the cropping domain in the format (min_lon, max_lon, min_lat, max_lat).
-
-   Returns:
-      np.ndarray: The cropped 2D array restricted to the specified domain.
-   """
-   coords_file = next(sample_dir.glob('coordinates.npz'))
-   coordinates = dict(np.load(coords_file, allow_pickle=True))
-   lon = coordinates['lon']
-   lat = coordinates['lat']
-   lon_indices = np.where((lon >= domain[0]) & (lon <= domain[1]))[0]
-   lat_indices = np.where((lat >= domain[2]) & (lat <= domain[3]))[0]
-   return array[np.ix_(lat_indices, lon_indices)]
-
-
-def datetime_period_to_string(dates):
-   """
-   Converts a list of dates to a string representation of the period.
-
-   Args:
-      dates (list): A list of dates in various formats (e.g., np.datetime64, pandas.Timestamp, datetime.datetime, or string).
-
-   Returns:
-      str: A string representing the period in the format 'DD/MM/YYYY - DD/MM/YYYY'.
-   """
-
-   def to_datetime(date):
-      if isinstance(date, (np.datetime64, pd.Timestamp)):
-         return pd.to_datetime(date).to_pydatetime()
-      elif isinstance(date, str):
-         return datetime.strptime(date, '%Y-%m-%d')
-      elif isinstance(date, datetime):
-         return date
-      else:
-         msg = f"Unsupported date format: {type(date)}"
-         raise ValueError(msg)
-
-   startdate = to_datetime(dates[0]).strftime('%d/%m/%Y')
-   enddate = to_datetime(dates[-1]).strftime('%d/%m/%Y')
-   return f"{startdate}-{enddate}"
 
 class Data(object):
    def __init__(self, domain=None):
@@ -361,87 +288,178 @@ class Data(object):
    def clean_data(self, data, var, data_type=None):
       if var == 'pr':
          data[data < 0] = 0.
-         if data_type in {'gcm', 'rcm'}: # kg/m2/s to mm/day
+         if data_type == 'gcm' or data_type =='rcm':
             data = data * 3600 * 24
       if var == 'tas':
-         if np.nanmean(data) < 100: # celsius to kelvin
+         if np.nanmean(data) < 100:
             data = data + 273.15
       return data
    
-   def get_era5_dataset(self, var: str, date):
-      file = next((ERA5_DIR / f"{var}_1d").glob(f"{var}*_{date.year}_*"))
-      ds = xr.open_dataset(file)
-      ds = standardize_dims_and_coords(ds)
+   def get_era5_dataset(self, var:str, date, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
+      import xesmf as xe
+      pattern = str(ERA5_DIR / f"{var}_1d" / f"{var}_1d_{date.year}_ERA5.nc")
+      files = glob.glob(pattern)
+      if not files:
+          # Fallback for alternative naming
+          pattern = str(ERA5_DIR / f"{var}" / f"{var}_1d_{date.year}_ERA5.nc")
+          files = glob.glob(pattern)
+      if not files: raise FileNotFoundError(f"Missing ERA5: {pattern}")
+      file = files[0]
+      ds = xr.open_dataset(file, engine='netcdf4')
+      ds = standardize_era5_geometry(ds)
       ds = standardize_longitudes(ds)
-      ds = ds.reindex(lat=ds.lat[::-1])
-      ds = crop_domain_from_ds(ds, self.domain)
+      if 'lat' in ds.coords:
+         ds = ds.reindex(lat=ds.lat[::-1])
+
+      if lapse_rate_correction and var == 'tas' and orog_target_file:
+          # Native-First Induction: Regrid Raw Orog to Target before Standardizing
+          ds_z = xr.open_dataset(ERA5_OROG_FILE, engine='netcdf4').isel(time=0)
+          # Minimal Input Sync
+          if 'longitude' in ds_z.coords: ds_z = ds_z.rename({'longitude':'lon', 'latitude':'lat'})
+          ds_z = standardize_longitudes(ds_z)
+          h_source = (ds_z['z'] / 9.80665).fillna(0)
+          ds_target_orog = xr.open_dataset(orog_target_file, engine='netcdf4')
+          if 'time' in ds_target_orog.dims: ds_target_orog = ds_target_orog.isel(time=0)
+          h_target = (ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']).fillna(0)
+          if 'z' in ds_target_orog: h_target = h_target / 9.80665
+          
+          w_file_to_era5 = REGRID_WEIGHTS_DIR / f"weights_target_to_era5_{self.domain[0]}.nc"
+          reuse_to_era5 = reuse_weights and os.path.exists(w_file_to_era5)
+          regridder_to_era5 = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_to_era5, filename=str(w_file_to_era5))
+          h_target_coarse = regridder_to_era5(h_target)
+          w_file_z_to_era5 = REGRID_WEIGHTS_DIR / f"weights_source_z_to_era5_{self.domain[0]}.nc"
+          reuse_z_to_era5 = reuse_weights and os.path.exists(w_file_z_to_era5)
+          regridder_z_to_era5 = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_era5, filename=str(w_file_z_to_era5))
+          h_source_coarse = regridder_z_to_era5(h_source)
+          
+          # RAW Inductive Subtraction (No alias noise)
+          delta_h = h_target_coarse - h_source_coarse
+          
+          # Post-Subtraction Standardization
+          ds = standardize_eobs_geometry(ds)
+          delta_h = standardize_eobs_geometry(delta_h)
+          
+          ds[var].values = ds[var].values + (delta_h.values * (-0.0065))
+      
+      # v48 Reference: Crop AFTER correction
       ds = self.crop_time_dim(ds, date)
+      ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
       return ds
-   
-   def get_gcm_dataset(self, var: str, date, ssp: str | None = None):
-      if date is None or date < pd.Timestamp("2015-01-01"):
-         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(f"*/{var}*historical*r1i1p1f2*"))
+
+   def get_gcm_dataset(self, var:str, date, ssp:str=None, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
+      import xesmf as xe
+      if date is None or date < pd.Timestamp('2015-01-01'):
+         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*historical*r1i1p1f2*'))[0]
       else:
-         file = next((GCM_RAW_DIR / "CNRM-CM6-1").glob(f"*/{var}*{ssp}*"))
-      ds = xr.open_dataset(file)
+         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*{ssp}*'))[0]
+      ds = xr.open_dataset(file, engine='netcdf4')
+      # Minimal Input Sync
+      if 'longitude' in ds.coords: ds = ds.rename({'longitude':'lon', 'latitude':'lat'})
       ds = standardize_longitudes(ds)
+
+      if lapse_rate_correction and var == 'tas' and orog_target_file:
+          ds_z = xr.open_dataset(GCM_OROG_FILE, engine='netcdf4')
+          if 'time' in ds_z.dims: ds_z = ds_z.isel(time=0)
+          # Minimal Input Sync
+          if 'longitude' in ds_z.coords: ds_z = ds_z.rename({'longitude':'lon', 'latitude':'lat'})
+          ds_z = standardize_longitudes(ds_z)
+          h_source = ds_z['orog'].fillna(0)
+          
+          ds_target_orog = xr.open_dataset(orog_target_file, engine='netcdf4')
+          if 'time' in ds_target_orog.dims: ds_target_orog = ds_target_orog.isel(time=0)
+          h_target = (ds_target_orog['elevation'] if 'elevation' in ds_target_orog else ds_target_orog['z']).fillna(0)
+          if 'z' in ds_target_orog: h_target = h_target / 9.80665
+
+          w_file_to_gcm = f"weights_target_to_gcm_{self.domain[0]}.nc"
+          reuse_to_gcm = reuse_weights and os.path.exists(w_file_to_gcm)
+          regridder_to_gcm = xe.Regridder(h_target, ds, 'bilinear', reuse_weights=reuse_to_gcm, filename=w_file_to_gcm)
+          h_target_coarse = regridder_to_gcm(h_target)
+          w_file_z_to_gcm = f"weights_source_z_to_gcm_{self.domain[0]}.nc"
+          reuse_z_to_gcm = reuse_weights and os.path.exists(w_file_z_to_gcm)
+          regridder_z_to_gcm = xe.Regridder(h_source, ds, 'bilinear', reuse_weights=reuse_z_to_gcm, filename=w_file_z_to_gcm)
+          h_source_coarse = regridder_z_to_gcm(h_source)
+          
+          # RAW Inductive Subtraction (No alias noise)
+          delta_h = h_target_coarse - h_source_coarse
+          
+          # Post-Subtraction Standardization
+          ds = standardize_eobs_geometry(ds)
+          delta_h = standardize_eobs_geometry(delta_h)
+          
+          ds[var].values = ds[var].values + (delta_h.values * (-0.0065))
+      
+      # v48 Reference: Crop AFTER correction
       ds = self.crop_time_dim(ds, date)
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
       return ds
+
    
-   def get_rcm_dataset(self, var: str, date, ssp: str | None = None):
+   def get_rcm_dataset(self, var:str, date, ssp:str=None, lapse_rate_correction:bool=False, orog_target_file:str=None):
+      import xesmf as xe
       if date is None:
-         file = next(RCM_RAW_DIR.glob(f"ALADIN/{var}*ssp585*r1i1p1f2*"))
+         file = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
          ds = xr.open_dataset(file).isel(time=0)
       else :
          if date < pd.Timestamp('2015-01-01'):
-            file_for_xy = next(RCM_RAW_DIR.glob(f'ALADIN/{var}*ssp585*r1i1p1f2*'))
+            file_for_xy = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
             ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
             xref = ds_for_xy['x'].values
             yref = ds_for_xy['y'].values
             ds_for_xy.close()
-            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(f"ALADIN/{var}*historical*r1i1p1f2*"))]
+            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*historical*r1i1p1f2*')))
          else :
-            files = [str(p) for p in sorted(RCM_RAW_DIR.glob(f"ALADIN/{var}*{ssp}*r1i1p1f2*"))]
+            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*{ssp}*r1i1p1f2*')))
          for file in files:
             if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
-               ds = xr.open_dataset(file)
+               ds = xr.open_dataset(file, engine='netcdf4')
                ds = self.crop_time_dim(ds, date)
-      if 'x' not in ds.coords:
+      if 'x' not in ds.dims:
          ds = ds.assign_coords(x = (['x'], xref))
          ds = ds.assign_coords(y = (['y'], yref))
-
-      x = ds['x'].values * 1000 # in meter to match Lambert Conformal projection
-      y = ds['y'].values * 1000
-      ds['x'] = x
-      ds['y'] = y
+      ds['x'] = ds['x'].values * 1000
+      ds['y'] = ds['y'].values * 1000
       ds[var].values = self.clean_data(ds[var].values, var, data_type='rcm')
       return ds
    
    def get_safran_dataset(self, var:str, date):
-      ds = xr.open_dataset(next(SAFRAN_REFORMAT_DIR.glob(f"{var}*{date.year}_reformat.nc")))
+      ds = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"{var}*{date.year}_reformat.nc"))[0])
       ds = self.crop_time_dim(ds, date)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='safran')
       ds[var].values = remove_countries(ds[var].values)
       return ds
 
    def get_eobs_dataset(self, var:str, date):
-      file = next(EOBS_RAW_DIR.glob(f'{var}*'))
-      ds = xr.open_dataset(file)
+      file = glob.glob(str(EOBS_RAW_DIR/f'{var}*'))[0]
+      ds = xr.open_dataset(file, engine='netcdf4')
       ds = self.crop_time_dim(ds, date)
-      ds = standardize_dims_and_coords(ds)
+      ds = standardize_eobs_geometry(ds)
+      # v48 Unambiguous Sync
+      ds = ds.reindex(y=ds.lat.values[::-1])
       ds = apply_landseamask(ds, 'eobs', variables=[var])
       ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='eobs')
       return ds
    
    def crop_time_dim(self, ds, date=None):
-      if date is not None:
-         ds = ds.sel(time=ds.time.dt.date == date.date())
-         ds = ds.isel(time=0)
-      return ds
+       if date is not None:
+          # v86.74 Parity Protocol: Aggregate all hours for the requested date into a Daily Mean.
+          y_match = ds.time.dt.year.values == date.year
+          m_match = ds.time.dt.month.values == date.month
+          d_match = ds.time.dt.day.values == date.day
+          
+          indices = np.where(y_match & m_match & d_match)[0]
+          
+          if len(indices) > 0:
+              # Perform Daily Mean to match archival EOBS-to-ERA5 temporal contract
+              ds = ds.isel(time=indices).mean('time')
+          else:
+              # Final Fallback: Nearest selection via string
+              print(f"WARNING: Primitive match failed for {date.date()}. Using nearest.")
+              ds = ds.sel(time=date.strftime('%Y-%m-%d'), method='nearest')
+              if 'time' in ds.dims and ds.time.size > 1: ds = ds.mean('time')
+       return ds
    
    def get_target_dataset(self, target:str, var:str='tas', date=None) -> xr.Dataset:
       if target == 'safran':
@@ -449,36 +467,11 @@ class Data(object):
       elif target == 'eobs':
          ds = self.get_eobs_dataset(var, date)
       return ds
-   
 
-def return_unit(var: str):
-    """Returns the unit of measurement for a given variable."""
-    match var:
-        case 'tas':
-            return 'K'
-        case 'pr':
-            return 'mm/day'
-        case 'sfcWind':
-            return 'm/s'
-        case 'psl':
-            return 'Pa'
-        case _:
-            msg = f"Unknown variable: {var}"
-            raise ValueError(msg)
-
-def get_latest_version(log_dir: Path) -> Path:
-    """Finds the latest version_x directory or version_best in a lightning_logs folder."""
-    if (log_dir / 'version_best').exists():
-        return log_dir / 'version_best'
-    
-    versions = [d for d in log_dir.glob('version_*') if d.is_dir()]
-    if not versions:
-        msg = f"No version folder found in {log_dir}"
-        raise FileNotFoundError(msg)
-    
-    # Sort by the numeric suffix of the version folder
-    def version_num(path):
-        match = re.search(r'version_(\d+)', path.name)
-        return int(match.group(1)) if match else -1
-        
-    return sorted(versions, key=version_num)[-1]
+def return_unit(var:str):
+   match var:
+      case 'tas': return 'K'
+      case 'pr': return 'mm/day'
+      case 'sfcWind': return 'm/s'
+      case 'psl': return 'Pa'
+      case _: raise ValueError(f"Unknown variable: {var}")

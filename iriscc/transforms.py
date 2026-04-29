@@ -1,36 +1,77 @@
-"""Transformations class for the IRISCC dataset.
-
-This module provides various transformations to preprocess the dataset for training and inference.
+"""
+Transformations class for the IRISCC dataset.
+This module provides various transformations to preprocess the dataset for training and inference
 
 date : 16/07/2025
 author : Zoé GARCIA
 """
 
-import json
 import sys
-from pathlib import Path
-from typing import List, Optional, Tuple, Union
-
-import numpy as np
-import torch
-import torch.nn.functional as F
-import xarray as xr
-
-from iriscc.settings import IMERG_MASK
-
 sys.path.append('.')
+
+import os
+import numpy as np
+import glob
+import json
+import torch
+import numpy as np
+import xarray as xr
+import torch.nn.functional as F
+from typing import Tuple, Union, List, Optional
+from pathlib import Path
+
+from iriscc.settings import IMERG_MASK, DATASET_DIR, EXP5_ARCHIVE_DATASET_DIR
+
+
+def resolve_statistics_dir(sample_dir: Union[str, Path]) -> Path:
+    """
+    Resolve a usable directory containing statistics.json.
+
+    Archival checkpoints can carry stale absolute sample_dir values from older
+    filesystem layouts. For inference and evaluation we only need the matching
+    statistics file, so fall back through a small set of compatible locations.
+    """
+    sample_dir = Path(sample_dir)
+    candidates = [sample_dir]
+
+    # Current local dataset root with the same dataset basename.
+    candidates.append(DATASET_DIR / sample_dir.name)
+
+    # Dedicated archival override for exp5 parity work.
+    candidates.append(EXP5_ARCHIVE_DATASET_DIR)
+
+    # Historical Garcia path before /idownscale was inserted in the tree.
+    legacy = str(sample_dir)
+    if '/scratch/globc/garcia/datasets/' in legacy:
+        candidates.append(Path(legacy.replace('/scratch/globc/garcia/datasets/', '/scratch/globc/garcia/idownscale/datasets/')))
+
+    # Optional explicit override from the environment.
+    env_override = os.getenv('IDOWNSCALE_SAMPLE_STATS_DIR')
+    if env_override:
+        candidates.append(Path(env_override))
+
+    seen = set()
+    for candidate in candidates:
+        candidate = candidate.expanduser()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if (candidate / 'statistics.json').exists():
+            return candidate
+
+    return sample_dir
 
 class StandardNormalisation():
     """
     Applies Standard Normalisation applied to the data.
     """
     def __init__(self, sample_dir: Union[str, Path]) -> None:
-        statistics_file = Path(sample_dir) / 'statistics.json'
-        with statistics_file.open() as f:
+        statistics_file = resolve_statistics_dir(sample_dir) / 'statistics.json'
+        with open(statistics_file) as f:
             stats = json.load(f)
         mean = []
         std = []
-        for channel in stats:
+        for channel in stats.keys():
             mean.append(stats[channel]['mean'])
             std.append(stats[channel]['std'])
         self.mean = mean
@@ -52,11 +93,11 @@ class MinMaxNormalisation():
     Applies the Min-Max Normalisation applied to the data.
     """
     def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
-        statistics_file = Path(sample_dir) / 'statistics.json'
-        with statistics_file.open() as f:
+        statistics_file = resolve_statistics_dir(sample_dir) / 'statistics.json'
+        with open(statistics_file) as f:
             stats = json.load(f)
-        self.min = [stats[channel]['min'] for channel in stats]
-        self.max = [stats[channel]['max'] for channel in stats]
+        self.min = [stats[channel]['min'] for channel in stats.keys()]
+        self.max = [stats[channel]['max'] for channel in stats.keys()]
         self.output_norm = output_norm
     
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -77,11 +118,11 @@ class DeMinMaxNormalisation:
     Reverts the Min-Max Normalisation applied to the data.
     """
     def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
-        statistics_file = Path(sample_dir) / 'statistics.json'
-        with statistics_file.open() as f:
+        statistics_file = resolve_statistics_dir(sample_dir) / 'statistics.json'
+        with open(statistics_file) as f:
             stats = json.load(f)
-        self.min = [stats[channel]['min'] for channel in stats]
-        self.max = [stats[channel]['max'] for channel in stats]
+        self.min = [stats[channel]['min'] for channel in stats.keys()]
+        self.max = [stats[channel]['max'] for channel in stats.keys()]
         self.output_norm = output_norm
 
     def __call__(self, sample: Tuple[Union[bool, torch.Tensor], torch.Tensor]) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -159,7 +200,8 @@ class Pad:
         padding = (padding_W // 2, padding_W - padding_W // 2,
                    padding_H // 2, padding_H - padding_H // 2)
 
-        return F.pad(array, padding, mode='constant', value=self.fill_value)
+        padded_array = F.pad(array, padding, mode='constant', value=self.fill_value)
+        return padded_array
 
     def __call__(self, sample: Tuple[List[torch.Tensor], List[torch.Tensor]]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
@@ -193,11 +235,14 @@ class UnPad():
 
         pad_top = padding_H // 2
         pad_left = padding_W // 2
-        return array[pad_top:pad_top + H, pad_left:pad_left + W]
+        unpadded_array = array[pad_top:pad_top + H, pad_left:pad_left + W]
+        return unpadded_array
 
     def __call__(self, sample: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
-        y = [self.unpad_func(sample[C]) for C in range(len(sample))]
-        return torch.stack(y)
+        y = sample
+        y = [self.unpad_func(y[C]) for C in range(len(y))]
+        y = torch.stack(y)
+        return y
     
     
 class DomainCrop:
@@ -215,7 +260,7 @@ class DomainCrop:
     def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
         if self.domain is not None:
-            coords_file = next(self.sample_dir.glob('coordinates.npz'))
+            coords_file = glob.glob(str(self.sample_dir / 'coordinates.npz'))[0]
             coordinates = dict(np.load(coords_file, allow_pickle=True))
             self.lon = coordinates['lon']
             self.lat = coordinates['lat']
@@ -232,7 +277,7 @@ class Log10Transform:
     """
     Applies a logarithmic transformation to the input data, specifically for the precipitations channel.
     """
-    def __init__(self, channels: List[str]):
+    def __init__(self, channels:List[str]):
         self.channels = channels
 
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -242,4 +287,3 @@ class Log10Transform:
             pr_i = self.channels.index('pr input')
             x[pr_i, :, :] = torch.log10(1 + x[pr_i, :, :])
         return x, y
-

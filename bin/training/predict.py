@@ -15,10 +15,10 @@ import argparse
 from torchvision.transforms import v2
 import matplotlib.pyplot as plt
 
+from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import GRAPHS_DIR, RUNS_DIR, DATASET_BC_DIR, CONFIG
-from iriscc.datautils import get_latest_version
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
     diff_y = y_hat-y  
@@ -61,13 +61,21 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
     parser.add_argument('--simu-test', type=str, help='gcm, gcm_bc, rcm, rcm_bc', default=None)
+    parser.add_argument('--checkpoint-bundle', type=str, default=None, help='Optional portable checkpoint bundle directory.')
     args = parser.parse_args()
 
-    log_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
-    run_dir = get_latest_version(log_dir)
-    checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
+    if args.checkpoint_bundle:
+        activate_bundle_contract(args.checkpoint_bundle)
+        checkpoint_dir = resolve_checkpoint_from_bundle(args.checkpoint_bundle)
+    else:
+        run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
+        checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
 
-    model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
+    model = IRISCCLightningModule.load_from_checkpoint(
+        checkpoint_dir,
+        map_location='cpu',
+        weights_only=False,
+    )
     model.eval()
     hparams = model.hparams['hparams']
     arch = hparams['model']
@@ -87,7 +95,7 @@ if __name__=='__main__':
         test_name = args.test_name
     device = 'cpu'
 
-    sample = next(sample_dir.glob(f'sample_{args.date}.npz'))
+    sample = glob.glob(str(sample_dir/f'sample_{args.date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     x_init, y = data['x'], data['y']
 

@@ -56,3 +56,5 @@ The ``compute_value_metrics.py`` script provides a consolidated summary table ba
    python3 bin/evaluation/compute_value_metrics.py --exp exp5 --test-name unet_all --simu-test gcm_bc
 
 For more information on the validation standards, visit the `VALUE website <http://www.value-cost.eu/>`_.
+
+Diagnostics assets and EGU-oriented materials are indexed in ``doc/DIAGNOSTICS_INDEX.md``.
