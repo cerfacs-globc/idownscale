@@ -3,32 +3,31 @@ Data Preprocessing
 
 Preprocessing is the foundation of the downscaling pipeline. It converts raw NetCDF data into normalized NumPy samples prepared for neural network training.
 
-Dataset Building
-----------------
+Dataset Synthesis
+-----------------
+
+The pipeline utilizes an **Isolated Volume Protocol** to manage distinct geographical domains:
+
+* **Phase 1 (Reconstruction)**: France domain for historical reanalysis (ERA5).
+* **Phase 2 (Bias Correction)**: European domain (29x28 at 1.4°) for GCM synthesis.
 
 The primary script is ``bin/preprocessing/build_dataset.py``. It performs:
-* Spatial cropping to the experiment domain.
-* Conservative interpolation of input variables to the target grid.
-* Masking and standardization.
-* Packaging into ``.npz`` files.
 
-.. code-block:: bash
+* Spatial cropping to the specific experiment domain.
+* Archival predictor reconstruction for exp5 via ``ERA5 -> GCM -> E-OBS``.
+* Packaging into ``.npz`` daily snapshot volumes.
 
-   python bin/preprocessing/build_dataset.py --exp exp5
+Certification & Auditing
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resumability
-^^^^^^^^^^^^
+Every synthesized volume should be compared against the archival reference when parity matters.
+The clean branch keeps those parity audits in ``bin/verification`` and the associated notes
+in the repository root.
 
-All dataset scripts check for existing files. If a job is interrupted, simply restarting it will skip existing dates, saving hours of computation time. To force a full rebuild, use the ``--force True`` flag.
+Resumability & Synthesis
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-Domain Cropping
----------------
-
-A generic utility ``bin/preprocessing/crop_domain.py`` is available to subset large climate files.
-
-.. code-block:: bash
-
-   python bin/preprocessing/crop_domain.py --input in.nc --output out.nc --exp exp5 --standardize
+The cleaned workflow runner supports resumability through ``--if-exists skip`` and explicit rebuilds through ``--if-exists overwrite``.
 
 Statistics & Normalization
 --------------------------

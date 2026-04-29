@@ -8,6 +8,7 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
+import glob
 import torch
 import numpy as np
 import argparse
@@ -18,7 +19,6 @@ from iriscc.diffusionutils import generate
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import GRAPHS_DIR, RUNS_DIR, CONFIG, DATASET_BC_DIR
-from iriscc.datautils import get_latest_version
 
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
@@ -63,11 +63,14 @@ if __name__=='__main__':
     parser.add_argument('--simu-test', type=str, help='gcm, gcm_bc, rcm, rcm_bc', default=None)
     args = parser.parse_args()
 
-    log_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs'
-    run_dir = get_latest_version(log_dir)
-    checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
+    run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
+    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
 
-    model = IRISCCCDDPMLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
+    model = IRISCCCDDPMLightningModule.load_from_checkpoint(
+        checkpoint_dir,
+        map_location='cpu',
+        weights_only=False,
+    )
     model.eval()
     hparams = model.hparams['hparams']
     arch = hparams['model']
@@ -86,7 +89,7 @@ if __name__=='__main__':
         test_name = args.test_name
     device = 'cpu'
 
-    sample = next(sample_dir.glob(f'sample_{args.date}.npz'))
+    sample = glob.glob(str(sample_dir/f'sample_{args.date}.npz'))[0]
     data = dict(np.load(sample), allow_pickle=True)
     conditioning_image_init, y = data['x'], data['y']
 

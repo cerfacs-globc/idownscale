@@ -1,59 +1,71 @@
-Workflow Management
-===================
-
-The **idownscale** pipeline is managed through an automated master script ``run_exp5_full.sh``. This script coordinates the execution of multiple preprocessing, training, and evaluation phases.
+The cleaned exp5 pipeline is managed through ``bin/production/run_exp5_workflow.py``.
+It coordinates preprocessing and bias-correction steps with explicit skip or overwrite
+behavior at the step level.
 
 Running the Pipeline
 --------------------
 
-The pipeline is designed to be run as a workload manager (Slurm) batch script, but it can also be executed interactively.
+The workflow can be run on a workstation for small windows or on HPC for full production ranges.
 
-**Interactive Execution:**
+**Interactive Execution (Debugging):**
 
 .. code-block:: bash
 
-   ./run_exp5_full.sh
+   python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats
+
+Optional downstream steps extend the same runner to Phase 3 and Phase 4 style tasks:
+
+.. code-block:: bash
+
+   python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
+   python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date 20000101 --predict-end-date 20141231
 
 **Workload Manager (Slurm):**
 
 .. code-block:: bash
 
-   sbatch run_exp5_full.sh
+   bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+
+Production Certification & Parity
+---------------------------------
+
+To ensure scientific reproducibility, each production volume must be certified against a reference archival baseline.
+
+* **Acceptance Criteria**: Historical parity aims for **0.00e+00 K** against the archival baseline.
+* **Current State**: The clean branch tracks the remaining residuals and the forensic steps that reduced them.
+* **Diagnostic Audit**: Surgical verification lives in ``bin/verification`` and the forensic notes in the repository root.
 
 Execution Controls
 ------------------
 
-The script supports environment variables for granular control:
+The workflow runner uses explicit output existence checks:
 
-* **START_PHASE** & **STOP_PHASE**: Run a specific range of phases (e.g., ``START_PHASE=4 STOP_PHASE=4`` for Training only).
-* **FORCE=1**: Bypasses the marker check (``.markers/`` directory) in the bash script. Scripts will still **resume** from the last available date if possible.
-* **REGENERATE=1**: Forces a full data regeneration by passing the ``--force`` flag to individual Python scripts.
+* ``--if-exists skip``: Keep existing outputs and fast-forward completed steps.
+* ``--if-exists overwrite``: Delete relevant outputs for the selected steps and rebuild them.
+
+Path overrides
+--------------
+
+The clean branch allows path-level overrides through environment variables such as
+``IDOWNSCALE_RUNS_DIR``, ``IDOWNSCALE_PREDICTION_DIR``, ``IDOWNSCALE_METRICS_DIR``,
+and ``IDOWNSCALE_REGRID_WEIGHTS_DIR``. This is useful when prediction checkpoints
+live somewhere other than the main ``OUTPUT_DIR`` tree.
 
 Monitoring & Logging
 --------------------
 
-When monitoring long-running jobs, look for these healthy patterns:
+When monitoring long-running jobs, expect skip messages for already completed steps and
+long silent stretches during regridding-heavy phases.
 
-Fast-Forwarding (Resumability)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Customizing for Your Cluster
+----------------------------
 
-If internal samples already exist, the scripts will skip the heavy interpolation work. Logs will show "Processing date..." at a very high rate. This is the expected behavior for resumed jobs.
-
-Silent Computation Phases
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Some steps are computationally intensive and natively silent:
-
-* ``compute_statistics_gamma.py``: Fits Gamma distributions for every pixel.
-* ``bias_correction_ibicus.py``: The debiasing loop can be silent for long periods.
-
-Customizing for Your Cluster (Example)
---------------------------------------
-
-If you are using a different cluster or partition, update the ``#SBATCH`` headers in the script. For example, on a cluster with a dedicated CPU partition:
+If you are using a different cluster or partition, adapt your local job wrapper rather than
+hardcoding site assumptions into the Python workflow itself:
 
 .. code-block:: bash
 
-   # Example: Using the Grace partition (CPU-only)
-   #SBATCH -p grace        
-   #SBATCH --gres=gpu:0
+   # Example: Adjusting for your local partition
+   #SBATCH -p my_partition        
+   #SBATCH --gres=gpu:1
+   #SBATCH --time=24:00:00

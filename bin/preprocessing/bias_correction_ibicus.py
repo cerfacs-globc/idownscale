@@ -1,5 +1,5 @@
 '''
-Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy.
+Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy
 
 date : 16/07/2025
 author : Zoé GARCIA
@@ -13,7 +13,6 @@ import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
-import datetime
 from typing import Optional, List, Tuple
 from ibicus.evaluate import marginal, metrics, trend
 from ibicus.debias import CDFt
@@ -27,8 +26,8 @@ from iriscc.settings import (GRAPHS_DIR,
                              DATES_BC_TEST_HIST,
                              DATES_BC_TRAIN_HIST,
                              DATASET_BC_DIR,
-                             GCM_RAW_DIR,
-                             RCM_RAW_DIR)
+                             GCM_BC_DIR,
+                             RCM_BC_DIR)
 
 
 def plot_tprofiles_short_range(
@@ -151,7 +150,6 @@ if __name__=='__main__':
     parser.add_argument('--ssp', type=str, help='SSP scenario (e.g., ssp585)')
     parser.add_argument('--simu', type=str, help='gcm or rcm', default='gcm')
     parser.add_argument('--var', type=str, help='tas, pr', default='tas')
-    parser.add_argument('--force', action='store_true', help='Force data regeneration')
     args = parser.parse_args()
 
     exp = args.exp
@@ -162,6 +160,10 @@ if __name__=='__main__':
     orog_file = CONFIG[exp]['orog_file']
     target_file = CONFIG[exp]['target_file']
     dataset = CONFIG[exp]['dataset']
+    dataset_bc_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu}_bc'
+    graphs_bias_dir = GRAPHS_DIR / 'biascorrection'
+    dataset_bc_dir.mkdir(parents=True, exist_ok=True)
+    graphs_bias_dir.mkdir(parents=True, exist_ok=True)
     
 
     get_data_bc = Data([-12.5, 27.5, 31., 71.]) # Europeen domain
@@ -169,44 +171,11 @@ if __name__=='__main__':
     lon, lat = gcm_ds.lon.values, gcm_ds.lat.values
     get_data = Data(domain=domain)
 
-    debiaser = CDFt.from_variable(variable=var,
-                                  apply_by_month=True)
+    debiaser = CDFt.from_variable(variable=var)
 
     train_hist = dict(np.load(DATASET_BC_DIR/f'bc_train_hist_{simu}.npz', allow_pickle=True))
     test_hist = dict(np.load(DATASET_BC_DIR/f'bc_test_hist_{simu}.npz', allow_pickle=True))
     test_future = dict(np.load(DATASET_BC_DIR/f'bc_test_future_{simu}.npz', allow_pickle=True))
-
-    # Check if outputs already exist to skip execution
-    if simu == 'gcm':
-        final_nc = GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc'
-    else:
-        final_nc = RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc'
-    
-    sample_dir = DATASET_BC_DIR.joinpath(f'dataset_{exp}_test_{simu}_bc')
-    if final_nc.exists() and any(sample_dir.iterdir()) and not args.force:
-        print(f"Skipping Bias Correction (Ibicus): {final_nc} and samples already exist.", flush=True)
-        sys.exit(0)
-
-    # Ensure output directories exist
-    GRAPHS_DIR.joinpath('biascorrection').mkdir(parents=True, exist_ok=True)
-    if simu == 'gcm':
-        GCM_RAW_DIR.joinpath('CNRM-CM6-1-BC').mkdir(parents=True, exist_ok=True)
-    elif simu == 'rcm':
-        RCM_RAW_DIR.joinpath('ALADIN-BC').mkdir(parents=True, exist_ok=True)
-    sample_dir.mkdir(parents=True, exist_ok=True)
-
-    # Pre-process elevation data to match target grid
-    print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] Preparing elevation data...", flush=True)
-    ds_orog = xr.open_dataset(orog_file)
-    ds_orog = reformat_as_target(ds_orog, 
-                                 target_file=target_file,
-                                 domain=domain, 
-                                 method="conservative_normed",
-                                 mask=True)
-    elevation_val = ds_orog['elevation'].values
-    # Ensure it's 2D (H, W)
-    if elevation_val.ndim == 3:
-        elevation_val = elevation_val[0]
 
    
     ##### 1980-1999
@@ -382,19 +351,20 @@ if __name__=='__main__':
                             time=('time', test_future['dates'])
                             ))
     if simu == 'gcm':
-        ds_train_hist_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc')
-        ds_test_hist_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc')
-        ds_test_future_bc.to_netcdf(GCM_RAW_DIR/f'CNRM-CM6-1-BC/{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc')
+        ds_train_hist_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc')
+        ds_test_hist_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc')
+        ds_test_future_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc')
     elif simu == 'rcm':
-        ds_train_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_19800101-19991231_150km_bc.nc')
-        ds_test_hist_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_historical_r1i1p1f2_gr_20000101-20141231_150km_bc.nc')
-        ds_test_future_bc.to_netcdf(RCM_RAW_DIR/f'ALADIN-BC/{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc')
+        ds_train_hist_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_historical_r1i1p1f2_gr_19800101-19991231_150km_bc.nc')
+        ds_test_hist_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_historical_r1i1p1f2_gr_20000101-20141231_150km_bc.nc')
+        ds_test_future_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc')
     
-    total_train = len(DATES_BC_TRAIN_HIST)
-    for i, date in enumerate(DATES_BC_TRAIN_HIST):
-        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [BC TRAIN] Processing {date.date()} ({i+1}/{total_train})", flush=True)
+    for date in DATES_BC_TRAIN_HIST:
+        print(date)
         x = []
-        x.append(elevation_val)
+
+        ds = xr.open_dataset(orog_file)
+        x.append(ds['elevation'].values)
         ds_train_hist_bc_i = ds_train_hist_bc.sel(time=ds_train_hist_bc.time.dt.date == date.date())
         ds_train_hist_bc_i = ds_train_hist_bc_i.isel(time=0, drop=True)
 
@@ -418,15 +388,16 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_BC_DIR/f'dataset_{exp}_test_{simu}_bc/sample_{date_str}.npz', **sample)
+        np.savez(dataset_bc_dir/f'sample_{date_str}.npz', **sample)
 
 
     
-    total_test_hist = len(DATES_BC_TEST_HIST)
-    for i, date in enumerate(DATES_BC_TEST_HIST):
-        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [BC TEST HIST] Processing {date.date()} ({i+1}/{total_test_hist})", flush=True)
+    for date in DATES_BC_TEST_HIST:
+        print(date)
         x = []
-        x.append(elevation_val)
+
+        ds = xr.open_dataset(orog_file)
+        x.append(ds['elevation'].values)
 
         ds_test_hist_bc_i = ds_test_hist_bc.sel(time=ds_test_hist_bc.time.dt.date == date.date())
         ds_test_hist_bc_i = ds_test_hist_bc_i.isel(time=0, drop=True)
@@ -450,15 +421,16 @@ if __name__=='__main__':
         sample = {'x' : x,
                     'y' : y}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_BC_DIR/f'dataset_{exp}_test_{simu}_bc/sample_{date_str}.npz', **sample)
+        np.savez(dataset_bc_dir/f'sample_{date_str}.npz', **sample)
 
     
 
-    total_test_future = len(DATES_BC_TEST_FUTURE)
-    for i, date in enumerate(DATES_BC_TEST_FUTURE):
-        print(f"[{datetime.datetime.now(datetime.timezone.utc).strftime('%H:%M:%S')}] [BC TEST FUTURE] Processing {date.date()} ({i+1}/{total_test_future})", flush=True)
+    for date in DATES_BC_TEST_FUTURE:
+        print(date)
         x = []
-        x.append(elevation_val)
+
+        ds = xr.open_dataset(orog_file)
+        x.append(ds['elevation'].values)
 
         ds_test_future_bc_i = ds_test_future_bc.sel(time=ds_test_future_bc.time.dt.date == date.date())
         ds_test_future_bc_i = ds_test_future_bc_i.isel(time=0, drop=True)
@@ -474,5 +446,5 @@ if __name__=='__main__':
         
         sample = {'x' : x}
         date_str = date.date().strftime('%Y%m%d')
-        np.savez(DATASET_BC_DIR/f'dataset_{exp}_test_{simu}_bc/sample_{date_str}.npz', **sample)
+        np.savez(dataset_bc_dir/f'sample_{date_str}.npz', **sample)
     

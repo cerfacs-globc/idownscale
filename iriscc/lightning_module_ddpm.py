@@ -29,6 +29,10 @@ layout = {
     },
 }
 
+
+def _skip_test_figures() -> bool:
+    return os.getenv("IDOWNSCALE_SKIP_TEST_FIGURES", "").lower() in {"1", "true", "yes", "on"}
+
 class IRISCCCDDPMLightningModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
@@ -66,6 +70,16 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         self.save_hyperparameters()
         self.epoch_start_time = None
 
+    def _logger_experiment(self):
+        logger = getattr(self, "logger", None)
+        return getattr(logger, "experiment", None) if logger is not None else None
+
+    def _log_dir(self) -> Path:
+        logger = getattr(self, "logger", None)
+        if logger is not None and getattr(logger, "log_dir", None):
+            return Path(logger.log_dir)
+        return Path(self.runs_dir)
+
     def configure_model(self) -> None:
         self.model.betas = self.model.betas.to(self.device)
         self.model.alpha_bars = self.model.alpha_bars.to(self.device)
@@ -83,8 +97,12 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
 
 
     def on_train_start(self):
-        self.logger.experiment.add_custom_scalars(layout)
-        self.logger.log_hyperparams(vars(self.hparams))
+        experiment = self._logger_experiment()
+        if experiment is not None and hasattr(experiment, "add_custom_scalars"):
+            experiment.add_custom_scalars(layout)
+        logger = getattr(self, "logger", None)
+        if logger is not None and hasattr(logger, "log_hyperparams"):
+            logger.log_hyperparams(vars(self.hparams))
 
     def on_train_epoch_start(self):
         self.epoch_start_time = time.time()
@@ -104,7 +122,9 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
     
     def on_train_epoch_end(self):
         epoch_average = torch.stack(self.train_step_outputs).mean()
-        self.logger.experiment.add_scalar("loss/train", epoch_average, self.current_epoch)
+        experiment = self._logger_experiment()
+        if experiment is not None and hasattr(experiment, "add_scalar"):
+            experiment.add_scalar("loss/train", epoch_average, self.current_epoch)
         self.train_step_outputs.clear()
         epoch_duration = time.time() - self.epoch_start_time
         self.log("epoch_time", epoch_duration, on_step=False, on_epoch=True, prog_bar=True)
@@ -118,7 +138,9 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
 
     def on_validation_epoch_end(self):
         epoch_average = torch.stack(self.val_step_outputs).mean()
-        self.logger.experiment.add_scalar("loss/val", epoch_average, self.current_epoch)
+        experiment = self._logger_experiment()
+        if experiment is not None and hasattr(experiment, "add_scalar"):
+            experiment.add_scalar("loss/val", epoch_average, self.current_epoch)
         self.val_step_outputs.clear()
 
 
@@ -133,39 +155,48 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
             y_hat[0,...] = self.denorm((False, y_hat[0,...]))
 
         batch_dict = {}
+        experiment = self._logger_experiment()
         for metric_name, metric in self.metrics_dict.items():
             metric.update(y_hat, y)
             batch_dict[metric_name] = metric.compute()
-            self.logger.experiment.add_scalar(metric_name, metric.compute(), batch_idx)
+            if experiment is not None and hasattr(experiment, "add_scalar"):
+                experiment.add_scalar(metric_name, metric.compute(), batch_idx)
             metric.reset()
         self.test_metrics[batch_idx] = batch_dict
 
-        if batch_idx == 0: 
-            y[y == self.fill_value] = torch.nan
-            x[x == self.fill_value] = torch.nan
-            y_hat_mask = y_hat
-            y_hat_mask[torch.isnan(y)] = torch.nan 
-            fig, ax = plt.subplots()
-            vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
-            levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
-            cs = ax.contourf(y[0,0,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_y_0', fig)
-    
-            fig, ax = plt.subplots()
-            cs = ax.contourf(x[0,-1,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_x_0', fig)
+        if batch_idx == 0 and not _skip_test_figures():
+            try:
+                y[y == self.fill_value] = torch.nan
+                x[x == self.fill_value] = torch.nan
+                y_hat_mask = y_hat
+                y_hat_mask[torch.isnan(y)] = torch.nan
+                fig, ax = plt.subplots()
+                vmin, vmax = np.nanmin(y.cpu().numpy()), np.nanmax(y.cpu().numpy())
+                levels = np.round(np.linspace(vmin, vmax, 11)).astype(int)
+                cs = ax.contourf(y[0,0,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_y_0', fig)
 
-            fig, ax = plt.subplots()
-            cs = ax.contourf(y_hat[0,0,:,:].cpu().detach().numpy(), cmap='OrRd')
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_yhat_raw_0', fig)
+                fig, ax = plt.subplots()
+                cs = ax.contourf(x[0,-1,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_x_0', fig)
 
-            fig, ax = plt.subplots()
-            cs = ax.contourf(y_hat_mask[0,0,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
-            plt.colorbar(cs, ax=ax, pad=0.05)
-            self.logger.experiment.add_figure('Figure/test_yhat_0', fig)
+                fig, ax = plt.subplots()
+                cs = ax.contourf(y_hat[0,0,:,:].cpu().detach().numpy(), cmap='OrRd')
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_yhat_raw_0', fig)
+
+                fig, ax = plt.subplots()
+                cs = ax.contourf(y_hat_mask[0,0,:,:].cpu().detach().numpy(), cmap='OrRd', levels=levels)
+                plt.colorbar(cs, ax=ax, pad=0.05)
+                if experiment is not None and hasattr(experiment, "add_figure"):
+                    experiment.add_figure('Figure/test_yhat_0', fig)
+            except Exception as exc:
+                print(f"[warn] skipping test figures: {exc}")
  
             
     def build_metrics_dataframe(self):
@@ -177,7 +208,7 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         return pd.DataFrame(data, columns=["Name"] + metrics)
 
     def save_test_metrics_as_csv(self, df):
-        path_csv = Path(self.logger.log_dir) / "metrics_test_set.csv"
+        path_csv = self._log_dir() / "metrics_test_set.csv"
         df.to_csv(path_csv, index=False)
     
     def on_test_epoch_end(self):
@@ -191,5 +222,3 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.scheduler_step_size, gamma=self.scheduler_gamma)
         return [optimizer], [scheduler]
-
-

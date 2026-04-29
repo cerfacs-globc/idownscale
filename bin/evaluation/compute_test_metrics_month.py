@@ -1,5 +1,5 @@
 """
-Evaluate input data x against target data y for raw, prediction and baseline data.
+Evaluate input data x against target data y for raw, prediction and baseline data
 
 date = 16/07/2025
 author = Zoé GARCIA
@@ -22,7 +22,7 @@ from typing import Optional
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
-from iriscc.datautils import get_latest_version
+from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
 from iriscc.settings import (CONFIG, 
@@ -35,16 +35,15 @@ from iriscc.settings import (CONFIG,
 
 def get_config(exp: str, 
                test_name: str, 
-               simu_test: Optional[str]) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
+               simu_test: Optional[str],
+               checkpoint_bundle: Optional[str] = None) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
     """
     Configure the model, transforms, and sample directory based on the experiment and test parameters.
-
     Args:
         exp (str): Experiment name.
         test_name (str): Test name (e.g., unet, baseline, gcm_raw).
         predict (bool): Whether to use a pretrained model.
         simu_test (Optional[str]): GCM test type (e.g., gcm or gcm_bc).
-
     Returns:
         Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]
     """
@@ -59,39 +58,46 @@ def get_config(exp: str,
     elif test_name == 'era5_raw':
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
     else:
-        log_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs'
-        run_dir = get_latest_version(log_dir)
-        checkpoint_dir = next(run_dir.glob('checkpoints/best-checkpoint*.ckpt'))
-        model = IRISCCLightningModule.load_from_checkpoint(checkpoint_dir, map_location='cpu')
+        if checkpoint_bundle:
+            activate_bundle_contract(checkpoint_bundle)
+            checkpoint_dir = resolve_checkpoint_from_bundle(checkpoint_bundle)
+        else:
+            run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
+            checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
+        model = IRISCCLightningModule.load_from_checkpoint(
+            checkpoint_dir,
+            map_location='cpu',
+            weights_only=False,
+        )
         model.eval()
         hparams = model.hparams['hparams']
         
         transforms = v2.Compose([
-            Log10Transform(hparams['channels']),
+            Log10Transform(hparams.get('channels', CONFIG[exp]['channels'])),
             MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
         ])
         
-        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}' if simu_test else hparams['sample_dir']
+        if simu_test:
+            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
+        else:
+            sample_dir = hparams['sample_dir']
     return model, transforms, sample_dir
 
 def preprocess(year:int,
                 month:int,
-                group: pd.DataFrame,
                 sample_dir: Path,
                 model: Optional[nn.Module],
                 transforms: Optional[Compose]) -> Tuple[np.ndarray, np.ndarray]:
     """
     Preprocesses input data and generates predictions using a given model.
-
     Args:
         date (datetime.date): The date corresponding to the sample to process.
         sample_dir (Path): Directory containing the sample `.npz` files.
         model (Optional[nn.Module]): PyTorch model used for predictions or None.
         transforms (Optional[Compose]): Transformations to apply to the input data (x, y).
-
     Returns:
         Tuple[np.ndarray, np.ndarray]
     """
@@ -100,8 +106,8 @@ def preprocess(year:int,
     for day in group['day']:
         date_str = f'{year}{month:02d}{day:02d}'
         print(date_str)
-        sample = next(sample_dir.glob(f'sample_{date_str}.npz'))
-        data = dict(np.load(sample), allow_pickle=True)
+        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
 
@@ -136,6 +142,7 @@ if __name__=='__main__':
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='if predict (e.g., gcm or gcm_bc, rcm, rcm_bc)', default=None)
+    parser.add_argument('--checkpoint-bundle', type=str, default=None, help='Optional portable checkpoint bundle directory.')
     args = parser.parse_args()
 
     exp = args.exp
@@ -144,14 +151,14 @@ if __name__=='__main__':
     dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
 
     transforms = None
-    model, transforms, sample_dir = get_config(exp, test_name, simu_test)
+    model, transforms, sample_dir = get_config(exp, test_name, simu_test, args.checkpoint_bundle)
 
     if simu_test:
         test_name = f'{test_name}_{simu_test}'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
-    graph_dir.mkdir(parents=True, exist_ok=True)
-    metric_dir.mkdir(parents=True, exist_ok=True)
+    os.makedirs(graph_dir, exist_ok=True)
+    os.makedirs(metric_dir, exist_ok=True)
 
     device = 'cpu'
     rmse = MeanSquaredError(squared=False).to(device)
@@ -185,7 +192,7 @@ if __name__=='__main__':
         if month in [1,2,12]:
             i_winter.append(i)
 
-        y, y_hat = preprocess(year, month, group, sample_dir, model, transforms)
+        y, y_hat = preprocess(year, month, sample_dir, model, transforms)
 
         ## spatial metrics
         error = (y_hat - y)
@@ -223,16 +230,16 @@ if __name__=='__main__':
         y_hat_temporal.append(y_hat_flat)
 
 
-    dt = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
-    dt_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
-    dt, dt_hat = np.stack(dt), np.stack(dt_hat)
-    dt_summer = np.stack([dt[i-1,:] for i in i_summer])
-    dt_hat_summer = np.stack([dt_hat[i-1,:] for i in i_summer])
-    dt_winter = np.stack([dt[i-1,:] for i in i_winter])
-    dt_hat_winter = np.stack([dt_hat[i-1,:] for i in i_winter])
-    var = np.mean(np.abs(dt_hat), axis=0) - np.mean(np.abs(dt), axis=0)
-    var_summer = np.mean(np.abs(dt_hat_summer), axis=0) - np.mean(np.abs(dt_summer), axis=0)
-    var_winter = np.mean(np.abs(dt_hat_winter), axis=0) - np.mean(np.abs(dt_winter), axis=0)
+    dT = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
+    dT_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
+    dT, dT_hat = np.stack(dT), np.stack(dT_hat)
+    dT_summer = np.stack([dT[i-1,:] for i in i_summer])
+    dT_hat_summer = np.stack([dT_hat[i-1,:] for i in i_summer])
+    dT_winter = np.stack([dT[i-1,:] for i in i_winter])
+    dT_hat_winter = np.stack([dT_hat[i-1,:] for i in i_winter])
+    var = np.mean(np.abs(dT_hat), axis=0) - np.mean(np.abs(dT), axis=0)
+    var_summer = np.mean(np.abs(dT_hat_summer), axis=0) - np.mean(np.abs(dT_summer), axis=0)
+    var_winter = np.mean(np.abs(dT_hat_winter), axis=0) - np.mean(np.abs(dT_winter), axis=0)
 
     y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
     corr_temporal = [corr(y_hat_temporal[:,j], y_temporal[:,j]).cpu() for j in range(y_temporal.size(dim=1))]
@@ -280,4 +287,3 @@ if __name__=='__main__':
     df = pd.DataFrame(d_mean, index = ['all', 'summer', 'winter'])
     df.to_csv(metric_dir/f'metrics_test_mean_monthly_{exp}_{test_name}.csv')
     print(df)
-
