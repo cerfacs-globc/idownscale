@@ -15,7 +15,7 @@ This document provides an overview of the code structure, useful commands for ma
 
 ## Runtime configuration
 
-The clean branch now centralizes the main path knobs in [iriscc/settings.py](/scratch/globc/page/idownscale_rerun/iriscc/settings.py).
+The clean branch now centralizes the main path knobs in `iriscc/settings.py`.
 The most useful environment variables are:
 
 ```bash
@@ -293,6 +293,5 @@ python3 bin/evaluation/evaluate_future_trend.py --exp exp5 --ssp ssp585 --simu g
 
 ## Supporting docs
 
-- [Environment Setup](/scratch/globc/page/idownscale_rerun/doc/ENVIRONMENT_SETUP.md)
-- [Diagnostics Index](/scratch/globc/page/idownscale_rerun/doc/DIAGNOSTICS_INDEX.md)
-- [Repo Hygiene Audit](/scratch/globc/page/idownscale_rerun/doc/REPO_HYGIENE_AUDIT.md)
+- Environment setup notes are documented in the repo docs and engineering notes.
+- Additional diagnostics and hygiene notes are maintained as working project documentation.

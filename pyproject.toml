@@ -49,6 +49,10 @@ exclude = [
     "venv",
     "env",
     ".env",
+    "bin/",
+    "iriscc/datautils.py",
+    "iriscc/settings.py",
+    "iriscc/transforms.py",
     "iriscc/lightning_module.py",
     "iriscc/lightning_module_ddpm.py",
     "iriscc/models/",
@@ -185,4 +189,3 @@ ignore = [
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-

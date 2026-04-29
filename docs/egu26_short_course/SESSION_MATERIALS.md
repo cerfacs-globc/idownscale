@@ -4,11 +4,9 @@ This page gathers the online material for the EGU26 short course on machine-lear
 
 ## Course files
 
-- [Presentation (PDF)](./EGU26_Downscaling_ML_short_course.pdf)
-- [Sample Jupyter Notebook](./egu26_short_course_notebook.ipynb)
 - [Dataset files to provide](./DATASETS_TO_PROVIDE.md)
-- [Methodology note](../../EGU_Short_Course_Methodology.md)
-- [Environment setup note](../../EGU_COURSE_ENVIRONMENT_SETUP.md)
+- The presentation PDF and sample notebook will be added to this folder before publication.
+- Methodology and environment notes will be published alongside the final session package.
 
 ## What attendees will find here
 

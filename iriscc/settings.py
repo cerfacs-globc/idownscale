@@ -7,18 +7,37 @@ author : Zoé GARCIA
 
 import os
 from pathlib import Path
-import pandas as pd
+
 import cartopy.crs as ccrs
+import pandas as pd
 import pyproj
 
 
 def env_path(name: str, default: Path | str) -> Path:
     return Path(os.getenv(name, str(default))).expanduser()
 
+
+def default_output_dir() -> Path:
+    if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
+        return env_path("IDOWNSCALE_OUTPUT_DIR", PROJECT_ROOT / "idownscale_output")
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        return PROJECT_ROOT / "idownscale_output"
+    return Path("/gpfs-calypso/scratch/globc/page/idownscale_output/").expanduser()
+
+
+def safe_mkdir(directory: Path) -> None:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        # CI and other restricted environments may not be allowed to materialize
+        # research/HPC default paths at import time.
+        pass
+
 # Base directories
 PROJECT_ROOT = Path(__file__).parents[1].resolve()
+REPO_DIR = PROJECT_ROOT
 RAW_DIR = env_path('IDOWNSCALE_RAW_DIR', PROJECT_ROOT / 'rawdata')
-OUTPUT_DIR = env_path('IDOWNSCALE_OUTPUT_DIR', '/gpfs-calypso/scratch/globc/page/idownscale_output/')
+OUTPUT_DIR = default_output_dir()
 
 SAFRAN_DIR = RAW_DIR / 'safran'
 SAFRAN_RAW_DIR = SAFRAN_DIR / 'raw_safran'
@@ -87,7 +106,7 @@ for directory in [
     GCM_BC_DIR,
     RCM_BC_DIR,
 ]:
-    directory.mkdir(parents=True, exist_ok=True)
+    safe_mkdir(directory)
 
 CONFIG = {
     'exp3':
