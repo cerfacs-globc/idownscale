@@ -31,9 +31,10 @@ def resolve_checkpoint_from_bundle(bundle_dir: str | Path) -> Path:
 
 
 def activate_bundle_contract(bundle_dir: str | Path) -> dict[str, Any]:
-    """Export environment hints so existing transform resolution logic can use the
-    bundle contract without requiring every caller to reimplement path logic.
+    """Export environment hints for bundle-aware contract resolution.
 
+    Existing transform resolution logic can use the bundle contract without
+    requiring every caller to reimplement path logic.
     """
     bundle_dir = Path(bundle_dir)
     manifest = load_bundle_manifest(bundle_dir)
