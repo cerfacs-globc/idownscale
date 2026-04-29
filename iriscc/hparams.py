@@ -15,7 +15,7 @@ class IRISCCHyperParameters():
     def __init__(
         self,
         *,
-        exp: str = 'exp8',
+        exp: str = 'exp5',
         run_name: str | None = None,
         model: str = 'unet',
         learning_rate: float = 0.0008,
@@ -25,7 +25,7 @@ class IRISCCHyperParameters():
         dropout: float = 0.0,
         output_norm: bool = False,
         mask: str = 'target',
-        fill_value: float = -1.0,
+        fill_value: float = 0.0,
     ):
         cfg = CONFIG[exp]
         self.img_size = cfg['shape']
@@ -35,7 +35,7 @@ class IRISCCHyperParameters():
         self.batch_size = batch_size
         self.max_epoch = max_epoch
         self.model = model
-        self.run_name = run_name or model
+        self.run_name = run_name or 'unet_all'
         self.exp_name = exp
         self.exp = f'{exp}/{self.run_name}'
         self.runs_dir = RUNS_DIR / self.exp

@@ -26,13 +26,15 @@ def resolve_checkpoint_from_bundle(bundle_dir: str | Path) -> Path:
         return Path(copied)
     if original and Path(original).exists():
         return Path(original)
-    raise FileNotFoundError(f"No usable checkpoint found for bundle {bundle_dir}")
+    message = f"No usable checkpoint found for bundle {bundle_dir}"
+    raise FileNotFoundError(message)
 
 
 def activate_bundle_contract(bundle_dir: str | Path) -> dict[str, Any]:
     """
     Export environment hints so existing transform resolution logic can use the
     bundle contract without requiring every caller to reimplement path logic.
+
     """
     bundle_dir = Path(bundle_dir)
     manifest = load_bundle_manifest(bundle_dir)

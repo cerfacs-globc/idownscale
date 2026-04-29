@@ -1,5 +1,6 @@
 """
 Dataloader for the IRISCC dataset.
+
 This module defines a custom PyTorch Dataset for loading and transforming the IRISCC dataset.
 
 date : 16/07/2025
@@ -13,7 +14,6 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import v2
 import numpy as np
 import torch
-import glob
 from typing import Optional
 from torch import Tensor
 
@@ -42,7 +42,7 @@ class IRISCC(Dataset):
         self.transform = transform
         self.data_type = data_type
 
-        list_data = np.sort(glob.glob(str(self.sample_dir / 'sample*')))
+        list_data = np.sort([str(path) for path in self.sample_dir.glob('sample*')])
         train_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[0]}0101.npz'))[0][0]
         val_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[1]}0101.npz'))[0][0]
         test_start = np.where(list_data == str(self.sample_dir / f'sample_{DATES_TRAIN[2]}0101.npz'))[0][0]
@@ -80,6 +80,7 @@ class IRISCC(Dataset):
 def get_dataloaders(data_type: str, hparams: Optional[IRISCCHyperParameters] = None) -> DataLoader:
     """
     Creates and returns a PyTorch DataLoader for the specified data type.
+
     Args:
         data_type (str): The type of data to load. Expected values are 'train' or other types
                             (e.g., 'validation', 'test'). Determines the shuffle behavior and batch size.
@@ -111,11 +112,10 @@ def get_dataloaders(data_type: str, hparams: Optional[IRISCCHyperParameters] = N
     else : 
         batch_size = 1
 
-    dataloader = DataLoader(training_data, 
-                            batch_size=batch_size, 
-                            shuffle=shuffle,
-                            num_workers=1)
-    return dataloader   
+    return DataLoader(training_data,
+                      batch_size=batch_size,
+                      shuffle=shuffle,
+                      num_workers=1)
 
 if __name__ == '__main__':
     train_dataloader = get_dataloaders('test')

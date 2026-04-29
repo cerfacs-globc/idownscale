@@ -167,6 +167,7 @@ CONFIG = {
             'channels': ['elevation', 'tas input', 'tas target'],
             'ssp': 'ssp585',
             'lapse_rate_correction': False,
+            'fill_value': 0.0,
             },
     'exp6':
         {'target':'eobs',
