@@ -166,6 +166,7 @@ CONFIG = {
             'input_vars': ['elevation', 'tas'],
             'channels': ['elevation', 'tas input', 'tas target'],
             'ssp': 'ssp585',
+            'model': 'unet',
             'lapse_rate_correction': False,
             'fill_value': 0.0,
             },
