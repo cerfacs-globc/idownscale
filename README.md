@@ -157,7 +157,7 @@ it removes the relevant outputs for each selected step and rebuilds them.
 Checkpoint reuse note:
 
 - a pretrained checkpoint is reusable only when the preprocessing, predictors,
-  normalization, and target contract remain compatible
+  normalization, and target setup remain compatible
 - when the training world changes, the intended route is to rebuild the training
   data and retrain rather than only rerun inference
 
