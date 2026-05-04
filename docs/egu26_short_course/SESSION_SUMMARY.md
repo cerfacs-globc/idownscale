@@ -64,3 +64,8 @@ By the end of the session, students should be able to:
 - understand when published outputs are sufficient for demonstration and when a live rerun is useful
 - understand when checkpoint reuse is acceptable and when retraining becomes necessary
 - navigate from the landing-page material to the runnable notebook and phase checks without relying on private context
+
+## Follow-up contact
+
+For follow-up questions after the short course, students can look for
+`Christian Page Cerfacs` on LinkedIn.

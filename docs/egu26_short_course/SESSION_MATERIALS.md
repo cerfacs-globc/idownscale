@@ -94,3 +94,8 @@ The published package supports both a guided short-course session and later self
 - If users change the domain, variables, preprocessing, normalization, architecture, or other core configuration choices, they should expect to retrain rather than rely on the published checkpoint.
 - The `required/` tree is the primary attendee entrypoint.
 - The `nice_to_have/` tree contains optional companion products such as the `exp5_swinunet_all_bundle/` bundle and additional diagnostics.
+
+## Follow-up contact
+
+For follow-up questions after the short course, students can look for
+`Christian Page Cerfacs` on LinkedIn.
