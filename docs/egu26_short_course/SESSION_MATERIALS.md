@@ -2,10 +2,13 @@
 
 This page gathers the published material for the EGU26 short course on machine-learning-based climate downscaling.
 
+The material is structured to work well after a presentation-first format. A useful pattern is a 45-minute presentation for the conceptual framing, followed by the practical material and notebook for the hands-on workflow, checks, and discussion of outputs.
+
 ## Start here
 
 This page is intended to be a GitHub landing page for students. The main reading order is:
 
+- [Presentation PDF](./EGU26_CPAGE_ILAZIC_MTOSIC.pdf)
 - [Notebook](./egu26_short_course_notebook.ipynb)
 - [Environment setup](./ENVIRONMENT_SETUP.md)
 - [Dataset files to provide](./DATASETS_TO_PROVIDE.md)
@@ -73,6 +76,7 @@ The published package supports both a guided short-course session and later self
 - the `.tar.gz` packages provide a simple way to download the required or supplementary published assets in one step
 - the `raw_data/`, `nice_to_have/`, and `phase_outputs/` trees expose the larger companion data products
 - the tarballs provide bundled downloads of the required and supplementary packages
+- the presentation can introduce the scientific framing first, leaving the notebook to focus on execution, diagnostics, and interpretation
 
 ## Notes for attendees
 

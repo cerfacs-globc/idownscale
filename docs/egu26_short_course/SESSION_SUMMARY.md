@@ -6,10 +6,13 @@ Using daily near-surface temperature as a case study, the session follows the fu
 
 The course is designed for climate scientists, impact researchers, and technical users who want a clear and reproducible introduction to machine-learning-based downscaling. Prior expertise in machine learning is not required, although familiarity with climate data and downscaling concepts is helpful.
 
+The overall format can combine a 45-minute presentation with a second practical part based on the notebook and supporting material. This makes it possible to use the presentation for the conceptual and scientific framing, while the notebook focuses more directly on execution, inspection of outputs, and practical workflow decisions.
+
 ## Start here
 
 Students should begin from the GitHub version of this folder and use:
 
+- [Presentation PDF](./EGU26_CPAGE_ILAZIC_MTOSIC.pdf)
 - [Session materials](./SESSION_MATERIALS.md)
 - [Notebook](./egu26_short_course_notebook.ipynb)
 - [Environment setup](./ENVIRONMENT_SETUP.md)
@@ -47,3 +50,14 @@ Attendees should be able to retrieve, from Mercure alone:
 The notebook is intended both to be read and to be re-executed. Attendees should be able to follow the full sequence from directory preparation and pre-Phase-1 France cropping through the later workflow phases, running each phase independently when needed. Some phases can be long, on the order of several hours, so the notebook should support both careful reading and practical reruns phase by phase. The same workflow should remain usable on a laptop, workstation, or supercomputer, with the practical difference being how much data is processed and how long the long-running phases take. Users can reuse the published checkpoint when their setup remains compatible, or optionally retrain when they change the configuration, domain, predictors, preprocessing, normalization, or other key parts of the workflow setup.
 
 This split keeps the course material reproducible without requiring attendees to mirror an internal HPC filesystem layout.
+
+## Learning goals
+
+By the end of the session, students should be able to:
+
+- explain why the downscaling problem is not solved by coarse climate data alone
+- describe the logic of the France `exp5` workflow from preparation to evaluation
+- identify which phases can be run independently and how to verify them
+- understand when published outputs are sufficient for demonstration and when a live rerun is useful
+- understand when checkpoint reuse is acceptable and when retraining becomes necessary
+- connect the conceptual framing from the presentation to the concrete steps shown in the notebook

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Europe demonstrator callouts</title>
+  <desc id="desc">Simplified Europe map with two callouts: urban heat and health in selected cities, and pan-European drought domain.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fbfd; }
+      .title { font: 700 42px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .label { font: 700 26px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .small { font: 400 20px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .tiny { font: 400 18px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .outline { stroke: #35556f; stroke-width: 4; }
+      .line { stroke: #6d879b; stroke-width: 4; fill: none; stroke-linecap: round; }
+      .city { fill: #d94f4f; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="900"/>
+  <text x="800" y="60" text-anchor="middle" class="title">Climate Data in Demonstrators</text>
+
+  <!-- Stylized Europe shape -->
+  <path d="M430,220
+           L520,170 L650,185 L760,150 L870,170 L940,235 L1005,265
+           L1040,335 L1020,405 L955,455 L955,520 L900,560 L815,580
+           L755,620 L670,610 L620,565 L560,555 L500,510 L470,455
+           L405,430 L365,375 L380,315 Z"
+        fill="#e6eef2" stroke="#35556f" stroke-width="4"/>
+
+  <!-- Pan-European drought domain overlay -->
+  <path d="M430,220
+           L520,170 L650,185 L760,150 L870,170 L940,235 L1005,265
+           L1040,335 L1020,405 L955,455 L955,520 L900,560 L815,580
+           L755,620 L670,610 L620,565 L560,555 L500,510 L470,455
+           L405,430 L365,375 L380,315 Z"
+        fill="#fbe8cf" opacity="0.55"/>
+
+  <!-- A few city markers -->
+  <circle cx="675" cy="335" r="8" class="city"/>
+  <circle cx="600" cy="350" r="8" class="city"/>
+  <circle cx="710" cy="300" r="8" class="city"/>
+  <circle cx="745" cy="330" r="8" class="city"/>
+  <circle cx="785" cy="285" r="8" class="city"/>
+  <circle cx="860" cy="320" r="8" class="city"/>
+  <circle cx="915" cy="365" r="8" class="city"/>
+
+  <!-- Left callout -->
+  <rect x="95" y="235" width="300" height="150" rx="24" ry="24" fill="#dff3df" class="outline"/>
+  <text x="245" y="285" text-anchor="middle" class="label">Demo 1</text>
+  <text x="245" y="320" text-anchor="middle" class="small">Urban heat and health</text>
+  <text x="245" y="352" text-anchor="middle" class="tiny">Selected cities and</text>
+  <text x="245" y="376" text-anchor="middle" class="tiny">environmental exposure</text>
+  <line x1="395" y1="310" x2="610" y2="340" class="line"/>
+
+  <!-- Right callout -->
+  <rect x="1150" y="470" width="320" height="160" rx="24" ry="24" fill="#fbe8cf" class="outline"/>
+  <text x="1310" y="522" text-anchor="middle" class="label">Demo 3</text>
+  <text x="1310" y="557" text-anchor="middle" class="small">Pan-European drought domain</text>
+  <text x="1310" y="589" text-anchor="middle" class="tiny">Hydrology and ecosystem</text>
+  <text x="1310" y="613" text-anchor="middle" class="tiny">climate forcing applications</text>
+  <line x1="1150" y1="548" x2="930" y2="500" class="line"/>
+
+  <!-- Bottom caption -->
+  <rect x="280" y="780" width="1040" height="56" rx="14" ry="14" fill="#eef5f9" class="outline" stroke-width="3"/>
+  <text x="800" y="815" text-anchor="middle" class="small">Future climate data support both local urban-health applications and pan-European drought-risk services.</text>
+</svg>

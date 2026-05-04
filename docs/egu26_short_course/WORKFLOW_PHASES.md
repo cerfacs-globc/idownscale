@@ -19,6 +19,20 @@ The notebook should be usable in two ways:
 Some full phases may take 5 to 6 hours. Because of that, the notebook should
 make it easy to start from the top, stop after any completed phase, and resume later.
 
+When the session begins with a 45-minute presentation, the notebook can assume
+that some of the conceptual framing has already been introduced. In that case,
+the practical part can focus more directly on:
+
+1. environment and directory setup
+2. pre-Phase-1 France preparation
+3. one short live Phase 1 example
+4. statistics and diagnostics
+5. bias-correction and training logic
+6. prediction, metrics, VALUE summaries, and interpretation
+
+This keeps the notebook phase-oriented while avoiding too much repetition of the
+earlier presentation material.
+
 See also:
 
 - [PHASE_VALIDATION.md](./PHASE_VALIDATION.md)
@@ -119,6 +133,7 @@ Goal:
 Notebook role:
 
 - explains why normalization and summary statistics matter before training
+- helps connect the technical preprocessing step to the scientific interpretation of the model inputs and targets
 
 Main script:
 
@@ -148,6 +163,7 @@ Notebook role:
 
 - explains why bias correction is used in this workflow
 - shows the difference between raw and corrected coarse inputs
+- gives enough context to explain that bias correction does not replace downscaling, but helps reduce mismatch between training and inference inputs
 
 Main workflow steps:
 
@@ -205,6 +221,7 @@ Notebook role:
 
 - ties the workflow back to scientific interpretation
 - shows the resulting fields, diagnostics, and summary scores
+- is the main place where a 1h45 format can spend additional time on discussion and interpretation
 
 Main workflow steps:
 

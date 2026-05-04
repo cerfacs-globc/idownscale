@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1000" viewBox="0 0 1800 1000" role="img" aria-labelledby="title desc">
+  <title id="title">IRISCC integrated services diagram</title>
+  <desc id="desc">Structured diagram showing climate data, observations, impact models, and research infrastructure expertise feeding a central IRISCC services block, which connects to a grouped set of six demonstrators.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fbfd; }
+      .title { font: 700 46px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .subtitle { font: 400 24px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .label { font: 700 28px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .small { font: 700 22px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .demo { font: 700 18px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .caption { font: 400 21px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .outline { stroke: #35556f; stroke-width: 4; }
+      .line { stroke: #6d879b; stroke-width: 5; fill: none; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1800" height="1000"/>
+
+  <text x="900" y="72" text-anchor="middle" class="title">IRISCC Integrated Services</text>
+  <text x="900" y="126" text-anchor="middle" class="subtitle">Climate data, observations, models, and expertise combined into demonstrator services</text>
+
+  <!-- Left input column -->
+  <rect x="120" y="205" width="280" height="88" rx="20" ry="20" fill="#d8eef6" class="outline"/>
+  <text x="260" y="259" text-anchor="middle" class="label">Climate data</text>
+
+  <rect x="120" y="335" width="280" height="88" rx="20" ry="20" fill="#dff3df" class="outline"/>
+  <text x="260" y="389" text-anchor="middle" class="label">Observations</text>
+
+  <rect x="120" y="465" width="280" height="88" rx="20" ry="20" fill="#fbe8cf" class="outline"/>
+  <text x="260" y="519" text-anchor="middle" class="label">Impact models</text>
+
+  <rect x="120" y="595" width="280" height="88" rx="20" ry="20" fill="#eadff5" class="outline"/>
+  <text x="260" y="649" text-anchor="middle" class="label">RI expertise</text>
+
+  <!-- Central IRISCC block with height aligned to left stack -->
+  <rect x="600" y="205" width="470" height="478" rx="30" ry="30" fill="#dcecf8" class="outline"/>
+  <text x="835" y="305" text-anchor="middle" style="font:700 58px Arial, Helvetica, sans-serif; fill:#18324a;">IRISCC</text>
+  <text x="835" y="380" text-anchor="middle" class="label">Integrated services</text>
+  <text x="835" y="440" text-anchor="middle" class="small">Service Design Labs</text>
+  <text x="835" y="478" text-anchor="middle" class="small">Co-design and transdisciplinary framing</text>
+  <text x="835" y="560" text-anchor="middle" class="label">Demonstrators</text>
+  <text x="835" y="620" text-anchor="middle" class="small">Cross-RI climate-risk services</text>
+
+  <!-- Straight left connectors -->
+  <line x1="400" y1="249" x2="600" y2="249" class="line"/>
+  <line x1="400" y1="379" x2="600" y2="379" class="line"/>
+  <line x1="400" y1="509" x2="600" y2="509" class="line"/>
+  <line x1="400" y1="639" x2="600" y2="639" class="line"/>
+
+  <!-- Right grouped demonstrator area -->
+  <text x="1405" y="190" text-anchor="middle" class="label">Six Demonstrators</text>
+  <rect x="1160" y="215" width="490" height="468" rx="26" ry="26" fill="#eef5f9" class="outline"/>
+
+  <rect x="1210" y="275" width="175" height="86" rx="16" ry="16" fill="#d8eef6" class="outline"/>
+  <text x="1297" y="307" text-anchor="middle" class="demo">Demo 1</text>
+  <text x="1297" y="331" text-anchor="middle" class="demo">Health</text>
+  <text x="1297" y="353" text-anchor="middle" class="demo">Urban heat</text>
+
+  <rect x="1425" y="275" width="175" height="86" rx="16" ry="16" fill="#dff3df" class="outline"/>
+  <text x="1512" y="307" text-anchor="middle" class="demo">Demo 2</text>
+  <text x="1512" y="331" text-anchor="middle" class="demo">Service</text>
+  <text x="1512" y="353" text-anchor="middle" class="demo">workflows</text>
+
+  <rect x="1210" y="400" width="175" height="86" rx="16" ry="16" fill="#fbe8cf" class="outline"/>
+  <text x="1297" y="432" text-anchor="middle" class="demo">Demo 3</text>
+  <text x="1297" y="456" text-anchor="middle" class="demo">Drought</text>
+  <text x="1297" y="478" text-anchor="middle" class="demo">risk</text>
+
+  <rect x="1425" y="400" width="175" height="86" rx="16" ry="16" fill="#eadff5" class="outline"/>
+  <text x="1512" y="432" text-anchor="middle" class="demo">Demo 4</text>
+  <text x="1512" y="456" text-anchor="middle" class="demo">Cross-sector</text>
+  <text x="1512" y="478" text-anchor="middle" class="demo">risk</text>
+
+  <rect x="1210" y="525" width="175" height="86" rx="16" ry="16" fill="#d8eef6" class="outline"/>
+  <text x="1297" y="554" text-anchor="middle" class="demo">Demo 5</text>
+  <text x="1297" y="578" text-anchor="middle" class="demo">Observation-</text>
+  <text x="1297" y="600" text-anchor="middle" class="demo">informed</text>
+
+  <rect x="1425" y="525" width="175" height="86" rx="16" ry="16" fill="#dff3df" class="outline"/>
+  <text x="1512" y="554" text-anchor="middle" class="demo">Demo 6</text>
+  <text x="1512" y="578" text-anchor="middle" class="demo">Adaptation</text>
+  <text x="1512" y="600" text-anchor="middle" class="demo">services</text>
+
+  <!-- Single right connector -->
+  <line x1="1070" y1="444" x2="1160" y2="444" class="line"/>
+
+  <!-- Caption -->
+  <rect x="270" y="835" width="1260" height="78" rx="16" ry="16" fill="#eef5f9" class="outline" stroke-width="3"/>
+  <text x="900" y="882" text-anchor="middle" class="caption">Cross-RI integration enables climate-risk services beyond single-infrastructure capacity</text>
+</svg>

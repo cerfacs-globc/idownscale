@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700" role="img" aria-labelledby="title desc">
+  <title id="title">Climate data in demonstrators diagram</title>
+  <desc id="desc">Simple diagram showing future climate data feeding two example demonstrators: urban heat and health, and drought risk.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fbfd; }
+      .title { font: 700 42px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .label { font: 700 28px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .small { font: 400 20px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .outline { stroke: #35556f; stroke-width: 4; }
+      .line { stroke: #6d879b; stroke-width: 5; fill: none; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="700"/>
+
+  <text x="800" y="65" text-anchor="middle" class="title">Future Climate Data in Demonstrators</text>
+
+  <rect x="130" y="220" width="330" height="150" rx="24" ry="24" fill="#d8eef6" class="outline"/>
+  <text x="295" y="280" text-anchor="middle" class="label">Future climate data</text>
+  <text x="295" y="320" text-anchor="middle" class="small">temperature, precipitation,</text>
+  <text x="295" y="348" text-anchor="middle" class="small">humidity, wind, radiation</text>
+
+  <rect x="640" y="135" width="360" height="150" rx="24" ry="24" fill="#dff3df" class="outline"/>
+  <text x="820" y="195" text-anchor="middle" class="label">Demo 1</text>
+  <text x="820" y="230" text-anchor="middle" class="small">Urban heat and health</text>
+  <text x="820" y="258" text-anchor="middle" class="small">tasmax, tasmin, heat exposure</text>
+
+  <rect x="640" y="415" width="360" height="150" rx="24" ry="24" fill="#fbe8cf" class="outline"/>
+  <text x="820" y="475" text-anchor="middle" class="label">Demo 3</text>
+  <text x="820" y="510" text-anchor="middle" class="small">Drought risk</text>
+  <text x="820" y="538" text-anchor="middle" class="small">hydrology and ecosystems</text>
+
+  <rect x="1160" y="220" width="300" height="150" rx="24" ry="24" fill="#eadff5" class="outline"/>
+  <text x="1310" y="280" text-anchor="middle" class="label">Service outputs</text>
+  <text x="1310" y="320" text-anchor="middle" class="small">risk indicators, maps,</text>
+  <text x="1310" y="348" text-anchor="middle" class="small">time series, uncertainty</text>
+
+  <line x1="460" y1="295" x2="640" y2="210" class="line"/>
+  <polygon points="640,210 623,209 631,224" fill="#6d879b"/>
+  <line x1="460" y1="295" x2="640" y2="490" class="line"/>
+  <polygon points="640,490 626,480 622,497" fill="#6d879b"/>
+
+  <line x1="1000" y1="210" x2="1160" y2="295" class="line"/>
+  <polygon points="1160,295 1143,296 1151,281" fill="#6d879b"/>
+  <line x1="1000" y1="490" x2="1160" y2="295" class="line"/>
+  <polygon points="1160,295 1156,312 1142,301" fill="#6d879b"/>
+
+  <rect x="310" y="615" width="980" height="48" rx="14" ry="14" fill="#eef5f9" class="outline" stroke-width="3"/>
+  <text x="800" y="646" text-anchor="middle" class="small">Future climate data become useful through integration with demonstrator-specific observations and models.</text>
+</svg>

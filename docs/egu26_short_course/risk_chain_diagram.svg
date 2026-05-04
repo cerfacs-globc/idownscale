@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="420" viewBox="0 0 1400 420" role="img" aria-labelledby="title desc">
+  <title id="title">Risk chain diagram</title>
+  <desc id="desc">Hazard plus Exposure plus Vulnerability leads to Risk and Impacts.</desc>
+  <defs>
+    <style>
+      .title { font: 700 34px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .label { font: 700 30px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .small { font: 400 19px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .plus { font: 700 44px Arial, Helvetica, sans-serif; fill: #56748c; }
+      .boxStroke { stroke: #35556f; stroke-width: 3; }
+      .arrow { stroke: #35556f; stroke-width: 6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="420" fill="#f8fbfd"/>
+
+  <text x="700" y="56" text-anchor="middle" class="title">Climate-Risk Chain</text>
+
+  <rect x="70" y="120" rx="22" ry="22" width="250" height="150" fill="#d8eef6" class="boxStroke"/>
+  <text x="195" y="176" text-anchor="middle" class="label">Hazard</text>
+  <text x="195" y="214" text-anchor="middle" class="small">Climate signal</text>
+  <text x="195" y="240" text-anchor="middle" class="small">extremes, trends, forcing</text>
+
+  <text x="360" y="212" text-anchor="middle" class="plus">+</text>
+
+  <rect x="400" y="120" rx="22" ry="22" width="250" height="150" fill="#dff3df" class="boxStroke"/>
+  <text x="525" y="176" text-anchor="middle" class="label">Exposure</text>
+  <text x="525" y="214" text-anchor="middle" class="small">People, assets,</text>
+  <text x="525" y="240" text-anchor="middle" class="small">ecosystems, activities</text>
+
+  <text x="690" y="212" text-anchor="middle" class="plus">+</text>
+
+  <rect x="730" y="120" rx="22" ry="22" width="250" height="150" fill="#fbe8cf" class="boxStroke"/>
+  <text x="855" y="176" text-anchor="middle" class="label">Vulnerability</text>
+  <text x="855" y="214" text-anchor="middle" class="small">Sensitivity, capacity,</text>
+  <text x="855" y="240" text-anchor="middle" class="small">susceptibility</text>
+
+  <line x1="1010" y1="195" x2="1132" y2="195" class="arrow"/>
+  <polygon points="1132,187 1148,195 1132,203" fill="#35556f"/>
+
+  <rect x="1150" y="98" rx="24" ry="24" width="210" height="190" fill="#eadff5" class="boxStroke"/>
+  <text x="1255" y="164" text-anchor="middle" class="label">Risk</text>
+  <text x="1255" y="204" text-anchor="middle" class="small">Potential for adverse</text>
+  <text x="1255" y="230" text-anchor="middle" class="small">consequences</text>
+  <text x="1255" y="262" text-anchor="middle" class="label">Impacts</text>
+
+  <text x="700" y="355" text-anchor="middle" class="small">IRISCC services help connect these components across research infrastructures.</text>
+</svg>

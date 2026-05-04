@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+  <title id="title">User access pathway diagram</title>
+  <desc id="desc">Simple user access pathway from user needs through IRISCC to research infrastructure resources and climate-risk services.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fbfd; }
+      .title { font: 700 40px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .label { font: 700 28px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .small { font: 400 20px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .outline { stroke: #35556f; stroke-width: 4; }
+      .line { stroke: #6d879b; stroke-width: 5; fill: none; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="520"/>
+  <text x="800" y="60" text-anchor="middle" class="title">User Access Pathway</text>
+
+  <rect x="90" y="170" width="260" height="120" rx="24" ry="24" fill="#d8eef6" class="outline"/>
+  <text x="220" y="220" text-anchor="middle" class="label">User needs</text>
+  <text x="220" y="255" text-anchor="middle" class="small">research, policy,</text>
+  <text x="220" y="282" text-anchor="middle" class="small">risk assessment</text>
+
+  <rect x="450" y="170" width="260" height="120" rx="24" ry="24" fill="#dcecf8" class="outline"/>
+  <text x="580" y="220" text-anchor="middle" class="label">IRISCC</text>
+  <text x="580" y="255" text-anchor="middle" class="small">community and</text>
+  <text x="580" y="282" text-anchor="middle" class="small">access framework</text>
+
+  <rect x="810" y="170" width="300" height="120" rx="24" ry="24" fill="#dff3df" class="outline"/>
+  <text x="960" y="220" text-anchor="middle" class="label">RI resources</text>
+  <text x="960" y="255" text-anchor="middle" class="small">data, expertise,</text>
+  <text x="960" y="282" text-anchor="middle" class="small">tools, facilities</text>
+
+  <rect x="1210" y="170" width="300" height="120" rx="24" ry="24" fill="#fbe8cf" class="outline"/>
+  <text x="1360" y="220" text-anchor="middle" class="label">Climate-risk services</text>
+  <text x="1360" y="255" text-anchor="middle" class="small">demonstrators,</text>
+  <text x="1360" y="282" text-anchor="middle" class="small">integrated outputs</text>
+
+  <line x1="350" y1="230" x2="450" y2="230" class="line"/>
+  <polygon points="450,230 433,221 433,239" fill="#6d879b"/>
+  <line x1="710" y1="230" x2="810" y2="230" class="line"/>
+  <polygon points="810,230 793,221 793,239" fill="#6d879b"/>
+  <line x1="1110" y1="230" x2="1210" y2="230" class="line"/>
+  <polygon points="1210,230 1193,221 1193,239" fill="#6d879b"/>
+
+  <rect x="500" y="380" width="600" height="56" rx="14" ry="14" fill="#eef5f9" class="outline" stroke-width="3"/>
+  <text x="800" y="415" text-anchor="middle" class="small">Transnational Access and Virtual Access connect users with cross-RI climate-risk services.</text>
+</svg>

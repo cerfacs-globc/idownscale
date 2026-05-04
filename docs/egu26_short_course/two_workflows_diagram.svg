@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700" role="img" aria-labelledby="title desc">
+  <title id="title">Two demonstrator workflows</title>
+  <desc id="desc">Two compact workflows: future climate data to Demo 1 service, and future climate data to Demo 3 service.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fbfd; }
+      .title { font: 700 42px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .label { font: 700 28px Arial, Helvetica, sans-serif; fill: #18324a; }
+      .small { font: 400 20px Arial, Helvetica, sans-serif; fill: #35556f; }
+      .outline { stroke: #35556f; stroke-width: 4; }
+      .line { stroke: #6d879b; stroke-width: 5; fill: none; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="700"/>
+  <text x="800" y="60" text-anchor="middle" class="title">Two Demonstrator Workflows</text>
+
+  <!-- Top workflow -->
+  <rect x="120" y="155" width="280" height="110" rx="22" ry="22" fill="#d8eef6" class="outline"/>
+  <text x="260" y="210" text-anchor="middle" class="label">Future climate data</text>
+  <text x="260" y="242" text-anchor="middle" class="small">tasmax, tasmin</text>
+
+  <rect x="650" y="155" width="280" height="110" rx="22" ry="22" fill="#dff3df" class="outline"/>
+  <text x="790" y="210" text-anchor="middle" class="label">Demo 1 service</text>
+  <text x="790" y="242" text-anchor="middle" class="small">Urban heat and health</text>
+
+  <rect x="1180" y="155" width="280" height="110" rx="22" ry="22" fill="#eef5f9" class="outline"/>
+  <text x="1320" y="210" text-anchor="middle" class="label">Outputs</text>
+  <text x="1320" y="242" text-anchor="middle" class="small">heat indicators, maps</text>
+
+  <line x1="400" y1="210" x2="650" y2="210" class="line"/>
+  <polygon points="650,210 633,201 633,219" fill="#6d879b"/>
+  <line x1="930" y1="210" x2="1180" y2="210" class="line"/>
+  <polygon points="1180,210 1163,201 1163,219" fill="#6d879b"/>
+
+  <!-- Bottom workflow -->
+  <rect x="120" y="420" width="280" height="110" rx="22" ry="22" fill="#d8eef6" class="outline"/>
+  <text x="260" y="475" text-anchor="middle" class="label">Future climate data</text>
+  <text x="260" y="507" text-anchor="middle" class="small">P, T, RH, wind, radiation</text>
+
+  <rect x="650" y="420" width="280" height="110" rx="22" ry="22" fill="#fbe8cf" class="outline"/>
+  <text x="790" y="475" text-anchor="middle" class="label">Demo 3 service</text>
+  <text x="790" y="507" text-anchor="middle" class="small">Drought risk</text>
+
+  <rect x="1180" y="420" width="280" height="110" rx="22" ry="22" fill="#eef5f9" class="outline"/>
+  <text x="1320" y="475" text-anchor="middle" class="label">Outputs</text>
+  <text x="1320" y="507" text-anchor="middle" class="small">risk maps, time series</text>
+
+  <line x1="400" y1="475" x2="650" y2="475" class="line"/>
+  <polygon points="650,475 633,466 633,484" fill="#6d879b"/>
+  <line x1="930" y1="475" x2="1180" y2="475" class="line"/>
+  <polygon points="1180,475 1163,466 1163,484" fill="#6d879b"/>
+
+  <rect x="310" y="620" width="980" height="48" rx="14" ry="14" fill="#eef5f9" class="outline" stroke-width="3"/>
+  <text x="800" y="651" text-anchor="middle" class="small">Two complementary examples: local urban heat-health services and pan-European drought-risk services.</text>
+</svg>
