@@ -67,5 +67,6 @@ By the end of the session, students should be able to:
 
 ## Follow-up contact
 
-For follow-up questions after the short course, students can look for
-`Christian Page Cerfacs` on LinkedIn.
+For follow-up questions after the short course:
+
+- LinkedIn: `https://fr.linkedin.com/in/pagechristian`
