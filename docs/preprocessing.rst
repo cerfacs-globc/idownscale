@@ -17,6 +17,28 @@ The primary script is ``bin/preprocessing/build_dataset.py``. It performs:
 * Archival predictor reconstruction for exp5 via ``ERA5 -> GCM -> E-OBS``.
 * Packaging into ``.npz`` daily snapshot volumes.
 
+France Target Preparation
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For ``exp5``-style temperature workflows that start from Europe-scale E-OBS inputs,
+the repository now also provides a small optional preparation helper:
+
+* ``bin/preprocessing/prepare_exp5_france_targets.py``
+
+This script prepares the France-focused target files used by ``exp5`` from the
+Europe-scale E-OBS products:
+
+* France temperature target file
+* France elevation file
+* optionally a France-focused mask subset
+
+In the workflow runner this appears as the optional step:
+
+* ``prep_phase1``
+
+This step is useful when starting from raw upstream data, but it is not required if
+the France-specific target files already exist locally.
+
 Certification & Auditing
 ^^^^^^^^^^^^^^^^^^^^^^^^
 

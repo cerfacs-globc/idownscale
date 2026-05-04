@@ -1,61 +1,83 @@
 # Local Workflow Runbook For The EGU26 Short Course
 
-This note assumes the required data are already available locally in the
-standard `idownscale` repo layout.
+This note assumes the required data are already available locally in the standard
+`idownscale` repo layout.
 
-Read this after:
+It is meant to help finish the short-course notebook and to provide a clean reference
+for the phase-by-phase workflow even before the final data-sharing arrangement is
+settled.
 
-- [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md)
-- [DATA_SETUP_QUICKSTART.md](./DATA_SETUP_QUICKSTART.md)
+Before using this runbook, it is strongly recommended to go through:
+
+- [Environment setup](./ENVIRONMENT_SETUP.md)
+- [Data setup quickstart](./DATA_SETUP_QUICKSTART.md)
 
 ## 1. Assumptions
 
 This runbook assumes:
 
-- you work from the repository root
-- the Python environment is already set up
-- the main runtime paths are writable
+- the user is working from the repository root
+- the Python environment has already been created
+- the main runtime paths have already been set
 - the `exp5` case study is used
-- upstream ERA5, CMIP6, and E-OBS files are already present locally
+- the France domain is unchanged
+- upstream ERA5 / CMIP6 / E-OBS files are already present locally
+- long-running phases remain long-running
 
-## 2. Teaching rhythm
+The short course should not hide the computational reality of the climate workflow.
 
-Each phase should be shown with:
+## 2. Philosophy
+
+The workflow should be shown as a sequence of explicit phases, each with:
 
 1. one command
-2. one or more expected outputs
+2. one or more expected output files
 3. one quick validation check
 4. one short interpretation
 
-## 3. Optional France target preparation
+That structure is much easier to teach and to revisit offline than a single large
+all-in-one command.
 
-If the France-cropped E-OBS targets are not already present, crop them first
-with [bin/preprocessing/crop_domain.py](/Users/page/src/idownscale/bin/preprocessing/crop_domain.py).
+## 3. Optional pre-Phase-1 target preparation
 
-Temperature:
-
-```bash
-python bin/preprocessing/crop_domain.py \
-  --input rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc \
-  --output rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc \
-  --exp exp5 \
-  --standardize
-```
-
-Elevation:
+Command:
 
 ```bash
-python bin/preprocessing/crop_domain.py \
-  --input rawdata/eobs/elevation_ens_025deg_reg_v29_0e.nc \
-  --output rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc \
+python bin/production/run_exp5_workflow.py \
   --exp exp5 \
-  --standardize
+  --steps prep_phase1
 ```
+
+Expected outputs:
+
+- `rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc`
+- `rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc`
+
+Optional output if requested directly through the helper:
+
+- `rawdata/eobs/eobs_landseamask_france.nc`
 
 Quick checks:
 
-- confirm the files exist under `rawdata/eobs/`
-- confirm the target grid matches the France `exp5` setup
+- confirm target grid is `64x64`
+- confirm the France target coordinates match the `exp5` setup
+
+This step is only needed when starting from Europe-scale E-OBS inputs. If the France
+target files are already present locally, you can skip it. The France mask is only a
+convenience derivative and is not required by the main workflow.
+
+Equivalent direct helper command:
+
+```bash
+python bin/preprocessing/prepare_exp5_france_targets.py
+```
+
+Optional variants:
+
+```bash
+python bin/preprocessing/prepare_exp5_france_targets.py --force
+python bin/preprocessing/prepare_exp5_france_targets.py --include-mask
+```
 
 ## 4. Phase 1: build training samples
 
@@ -70,13 +92,13 @@ python bin/production/run_exp5_workflow.py \
 
 Expected outputs:
 
-- `idownscale_output/datasets/dataset_exp5_30y/sample_YYYYMMDD.npz`
+- `datasets/dataset_exp5_30y/sample_YYYYMMDD.npz`
 
 Quick checks:
 
 - open one or two sample files
 - verify `x` and `y` shapes
-- verify NaN and mask behavior
+- verify NaN / mask consistency
 
 ## 5. Statistics phase
 
@@ -91,39 +113,14 @@ python bin/production/run_exp5_workflow.py \
 
 Expected outputs:
 
-- `idownscale_output/datasets/dataset_exp5_30y/statistics.json`
-- `idownscale_output/datasets/dataset_exp5_30y/hist_y_train.png`
-- `idownscale_output/datasets/dataset_exp5_30y/hist_y_val.png`
-- `idownscale_output/datasets/dataset_exp5_30y/hist_y_test.png`
+- `datasets/dataset_exp5_30y/statistics.json`
 
 Quick checks:
 
 - inspect the JSON keys
-- verify the channels match the intended setup
-- show the histogram figures
+- verify the channels match the intended predictor/target setup
 
-## 6. Bias-correction phases
-
-Command:
-
-```bash
-python bin/production/run_exp5_workflow.py \
-  --exp exp5 \
-  --steps bc_dataset,bc_apply
-```
-
-Expected outputs:
-
-- bias-correction `.npz` files under the bias-correction dataset directory
-- corrected GCM NetCDF files
-
-Quick checks:
-
-- verify the corrected files exist
-- inspect one historical and one future file
-- compare raw and corrected coarse inputs
-
-## 7. Optional training phase
+## 6. Optional training phase
 
 Command:
 
@@ -136,8 +133,8 @@ python bin/production/run_exp5_workflow.py \
 
 Expected outputs:
 
-- `idownscale_output/runs/exp5/unet_course_demo/lightning_logs/version_best/metrics.csv`
-- `idownscale_output/runs/exp5/unet_course_demo/lightning_logs/version_best/metrics_test_set.csv`
+- `runs/exp5/unet_course_demo/lightning_logs/version_best/metrics.csv`
+- `runs/exp5/unet_course_demo/lightning_logs/version_best/metrics_test_set.csv`
 - checkpoint files under `checkpoints/`
 
 Quick checks:
@@ -146,7 +143,7 @@ Quick checks:
 - verify a best checkpoint exists
 - inspect test-set metrics
 
-## 8. Prediction phase
+## 7. Prediction phase
 
 Command:
 
@@ -160,7 +157,11 @@ python bin/production/run_exp5_workflow.py \
 
 Expected outputs:
 
-- prediction NetCDF under `idownscale_output/prediction/`
+- prediction NetCDF under `prediction/`
+
+Example validated output name:
+
+- `prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_all_gcm_bc.nc`
 
 Quick checks:
 
@@ -168,7 +169,7 @@ Quick checks:
 - confirm target grid shape
 - inspect one time slice
 
-## 9. Metrics phases
+## 8. Metrics phases
 
 Command:
 
@@ -182,17 +183,17 @@ python bin/production/run_exp5_workflow.py \
 
 Expected outputs:
 
-- daily CSV and NPZ
-- monthly CSV and NPZ
+- daily CSV + NPZ
+- monthly CSV + NPZ
 - VALUE CSV
 
 Quick checks:
 
-- inspect the daily summary CSV
-- inspect the monthly summary CSV
+- inspect the daily mean CSV
+- inspect the monthly mean CSV
 - inspect the VALUE summary table
 
-## 10. Plotting phases
+## 9. Plotting phases
 
 Command:
 
@@ -215,7 +216,7 @@ Quick checks:
 - spatial bias distribution
 - spatial RMSE distribution
 
-## 11. Notebook use
+## 10. Suggested notebook structure
 
 The notebook should alternate:
 
@@ -225,4 +226,18 @@ The notebook should alternate:
 4. embed a figure or table snippet
 5. explain how to read the result
 
-This makes the notebook useful both for reading and for staged reruns.
+This allows the notebook to be useful even before users rerun the full workflow.
+
+## 11. Best use of existing validated outputs
+
+While the final executable notebook is still being refined, we can already build a
+strong teaching notebook from:
+
+- validated metrics CSVs
+- validated plots
+- known output filenames
+- checkpoint bundle metadata
+- training history files
+
+This lets us publish a notebook with meaningful embedded outputs, while real reruns can
+continue in parallel later.

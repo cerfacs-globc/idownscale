@@ -27,6 +27,7 @@ from iriscc.settings import CONFIG, DATASET_BC_DIR, GCM_BC_DIR, GRAPHS_DIR, METR
 
 DEFAULT_STEPS = ["phase1", "stats", "bc_dataset", "bc_apply"]
 OPTIONAL_STEPS = [
+    "prep_phase1",
     "train",
     "raw_dataset",
     "pp_dataset",
@@ -150,6 +151,10 @@ def main() -> int:
         dataset_dir / "hist_y_val.png",
         dataset_dir / "hist_y_test.png",
     ]
+    prep_phase1_outputs = [
+        Path(exp_cfg["target_file"]),
+        Path(exp_cfg["orog_file"]),
+    ]
     bc_outputs = [
         DATASET_BC_DIR / f"bc_train_hist_{args.simu}.npz",
         DATASET_BC_DIR / f"bc_test_hist_{args.simu}.npz",
@@ -211,6 +216,16 @@ def main() -> int:
         ]
 
     step_table = {
+        "prep_phase1": {
+            "command": [
+                args.python_bin,
+                "bin/preprocessing/prepare_exp5_france_targets.py",
+                "--exp",
+                exp,
+            ],
+            "expected": prep_phase1_outputs,
+            "cleanup": prep_phase1_outputs,
+        },
         "phase1": {
             "command": [
                 args.python_bin,

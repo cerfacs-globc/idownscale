@@ -25,9 +25,9 @@ Inference and Evaluation
 
 Checkpoint Reuse and Portability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* **Checkpoint bundle support**: portable checkpoint bundles can now carry a checkpoint together with manifest and contract metadata.
-* **Bundle-aware loading**: inference and evaluation can resolve contract files from a bundle instead of trusting stale historical paths alone.
-* **Manifest-first reuse**: checkpoint reuse is now documented as depending on both model weights and a compatible data/preprocessing contract.
+* **Checkpoint bundle support**: portable checkpoint bundles can now carry a checkpoint together with manifest and setup metadata.
+* **Bundle-aware loading**: inference and evaluation can resolve required setup files from a bundle instead of trusting stale historical paths alone.
+* **Manifest-first reuse**: checkpoint reuse is now documented as depending on both model weights and a compatible data/preprocessing setup.
 
 Short Course Material
 ~~~~~~~~~~~~~~~~~~~~~

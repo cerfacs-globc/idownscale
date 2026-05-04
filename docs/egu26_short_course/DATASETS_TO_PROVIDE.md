@@ -1,177 +1,345 @@
 # Dataset Files To Provide For The EGU26 Short Course
 
-This page lists the files published for the EGU26 short course and maps them to the current Mercure release layout.
+This page describes what should be published with the EGU26 short-course material.
 
-The Mercure root is:
+The key practical decision is:
 
-- `https://mercure.cerfacs.fr/egu26scml/`
+1. publish small project-specific artifacts directly from this repository
+2. fetch large upstream climate datasets from their official repositories
+3. generate local derived files such as cropped or reformatted products with repo tooling
 
-The release is split into:
+This keeps the public package lighter and more durable while still supporting both
+notebook-style demonstrations and training-oriented follow-up work.
 
-1. `required/` for the core attendee package
-2. `nice_to_have/` for supplementary derived products
-3. `raw_data/` for climate input files
-4. `phase_outputs/` for workflow-generated Phase 1 products
+For consistency with the validated workflow, the default scientific frame for the
+course should remain aligned with `exp5`:
 
-## 1. Required attendee package
+- same France domain
+- same long historical and future climate windows
+- same temperature case-study logic
 
-This is the recommended entrypoint for attendees.
-
-The notebook is expected to support the full workflow:
-
-1. pre-Phase-1 France target preparation and cropping
-2. Phase 1 sample generation
-3. statistics
-4. bias correction
-5. training or pretrained checkpoint reuse
-6. prediction and evaluation
-
-Attendees should be able to run the same logical steps on a laptop, workstation, or supercomputer. What changes by environment is mainly the amount of data, the selected date window, and the runtime cost of the heavier phases.
-
-The notebook is not only a static course document. It should also give users an
-easy executable entrypoint for the whole sequence:
-
-1. prepare directories for raw inputs and generated outputs
-2. run the France cropping and preparation step
-3. run each later phase independently
-4. inspect outputs, statistics, and plots after each phase
-
-Some phases can take 5 to 6 hours in fuller runs, so the notebook should be
-organized to remain useful both for reading and for staged re-execution.
-
-Checkpoint reuse is optional. If attendees keep the same workflow setup, they can use the published checkpoint bundle. If they change the domain, configuration, variables, preprocessing, normalization, or related assumptions, they should plan to retrain.
-
-Users also need:
-
-- environment-setup guidance for Conda, `xesmf`, `ESMF`, `ESMFMKFILE`, `ibicus`, and `SBCK`
-- helper scripts to prepare directory paths and runtime locations
-- a reusable cropping command for the France preparation step
-- phase-by-phase instructions showing which command to run and what to inspect
-- phase-validation notes describing which tables, statistics, and diagnostic plots to check after each phase
+This means some phases are inherently long-running. That should be explained openly in
+the notebook rather than hidden behind unrealistic toy expectations.
 
 See also:
 
-- [Data setup quickstart](./DATA_SETUP_QUICKSTART.md)
-- [Environment setup](./ENVIRONMENT_SETUP.md)
-- [Helper scripts](./HELPER_SCRIPTS.md)
-- [Workflow phases](./WORKFLOW_PHASES.md)
-- [Phase validation](./PHASE_VALIDATION.md)
-- [Local workflow runbook](./LOCAL_WORKFLOW_RUNBOOK.md)
-- [Expected phase outputs](./EXPECTED_PHASE_OUTPUTS.md)
+- [Session materials](./SESSION_MATERIALS.md)
+- [How to fetch upstream data](./HOW_TO_FETCH_UPSTREAM_DATA.md)
 
-### Core notebook and inference artifacts
+## 1. Recommended publication strategy
 
-- `required/notebook/egu26_short_course_notebook.ipynb`
-- `required/checkpoint_bundles/exp5_unet_all_bundle/`
-- `required/predictions/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_all_gcm_bc.nc`
-- `required/metrics/metrics_test_mean_daily_exp5_unet_all_gcm_bc.csv`
-- `required/metrics/metrics_test_mean_monthly_exp5_unet_all_gcm_bc.csv`
-- `required/metrics/value_metrics_exp5_unet_all.csv`
-- `required/metrics/statistics.json`
+### Publish directly
 
-These already-published statistics and metrics can be loaded directly in the
-notebook for discussion, tables, and validation checks.
+These files are repo- or workflow-specific and are worth publishing with the short-course package:
 
-### Required plots
+- presentation PDF
+- sample Jupyter notebook
+- one checkpoint bundle:
+  - `scratch/checkpoint_bundles/exp5_unet_all_bundle/`
+  - optionally `scratch/checkpoint_bundles/exp5_swinunet_all_bundle/`
+- selected metrics and plots for validation examples
+- possibly a reduced training sample subset plus `statistics.json`
 
-- `required/plots/daily_rmse_seasonal_unet_all_gcm_bc.png`
-- `required/plots/monthly_rmse_seasonal_unet_all_gcm_bc.png`
-- `required/plots/monthly_spatial_bias_distribution_unet_all_gcm_bc.png`
-- `required/plots/monthly_spatial_rmse_distribution_unet_all_gcm_bc.png`
-- `required/plots/exp5_pairwise_distribution_quantiles.png`
-- `required/plots/exp5_historical_5curve_pdf.png`
+### Upstream raw archive: preferred source and optional mirror
 
-These already-published figures can also be shown directly in the notebook when
-the session uses precomputed outputs instead of regenerating every plot live.
+These large files already live in public climate-data infrastructures and are better fetched from their official repositories:
 
-### Required documentation mirror
+- ERA5 reanalysis inputs
+- CMIP6 raw GCM files
+- E-OBS observational target data
 
-- `required/docs/SESSION_SUMMARY.md`
-- `required/docs/SESSION_MATERIALS.md`
-- `required/docs/DATASETS_TO_PROVIDE.md`
-- `required/docs/HOW_TO_FETCH_UPSTREAM_DATA.md`
-- `required/docs/EXPECTED_PHASE_OUTPUTS.md`
-- `required/docs/LOCAL_WORKFLOW_RUNBOOK.md`
+The course material should explain how to retrieve them and how to turn them into the
+local files expected by the repo.
 
-## 2. Raw climate inputs
+For convenience, a Mercure mirror may also provide these raw files directly when we
+want to simplify offline follow-up work.
 
-These files are published under `raw_data/`.
+### Generate locally
 
-They are the starting point for attendees who want to execute the workflow themselves rather than only inspect precomputed outputs.
+Some files used by this repo are not raw upstream products; they are project-side derivatives. Those should be generated locally from the fetched upstream data:
+
+- France-cropped or standardized ERA5 working files
+- France-cropped or otherwise prepared E-OBS target files
+- bias-corrected GCM inputs
+- Phase 1 training samples:
+  - `sample_YYYYMMDD.npz`
+
+## 2. Important distinction: upstream files vs local working files
 
 ### ERA5
 
-- `raw_data/era5/orography_ERA5.nc`
-- `raw_data/era5/tas_1d/`
+The files:
+
+- `rawdata/era5/tas_1d/tas_1d_<YEAR>_ERA5.nc`
+- `rawdata/era5/orography_ERA5.nc`
+
+can be treated as native ERA5-side inputs fetched from the official C3S/CDS distribution and placed into the repo layout.
+
+Important note:
+
+- `tas_1d_<YEAR>_ERA5.nc` is not the final France-cropped training-ready predictor by itself
+- in the current workflow, ERA5 goes through standardization and spatial selection before entering the full reconstruction chain
+- Phase 1 also uses a small bridge margin around the France domain before the conservative remapping chain
+
+So for the course, we should document:
+
+1. how to fetch the upstream ERA5 data from C3S/CDS
+2. how to place those native files into the repo layout
+3. how those files are then cropped/remapped for the demonstration or training workflow
 
 ### E-OBS
 
-- `raw_data/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc`
-- `raw_data/eobs/elevation_ens_025deg_reg_v29_0e.nc`
+The target files:
 
-These upstream E-OBS files are the basis for the pre-Phase-1 France cropping step that prepares the `exp5` target-side files.
+- `rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc`
+- `rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc`
 
-### GCM
+represent the France-focused target side expected by `exp5`.
 
-- `raw_data/gcm/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc`
-- `raw_data/gcm/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231.nc`
-- `raw_data/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc`
-- `raw_data/gcm/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc`
+Important nuance:
 
-## 3. Supplementary derived products
+- `rawdata/eobs/eobs_landseamask.nc` is not a France-focused file
+- it is the Europe-scale E-OBS mask used by the workflow before cropping
 
-These files are published under `nice_to_have/`.
+For publication, we can either:
 
-### Optional checkpoint bundle
+- provide these prepared France files directly, or
+- document how to derive them from the upstream E-OBS distribution
 
-- `nice_to_have/checkpoint_bundles/exp5_swinunet_all_bundle/`
+### CMIP6
 
-### France-cropped target files
+The raw GCM files:
 
-- `nice_to_have/eobs_france/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc`
-- `nice_to_have/eobs_france/elevation_ens_025deg_reg_v29_0e_france.nc`
-- `nice_to_have/eobs_france/eobs_landseamask.nc`
+- `rawdata/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc`
+- `rawdata/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231.nc`
+- `rawdata/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc`
+- `rawdata/gcm/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc`
 
-These files are useful as reference outputs for the pre-Phase-1 France preparation step and as shortcuts for attendees who want to compare their locally generated files against the published versions.
+should ideally be fetched from official repositories when possible. A mirrored local
+copy can still be made available through Mercure for convenience.
 
-### Bias-corrected GCM files
+## 3. Minimal attendee package
 
-- `nice_to_have/gcm_bc/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc`
-- `nice_to_have/gcm_bc/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc`
-- `nice_to_have/gcm_bc/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231_bc.nc`
+This is the recommended public package for the short course.
 
-### Additional diagnostics
+### Files we should publish ourselves
 
-- `nice_to_have/predictions/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_grace30_gcm_bc.nc`
-- `nice_to_have/metrics/metrics_test_mean_daily_exp5_unet_grace30_gcm_bc.csv`
-- `nice_to_have/metrics/metrics_test_mean_monthly_exp5_unet_grace30_gcm_bc.csv`
-- `nice_to_have/metrics/value_metrics_exp5_unet_grace30.csv`
-- selected files from `nice_to_have/plots/`
+- presentation PDF
+- sample notebook
+- one checkpoint bundle:
+  - `scratch/checkpoint_bundles/exp5_unet_all_bundle/`
+- selected validation outputs, for example:
+  - pairwise distribution figure
+  - monthly spatial bias figure
+  - monthly spatial RMSE figure
+  - VALUE-style summary
 
-## 4. Phase outputs
+### Data we should explain how to fetch
 
-The published Phase 1 workflow outputs are under:
+- ERA5 temperature and orography from the official upstream services
+- upstream E-OBS temperature, elevation, and mask
+- upstream CMIP6 temperature, orography, and land fraction
 
-- `phase_outputs/dataset_exp5_30y/`
+### Local derivation step to explain
 
-This directory includes:
+- how to create the repo-side France-focused files used by the notebook
+- how to standardize longitudes and dimensions when needed
+- how to crop or reformat the coarse ERA5 side before model use
+- how to run the master workflow phase by phase rather than as one opaque block
+- which diagnostic plots or summary tables should be checked after each phase
 
-- `sample_YYYYMMDD.npz` daily Phase 1 training samples
-- `hist_y_train.png`
-- `hist_y_val.png`
-- `hist_y_test.png`
+## 4. Training-capable package
 
-These files are not only demonstration artifacts. They are also reference products for attendees who want to verify that their own Phase 1 workflow, after France cropping and preprocessing, is producing the expected outputs.
+If we want attendees or later users to be able to move beyond pretrained inference and toward retraining, then the material should also support the full Phase 1 data-preparation setup.
 
-## 5. Release archives
+Training should be presented honestly:
 
-Mercure also provides two packaged downloads:
+- it needs substantial data
+- it takes time
+- it is not optional if the training world changes
 
-- `egu26_sc_required.tar.gz`
-- `egu26_sc_nice_to_have.tar.gz`
+### Recommended to publish
 
-These tarballs mirror the `required/` and `nice_to_have/` trees for simpler bulk download.
+- `datasets/dataset_exp5_30y/statistics.json`
+- optionally a reduced subset of:
+  - `datasets/dataset_exp5_30y/sample_YYYYMMDD.npz`
 
-They should be mentioned prominently in the notebook and setup notes because
-they are the easiest way for users to retrieve the published course data before
-starting the workflow.
+### Reasonable alternatives
+
+If distributing the full training-sample archive is too heavy, publish:
+
+- `statistics.json`
+- one checkpoint bundle
+- one small sample subset for demonstration
+- clear instructions showing how to rebuild the full sample archive from upstream data
+
+That is enough for the short course while still making the retraining path understandable.
+
+## 5. Optional derived products
+
+These are useful but not mandatory for the public short-course bundle:
+
+- corrected GCM files:
+  - `rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc`
+  - `rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc`
+  - `rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231_bc.nc`
+- prediction NetCDF examples
+- selected files from `metrics/exp5/`
+- selected files from `graph/metrics/exp5/`
+
+These are most useful when we want attendees to inspect results without rerunning the full production chain.
+
+## 6. France cropping and spatial preparation
+
+The repo already contains reusable domain logic:
+
+- `CONFIG['exp5']['domain'] = [-6.0, 10.0, 38.0, 54.0]`
+- France grid registry in `data/spatial_registry.json`
+- generic crop script:
+  - `bin/preprocessing/crop_domain.py`
+
+Important nuance:
+
+- for the pedagogical notebook, a simple France crop may be enough
+- for the full training path, the exact archival Phase 1 reconstruction is more subtle than a naive crop, because ERA5 is first handled on a small bridge domain before conservative remapping
+
+So the course docs can already explain the general repo-side crop/reformat procedure,
+while the exact training-grade France preparation can be documented more explicitly if
+needed.
+
+## 7. Practical publication advice
+
+For the short course, the most realistic public release is:
+
+- presentation PDF
+- notebook
+- one checkpoint bundle
+- a few selected metrics/plots
+- a reduced or minimal project-side demo subset if needed
+- a clear data-acquisition guide pointing to official upstream sources
+
+Optionally, the Mercure space can also expose a ready-made mirror of the larger raw
+inputs for participants who prefer direct download over upstream retrieval.
+
+That gives attendees a useful package without requiring us to redistribute a large climate archive.
+
+## 8. Hosting split
+
+The most practical deployment split is:
+
+### GitHub repository
+
+Use the main repository for:
+
+- short-course documentation
+- notebook
+- presentation PDF
+- instructions for fetching upstream ERA5 / CMIP6 / E-OBS data
+
+### Shared file space for course artifacts
+
+Use a separate file-sharing space only for the project-specific companion artifacts that
+are useful to download directly:
+
+- checkpoint bundle(s)
+- possibly `statistics.json`
+- possibly one or two prediction examples
+- possibly selected diagnostic plots or metrics tables
+- small France-specific prepared files, if we choose to provide them directly
+- optionally, mirrored raw ERA5 / E-OBS / CMIP6 inputs for convenience
+
+### Upstream repositories
+
+The official upstream repositories remain the reference source for the large climate
+archives:
+
+- ERA5
+- CMIP6
+- E-OBS
+
+The notebook and docs should explain how to fetch them and how to prepare the repo-side
+working files, even if a Mercure mirror is also provided.
+
+## 9. Rough storage estimates
+
+The numbers below are approximate and are intended to help decide what should be placed
+in a shared file space.
+
+### A. If we include essentially everything local
+
+This means:
+
+- all raw ERA5 yearly files
+- raw CMIP6 files
+- prepared France E-OBS files
+- corrected GCM files
+- both checkpoint bundles
+- the full `dataset_exp5_30y` archive
+- metrics, plots, and example prediction NetCDFs
+
+Rough total:
+
+- about **42 GB**
+
+This is too heavy for a normal course package and would mostly duplicate upstream data.
+
+### B. Lean course package, without raw upstream ERA5 / CMIP6 / E-OBS
+
+This means:
+
+- notebook
+- presentation PDF
+- one checkpoint bundle
+- `statistics.json`
+- selected metrics / plots
+- optionally one example prediction NetCDF
+- optionally small France-specific prepared files
+
+Rough total:
+
+- about **0.2 to 0.5 GB**
+
+Typical contributors:
+
+- `exp5_unet_all_bundle`: about `90 MB`
+- one example prediction NetCDF: about `172 MB`
+- prepared France temperature target file: about `110 MB`
+- metrics + plots: only a few MB
+
+This is the best default package for a non-hands-on short course.
+
+### C. Rich course companion package, still without raw upstream data
+
+This means:
+
+- both checkpoint bundles
+- prepared France-specific small files
+- corrected GCM files if desired
+- example prediction NetCDFs
+- metrics and plots
+- optionally the full `dataset_exp5_30y` directory
+
+Rough total:
+
+- without the full `.npz` sample archive: about **0.6 to 0.8 GB**
+- with the full `dataset_exp5_30y` archive: about **1.4 to 1.6 GB**
+
+This is still manageable for a temporary shared space and gives people much more to
+inspect offline.
+
+## 10. Practical recommendation
+
+For the short course as currently designed:
+
+- **do not** ship raw ERA5 / CMIP6 / E-OBS
+- **do not** ship the full output archive by default
+- **do not** rely on the full `.npz` archive unless we later decide it is truly worth it
+
+Instead:
+
+- keep the notebook as the main reproducibility guide
+- embed or show representative figures and tables inside the notebook
+- provide a small set of project-specific artifacts separately
+- let attendees rerun the longer steps offline if they want the full workflow
+
+That is the most honest balance between scientific realism and practical distribution.
