@@ -16,6 +16,9 @@ and validation checks.
 > scheduled for 14-18 September 2026 in Chania, Greece. Official training
 > information is available on the IRISCC training page:
 > `https://www.iriscc.eu/training`
+>
+> Registration page:
+> `https://www.iriscc.eu/event/iriscc-onsite-autumn-school-climate-risks-data-analysis-methods/`
 
 ## Start here
 
