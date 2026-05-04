@@ -8,7 +8,8 @@ The course is designed for climate scientists, impact researchers, and technical
 
 The practical material is organized so that students can return to it after the
 session and recover the full workflow, data paths, and validation logic from the
-GitHub pages and notebook alone.
+GitHub pages and notebook alone. The notebook is the main hands-on experience,
+while the companion Markdown pages provide more detailed reference material.
 
 ## Start here
 
@@ -69,5 +70,4 @@ By the end of the session, students should be able to:
 
 For follow-up questions after the short course:
 
-- LinkedIn: `https://fr.linkedin.com/in/pagechristian`
- - LinkedIn: `https://www.linkedin.com/in/pagechristian`
+- LinkedIn: `https://www.linkedin.com/in/pagechristian`

@@ -157,7 +157,30 @@ python -c "import xesmf, ibicus, cartopy, torch; print(torch.__version__); print
 
 If this import check fails, the workflow should not be started yet.
 
-## 5. What the notebook should explain
+## 5. Minimal smoke tests
+
+After the import check, users should verify that the local CLI entrypoints work.
+
+No-data smoke tests:
+
+```bash
+bash bin/production/setup_egu26_short_course_tree.sh .
+python bin/preprocessing/crop_domain.py --help
+python bin/production/run_exp5_workflow.py --help
+```
+
+If local data are already in place, a stronger practical smoke test is a very
+short Phase 1 run such as:
+
+```bash
+python bin/production/run_exp5_workflow.py \
+  --exp exp5 \
+  --steps phase1 \
+  --phase1-start-date 19850101 \
+  --phase1-end-date 19850103
+```
+
+## 6. What the notebook should explain
 
 The notebook should include a short environment section near the beginning:
 

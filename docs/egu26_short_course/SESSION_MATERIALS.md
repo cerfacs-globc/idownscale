@@ -6,6 +6,10 @@ This is the main entrypoint for students after the session. It is intended to
 contain the practical path: setup, data access, notebook, workflow phases, and
 validation checks.
 
+The notebook is the main hands-on experience. The companion Markdown pages give
+more detail on installation, data retrieval, workflow phases, expected outputs,
+and validation checks.
+
 ## Start here
 
 This page is intended to be a GitHub landing page for students. The main reading order is:
@@ -99,5 +103,4 @@ The published package supports both a guided short-course session and later self
 
 For follow-up questions after the short course:
 
-- LinkedIn: `https://fr.linkedin.com/in/pagechristian`
- - LinkedIn: `https://www.linkedin.com/in/pagechristian`
+- LinkedIn: `https://www.linkedin.com/in/pagechristian`
