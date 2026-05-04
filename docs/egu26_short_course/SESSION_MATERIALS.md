@@ -100,3 +100,4 @@ The published package supports both a guided short-course session and later self
 For follow-up questions after the short course:
 
 - LinkedIn: `https://fr.linkedin.com/in/pagechristian`
+ - LinkedIn: `https://www.linkedin.com/in/pagechristian`

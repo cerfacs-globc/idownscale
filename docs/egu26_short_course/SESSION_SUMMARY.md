@@ -70,3 +70,4 @@ By the end of the session, students should be able to:
 For follow-up questions after the short course:
 
 - LinkedIn: `https://fr.linkedin.com/in/pagechristian`
+ - LinkedIn: `https://www.linkedin.com/in/pagechristian`
