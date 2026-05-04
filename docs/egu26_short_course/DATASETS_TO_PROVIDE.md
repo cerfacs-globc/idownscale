@@ -51,10 +51,13 @@ Users also need:
 
 See also:
 
+- [Data setup quickstart](./DATA_SETUP_QUICKSTART.md)
 - [Environment setup](./ENVIRONMENT_SETUP.md)
 - [Helper scripts](./HELPER_SCRIPTS.md)
 - [Workflow phases](./WORKFLOW_PHASES.md)
 - [Phase validation](./PHASE_VALIDATION.md)
+- [Local workflow runbook](./LOCAL_WORKFLOW_RUNBOOK.md)
+- [Expected phase outputs](./EXPECTED_PHASE_OUTPUTS.md)
 
 ### Core notebook and inference artifacts
 

@@ -2,19 +2,25 @@
 
 This page gathers the published material for the EGU26 short course on machine-learning-based climate downscaling.
 
-The material is structured to work well after a presentation-first format. A useful pattern is a 45-minute presentation for the conceptual framing, followed by the practical material and notebook for the hands-on workflow, checks, and discussion of outputs.
+This is the main entrypoint for students after the session. It is intended to
+contain the practical path: setup, data access, notebook, workflow phases, and
+validation checks.
 
 ## Start here
 
 This page is intended to be a GitHub landing page for students. The main reading order is:
 
-- [Presentation PDF](./EGU26_CPAGE_ILAZIC_MTOSIC.pdf)
+- [Data setup quickstart](./DATA_SETUP_QUICKSTART.md)
 - [Notebook](./egu26_short_course_notebook.ipynb)
 - [Environment setup](./ENVIRONMENT_SETUP.md)
 - [Dataset files to provide](./DATASETS_TO_PROVIDE.md)
 - [Helper scripts](./HELPER_SCRIPTS.md)
 - [Workflow phases](./WORKFLOW_PHASES.md)
 - [Phase validation](./PHASE_VALIDATION.md)
+- [Local workflow runbook](./LOCAL_WORKFLOW_RUNBOOK.md)
+- [Expected phase outputs](./EXPECTED_PHASE_OUTPUTS.md)
+- [How to fetch upstream data](./HOW_TO_FETCH_UPSTREAM_DATA.md)
+- [Presentation PDF](./EGU26_CPAGE_ILAZIC_MTOSIC.pdf)
 
 ## Mercure root
 
@@ -76,13 +82,12 @@ The published package supports both a guided short-course session and later self
 - the `.tar.gz` packages provide a simple way to download the required or supplementary published assets in one step
 - the `raw_data/`, `nice_to_have/`, and `phase_outputs/` trees expose the larger companion data products
 - the tarballs provide bundled downloads of the required and supplementary packages
-- the presentation can introduce the scientific framing first, leaving the notebook to focus on execution, diagnostics, and interpretation
 
 ## Notes for attendees
 
 - The notebook is intended to cover all workflow phases, not only pretrained inference.
 - The notebook should combine detailed technical explanation and scientific explanation with runnable commands and inspection cells.
-- The first workflow step for many attendees will be the France-focused target preparation and cropping step sometimes referred to as pre-Phase-1 or `prep_phase1`.
+- The first workflow step for many attendees will be the France-focused target preparation and cropping step before Phase 1 sample generation.
 - Reduced temporal windows can be used on a laptop for portability, while the same commands can be scaled up on a workstation or HPC system for fuller runs.
 - Some phases may take several hours in a full run, so it should always be possible to stop after one phase, inspect outputs, and resume later.
 - A trained checkpoint can be reused only when the data and preprocessing setup remain compatible with the training configuration.

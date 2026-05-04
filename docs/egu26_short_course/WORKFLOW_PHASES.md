@@ -19,20 +19,6 @@ The notebook should be usable in two ways:
 Some full phases may take 5 to 6 hours. Because of that, the notebook should
 make it easy to start from the top, stop after any completed phase, and resume later.
 
-When the session begins with a 45-minute presentation, the notebook can assume
-that some of the conceptual framing has already been introduced. In that case,
-the practical part can focus more directly on:
-
-1. environment and directory setup
-2. pre-Phase-1 France preparation
-3. one short live Phase 1 example
-4. statistics and diagnostics
-5. bias-correction and training logic
-6. prediction, metrics, VALUE summaries, and interpretation
-
-This keeps the notebook phase-oriented while avoiding too much repetition of the
-earlier presentation material.
-
 See also:
 
 - [PHASE_VALIDATION.md](./PHASE_VALIDATION.md)
@@ -51,7 +37,10 @@ Notebook role:
 
 Main references:
 
+- [DATA_SETUP_QUICKSTART.md](./DATA_SETUP_QUICKSTART.md)
 - [HELPER_SCRIPTS.md](./HELPER_SCRIPTS.md)
+- [LOCAL_WORKFLOW_RUNBOOK.md](./LOCAL_WORKFLOW_RUNBOOK.md)
+- [EXPECTED_PHASE_OUTPUTS.md](./EXPECTED_PHASE_OUTPUTS.md)
 - [PHASE_VALIDATION.md](./PHASE_VALIDATION.md)
 - [README.md](/Users/page/src/idownscale/README.md)
 

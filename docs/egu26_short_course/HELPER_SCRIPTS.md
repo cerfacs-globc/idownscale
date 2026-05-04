@@ -11,6 +11,19 @@ published `.tar.gz` files from Mercure as the quickest way to obtain the course 
 
 ## 1. Directory preparation
 
+The most direct setup helper for the short-course layout is:
+
+- [bin/production/setup_egu26_short_course_tree.sh](/Users/page/src/idownscale/bin/production/setup_egu26_short_course_tree.sh)
+
+Example:
+
+```bash
+bash bin/production/setup_egu26_short_course_tree.sh .
+```
+
+This script creates the minimal local tree expected by the short-course notes
+and notebook before data are copied or generated.
+
 The runtime layout is controlled by environment variables already used by the repo:
 
 - `IDOWNSCALE_RAW_DIR`
@@ -38,6 +51,10 @@ The code creates most output directories automatically. Users mainly need to:
 - keep raw inputs and generated outputs separated
 
 This directory-setup block should be one of the first runnable notebook sections.
+
+For the fastest attendee path after the course, combine this script with:
+
+- [DATA_SETUP_QUICKSTART.md](./DATA_SETUP_QUICKSTART.md)
 
 ## 2. France cropping helper
 

@@ -6,17 +6,20 @@ Using daily near-surface temperature as a case study, the session follows the fu
 
 The course is designed for climate scientists, impact researchers, and technical users who want a clear and reproducible introduction to machine-learning-based downscaling. Prior expertise in machine learning is not required, although familiarity with climate data and downscaling concepts is helpful.
 
-The overall format can combine a 45-minute presentation with a second practical part based on the notebook and supporting material. This makes it possible to use the presentation for the conceptual and scientific framing, while the notebook focuses more directly on execution, inspection of outputs, and practical workflow decisions.
+The practical material is organized so that students can return to it after the
+session and recover the full workflow, data paths, and validation logic from the
+GitHub pages and notebook alone.
 
 ## Start here
 
 Students should begin from the GitHub version of this folder and use:
 
-- [Presentation PDF](./EGU26_CPAGE_ILAZIC_MTOSIC.pdf)
 - [Session materials](./SESSION_MATERIALS.md)
+- [Data setup quickstart](./DATA_SETUP_QUICKSTART.md)
 - [Notebook](./egu26_short_course_notebook.ipynb)
 - [Environment setup](./ENVIRONMENT_SETUP.md)
 - [Dataset files to provide](./DATASETS_TO_PROVIDE.md)
+- [Presentation PDF](./EGU26_CPAGE_ILAZIC_MTOSIC.pdf)
 
 ## Mercure publication
 
@@ -60,4 +63,4 @@ By the end of the session, students should be able to:
 - identify which phases can be run independently and how to verify them
 - understand when published outputs are sufficient for demonstration and when a live rerun is useful
 - understand when checkpoint reuse is acceptable and when retraining becomes necessary
-- connect the conceptual framing from the presentation to the concrete steps shown in the notebook
+- navigate from the landing-page material to the runnable notebook and phase checks without relying on private context
