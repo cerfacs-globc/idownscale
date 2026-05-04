@@ -10,6 +10,13 @@ The notebook is the main hands-on experience. The companion Markdown pages give
 more detail on installation, data retrieval, workflow phases, expected outputs,
 and validation checks.
 
+> **Related IRISCC summer school:** For students interested in a longer
+> follow-up on the same general topic as this short course, IRISCC also plans
+> an on-site summer school, *Climate risks data analysis tools and methods*,
+> scheduled for 14-18 September 2026 in Chania, Greece. Official training
+> information is available on the IRISCC training page:
+> `https://www.iriscc.eu/training`
+
 ## Start here
 
 This page is intended to be a GitHub landing page for students. The main reading order is:
