@@ -157,11 +157,11 @@ python -c "import xesmf, ibicus, cartopy, torch; print(torch.__version__); print
 
 If this import check fails, the workflow should not be started yet.
 
-## 5. Minimal smoke tests
+## 5. Minimal verification checks
 
 After the import check, users should verify that the local CLI entrypoints work.
 
-No-data smoke tests:
+No-data verification checks:
 
 ```bash
 bash bin/production/setup_egu26_short_course_tree.sh .
@@ -169,7 +169,7 @@ python bin/preprocessing/crop_domain.py --help
 python bin/production/run_exp5_workflow.py --help
 ```
 
-If local data are already in place, a stronger practical smoke test is a very
+If local data are already in place, a stronger practical check is a very
 short Phase 1 run such as:
 
 ```bash
