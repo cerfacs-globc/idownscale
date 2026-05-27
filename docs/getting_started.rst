@@ -35,8 +35,11 @@ Optional archival parity reference:
 
    export IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR=/path/to/archive/dataset_exp5_30y
 
-For more detail, see ``README.md`` for the runtime workflow and
-``doc/GRACE_TRAINING_ENGINEER_NOTE.md`` for the Grace-specific training route.
+For more detail, see:
+
+* ``doc/ENVIRONMENT_SETUP.md``
+* ``doc/CALYPSO_RUNBOOK.md``
+* ``doc/GRACE_TRAINING_ENGINEER_NOTE.md``
 
 First Workflow Run
 ------------------
@@ -52,6 +55,16 @@ On Grace, you can use the local wrapper:
 .. code-block:: bash
 
    bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+
+For Calypso batch usage, the generic submitters are:
+
+.. code-block:: bash
+
+   sbatch --export=ALL bin/production/submit_exp5_workflow_grace.sh
+   sbatch --export=ALL bin/production/submit_exp5_workflow_globc.sh
+
+GPU is mainly useful for ``train`` and ``predict_loop``. Preprocessing and most
+evaluation phases can run on CPU if Grace GPU capacity is unavailable.
 
 Once coarse bias correction is built, the same runner can also package raw GCM test samples
 and drive downstream prediction or VALUE evaluation steps if a trained checkpoint is available.

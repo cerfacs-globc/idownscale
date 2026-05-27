@@ -30,6 +30,16 @@ export IDOWNSCALE_METRICS_DIR=/path/to/metrics
 
 If you do not set them, the repo uses the defaults defined in `iriscc/settings.py`.
 
+For Calypso-specific environment and operator instructions, see:
+
+- `doc/ENVIRONMENT_SETUP.md`
+- `doc/CALYPSO_RUNBOOK.md`
+
+Operational note:
+
+- GPU is mainly needed for `train` and `predict_loop`
+- preprocessing, bias-correction preparation, metrics, and plotting can run on CPU
+
 ---
 
 ## Code structure
@@ -165,6 +175,13 @@ Grace local shell wrapper:
 
 ```bash
 bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+```
+
+Calypso batch submitters:
+
+```bash
+sbatch --export=ALL bin/production/submit_exp5_workflow_grace.sh
+sbatch --export=ALL bin/production/submit_exp5_workflow_globc.sh
 ```
 
 Prediction note: `predict_loop` expects a `best-checkpoint*.ckpt` under
