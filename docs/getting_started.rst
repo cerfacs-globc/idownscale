@@ -35,7 +35,8 @@ Optional archival parity reference:
 
    export IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR=/path/to/archive/dataset_exp5_30y
 
-For more detail, see ``doc/ENVIRONMENT_SETUP.md`` in the repository root.
+For more detail, see ``README.md`` for the runtime workflow and
+``doc/GRACE_TRAINING_ENGINEER_NOTE.md`` for the Grace-specific training route.
 
 First Workflow Run
 ------------------

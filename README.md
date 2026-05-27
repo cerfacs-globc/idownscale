@@ -171,6 +171,14 @@ Prediction note: `predict_loop` expects a `best-checkpoint*.ckpt` under
 `$IDOWNSCALE_RUNS_DIR/<exp>/<test-name>/lightning_logs/version_best/checkpoints/`.
 The archival `runs/` tree currently preserves logs and hyperparameters but not the checkpoint file itself.
 
+Two lightweight exp5 historical diagnostics are also available once the
+workflow products and the `unet_all_gcm_bc` historical prediction exist:
+
+```bash
+python bin/evaluation/plot_exp5_historical_5curve.py
+python bin/evaluation/plot_exp5_pairwise_distribution_quantiles.py
+```
+
 ---
 
 ### Training
@@ -222,6 +230,13 @@ bin/production/submit_exp5_train_grace.sh
 ```
 
 For the full engineering note, see `doc/GRACE_TRAINING_ENGINEER_NOTE.md`.
+
+Two small Grace environment probes are versioned as helpers:
+
+```bash
+bash bin/production/submit_grace_venv_probe.sh
+TORCH_VERSION=2.5.1 bash bin/production/submit_grace_torch_version_probe.sh
+```
 
 ---
 ### Bias correction

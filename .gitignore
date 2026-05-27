@@ -13,9 +13,12 @@ PET0.ESMF_LogFile
 garcia.code-workspace
 __pycache__
 *.pyc
+.DS_Store
+Thumbs.db
 
 # Local agent/editor noise
 .codex
+*.code-workspace
 
 # Runtime / generated outputs
 slurm_logs/
@@ -24,9 +27,14 @@ rawdata/
 
 # Large local helper trees not meant for release commits
 utils/
+doc/IRISCC_CERFACS/
+doc/logos/
+doc/egu_preview_assets/
+data/audit/
 
 # Generated presentation artifacts
 EGU26_Downscaling_ML_preview.html
 EGU26_Downscaling_ML_preview_selfcontained.html
 EGU26_Downscaling_ML_review_cerfacs.pptx
 egu26_cpage.pdf
+EGU2026_CPAGE.pdf

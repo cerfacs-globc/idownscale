@@ -61,6 +61,13 @@ Typical Grace submit pattern:
 The longer engineer-facing note with failure history and reconstruction advice is
 stored in ``doc/GRACE_TRAINING_ENGINEER_NOTE.md``.
 
+Small environment probes are also versioned:
+
+.. code-block:: bash
+
+   bash bin/production/submit_grace_venv_probe.sh
+   TORCH_VERSION=2.5.1 bash bin/production/submit_grace_torch_version_probe.sh
+
 Architectures
 -------------
 
