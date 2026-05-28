@@ -11,10 +11,13 @@ from bin.preprocessing.build_dataset import Data
 from iriscc.datautils import (interpolation_target_grid, 
                                crop_domain_from_ds)
 from iriscc.settings import (DATES_BC_TRAIN_HIST,
+                             ALADIN_PROJ_PYPROJ,
                              DATES_BC_TEST_HIST,
                              DATES_BC_TEST_FUTURE,
                              DATASET_BC_DIR,
-                             CONFIG)
+                             CONFIG,
+                             get_simu_family,
+                             get_simu_source)
 
 ERA5_BC_DOMAIN_MARGIN = float(os.getenv("IDOWNSCALE_ERA5_BC_DOMAIN_MARGIN", "0.0"))
 
@@ -32,6 +35,10 @@ if __name__=='__main__':
 
     domain = CONFIG[args.exp]['domain']
     bc_domain = CONFIG[args.exp].get('bc_domain', domain)
+    bc_reanalysis_source = CONFIG[args.exp].get('bc_reanalysis_source', 'era5')
+    gcm_source = CONFIG[args.exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    simu_source = get_simu_source(args.exp, args.simu)
+    simu_family = get_simu_family(args.exp, args.simu)
     get_bc_data = Data(domain=bc_domain)
     
     base_dir = Path(args.output_dir) if args.output_dir else DATASET_BC_DIR
@@ -57,7 +64,7 @@ if __name__=='__main__':
                 bc_domain[2] - ERA5_BC_DOMAIN_MARGIN,
                 bc_domain[3] + ERA5_BC_DOMAIN_MARGIN,
             ]
-            ds_anchor = Data(domain=era5_domain).get_era5_dataset(args.var, DATES_BC_TRAIN_HIST[0])
+            ds_anchor = Data(domain=era5_domain).get_reanalysis_dataset(bc_reanalysis_source, args.var, DATES_BC_TRAIN_HIST[0])
 
         for date in dates:
             print(f"[{label}] {date.date()}", flush=True)
@@ -70,17 +77,23 @@ if __name__=='__main__':
                     bc_domain[2] - ERA5_BC_DOMAIN_MARGIN,
                     bc_domain[3] + ERA5_BC_DOMAIN_MARGIN,
                 ]
-                ds_era5 = Data(domain=era5_domain).get_era5_dataset(args.var, date)
+                ds_era5 = Data(domain=era5_domain).get_reanalysis_dataset(bc_reanalysis_source, args.var, date)
             else:
                 ds_era5 = ds_anchor # Use the persistent anchor geometry
 
-            if args.simu == 'gcm':
-                ds_simu = get_bc_data.get_gcm_dataset(args.var, date, ssp=args.ssp)
+            if simu_family == 'gcm':
+                ds_simu = get_bc_data.get_model_dataset(simu_source, args.var, date, ssp=args.ssp)
                 ds_target_regrid = interpolation_target_grid(ds_era5, ds_target=ds_simu, method="conservative_normed")
             else :
-                ds_simu = get_bc_data.get_rcm_dataset(args.var, date, ssp=args.ssp)
-                ds_gcm = get_bc_data.get_gcm_dataset(args.var, date=date, ssp=args.ssp)
-                ds_simu = interpolation_target_grid(ds_simu, ds_target=crop_domain_from_ds(ds_gcm, domain), method="conservative_normed")
+                ds_simu = get_bc_data.get_model_dataset(simu_source, args.var, date, ssp=args.ssp)
+                ds_gcm = get_bc_data.get_model_dataset(gcm_source, args.var, date=date, ssp=args.ssp)
+                input_projection = ALADIN_PROJ_PYPROJ if simu_source == 'rcm_aladin' else None
+                ds_simu = interpolation_target_grid(
+                    ds_simu,
+                    ds_target=crop_domain_from_ds(ds_gcm, domain),
+                    method="conservative_normed",
+                    input_projection=input_projection,
+                )
                 ds_target_regrid = interpolation_target_grid(ds_era5, ds_target=ds_gcm, method="conservative_normed")
             
             # Stack Logic

@@ -27,6 +27,7 @@ export IDOWNSCALE_REGRID_WEIGHTS_DIR="${IDOWNSCALE_REGRID_WEIGHTS_DIR:-${IDOWNSC
 export IDOWNSCALE_VENV_PATH="${IDOWNSCALE_VENV_PATH:-/scratch/globc/page/idownscale_envs/production_final_v22_312}"
 export IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES="${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES:-}"
 export IDOWNSCALE_EXTRA_PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH:-}"
+export IDOWNSCALE_FORCE_VENV_SITEPACKAGES="${IDOWNSCALE_FORCE_VENV_SITEPACKAGES:-}"
 
 if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
   # shellcheck disable=SC1090
@@ -34,6 +35,10 @@ if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
   if [[ -n "${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}" ]]; then
     python -m pip install ${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}
   fi
+fi
+
+if [[ -n "${IDOWNSCALE_FORCE_VENV_SITEPACKAGES}" ]]; then
+  export PYTHONPATH="${IDOWNSCALE_FORCE_VENV_SITEPACKAGES}:${PYTHONPATH:-}"
 fi
 
 if [[ -n "${IDOWNSCALE_EXTRA_PYTHONPATH}" ]]; then
@@ -59,6 +64,7 @@ TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-32}"
 TRAIN_LEARNING_RATE="${TRAIN_LEARNING_RATE:-0.0008}"
 TRAIN_MODEL="${TRAIN_MODEL:-unet}"
 TRAIN_LOSS="${TRAIN_LOSS:-}"
+BC_METHOD="${BC_METHOD:-}"
 
 CMD=(
   bash
@@ -92,6 +98,9 @@ if [[ -n "${CHECKPOINT_BUNDLE}" ]]; then
 fi
 if [[ -n "${TRAIN_LOSS}" ]]; then
   CMD+=(--train-loss "${TRAIN_LOSS}")
+fi
+if [[ -n "${BC_METHOD}" ]]; then
+  CMD+=(--bc-method "${BC_METHOD}")
 fi
 
 echo "--- exp5 Grace workflow start: $(date) ---"
