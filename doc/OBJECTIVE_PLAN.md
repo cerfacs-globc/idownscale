@@ -239,15 +239,22 @@ Current results:
     - `/gpfs-calypso/scratch/globc/page/idownscale_output/graph/metrics/exp5/bc_validation_pdf_exp5_gcm.png`
   - note:
     - current default GCM corrected NetCDFs only overlap one smoke day with the full BC bundles, so these numbers validate the method and not yet a full-period scientific GCM certification
+- ALADIN/RCM BC dataset performance fix validated on Grace:
+  - job `267491`
+  - result:
+    - optimized `build_dataset_bc.py` now processes by source-file batch instead of one day at a time
+    - `--test` smoke for `simu=rcm` completed in about 10 seconds
+  - status:
+    - this is the active path for the new full ALADIN parity rerun
 
 ## Active Grace jobs
 
 - Full ALADIN/RCM BC rerun in isolated parity root:
-  - job `267481`
+  - job `267492`
   - output root:
     - `/gpfs-calypso/scratch/globc/page/idownscale_output/validation_20260528/rcm_parity_full`
   - command intent:
     - `bc_dataset,bc_apply` for `simu=rcm`
 - Dependent ALADIN/RCM scientific + archive parity validation:
-  - job `267482`
-  - starts after successful completion of job `267481`
+  - job `267493`
+  - starts after successful completion of job `267492`
