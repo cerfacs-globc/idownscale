@@ -123,12 +123,7 @@ if __name__=='__main__':
                 ds_simu = interpolation_target_grid(
                     ds_simu,
                     ds_target=target_grid,
-                    # The archival ALADIN BC bundles were built on the cropped
-                    # GCM bridge grid with bilinear remapping. The conservative
-                    # path currently collapses this RCM crop to zeros because
-                    # the fabricated source bounds do not match the native
-                    # ALADIN footprint.
-                    method="bilinear",
+                    method="conservative_normed",
                     input_projection=input_projection,
                 )
 

@@ -85,12 +85,13 @@ def ARCHIVAL_standardize_dims_and_coords(ds) :
 def standardize_longitudes(ds) :
     # v65faa6 Archival Sync: Mandatory -180..180 Shift and Monotonic Sort
     if 'lon' in ds.coords:
-        lon = ds.coords['lon']
-        ds.coords['lon'] = ((lon+180)%360)-180
+        lon = np.asarray(ds.coords['lon'].values)
+        ds = ds.assign_coords(lon=("lon", np.array(((lon + 180) % 360) - 180, copy=True)))
         if len(ds.lon.shape) == 1:
             ds = ds.sortby('lon')
     elif 'x' in ds.coords :
-        ds = ds.assign_coords(x=(((ds.x + 180) % 360) - 180))
+        x = np.asarray(ds.x.values)
+        ds = ds.assign_coords(x=("x", np.array((((x + 180) % 360) - 180), copy=True)))
         ds = ds.sortby('x')
       
     return ds
@@ -151,6 +152,34 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
    return ds
 
 
+def attach_native_cf_bounds(ds: xr.Dataset) -> xr.Dataset:
+   """Expose native curvilinear bounds through CF metadata when available."""
+   if 'bounds_lon' not in ds.variables or 'bounds_lat' not in ds.variables:
+      return ds
+   if 'lon' not in ds.coords or 'lat' not in ds.coords:
+      return ds
+
+   lon_bounds = ds['bounds_lon']
+   lat_bounds = ds['bounds_lat']
+   if 'time' in lon_bounds.dims:
+      lon_bounds = lon_bounds.isel(time=0, drop=True)
+   if 'time' in lat_bounds.dims:
+      lat_bounds = lat_bounds.isel(time=0, drop=True)
+   if 'nvertex' not in lon_bounds.dims or 'nvertex' not in lat_bounds.dims:
+      return ds
+
+   spatial_dims = tuple(dim for dim in lon_bounds.dims if dim != 'nvertex')
+   if len(spatial_dims) != 2:
+      return ds
+
+   ds = ds.copy()
+   ds['lon_bounds'] = (('nvertex',) + spatial_dims, np.moveaxis(lon_bounds.values, -1, 0))
+   ds['lat_bounds'] = (('nvertex',) + spatial_dims, np.moveaxis(lat_bounds.values, -1, 0))
+   ds['lon'].attrs['bounds'] = 'lon_bounds'
+   ds['lat'].attrs['bounds'] = 'lat_bounds'
+   return ds
+
+
 def interpolation_target_grid(ds:xr.Dataset, 
                               ds_target:xr.Dataset, 
                               method:str, 
@@ -171,10 +200,12 @@ def interpolation_target_grid(ds:xr.Dataset,
    if method == 'bilinear':
       regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse, filename=str(w_file))
    else:
+      ds = attach_native_cf_bounds(ds)
+      ds_target = attach_native_cf_bounds(ds_target)
       # v49 Cornerstone Resolution: Force regeneration of bounds to ensure ESMF alignment.
-      if 'lon' in ds.coords:
+      if 'lon' in ds.coords and 'lon_b' not in ds and 'lon_bounds' not in ds.variables:
          ds = add_lon_lat_bounds(ds, input_projection, bounds_method)
-      if 'lon' in ds_target.coords:
+      if 'lon' in ds_target.coords and 'lon_b' not in ds_target and 'lon_bounds' not in ds_target.variables:
          ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
       regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse, filename=str(w_file))

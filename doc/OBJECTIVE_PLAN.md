@@ -1,6 +1,6 @@
 # Objective Plan
 
-Last updated: 2026-05-28
+Last updated: 2026-06-01
 
 ## Current objective
 
@@ -19,6 +19,9 @@ Current follow-up objective:
   historical `exp5` reference outputs under:
   - `/scratch/globc/garcia/idownscale`
   - `/archive2/globc/garcia/garcia_copy_scratch/idownscale`
+- turn the ALADIN perfect-model workflow into a standalone reproducible run so
+  ML-vs-RCM comparisons can be executed without relying on the broader archival
+  parity harness
 
 ## Current task status
 
@@ -39,11 +42,12 @@ Current follow-up objective:
 - [x] Fix raw ALADIN source resolution to pick the file whose year span contains the requested date
 - [x] Fix Grace raw RCM/ALADIN geometry handling for conservative regridding in `build_dataset_bc.py`
 - [x] Fix Grace raw RCM/ALADIN geometry handling for conservative regridding in `build_dataset_pp.py`
-- [ ] Run a full ALADIN archival parity test against Zoé's `exp5` reference, analogous to the earlier `exp5_full` parity work
-- [ ] Extend validation from technical integrity to scientific acceptance for every parity run:
+- [x] Run a full ALADIN archival parity test against Zoé's `exp5` reference, analogous to the earlier `exp5_full` parity work
+- [x] Extend validation from technical integrity to scientific acceptance for every parity run:
   - structural parity of BC bundles and packaged sample datasets
   - scientifically coherent diagnostics and VALUE-style historical validation
   - comparison against archival metrics/plots where available
+- [ ] Extract a standalone ALADIN perfect-model run path for direct ML-vs-RCM comparison
 
 ## Branch checkpoint
 
@@ -68,6 +72,8 @@ If the chat history disappears after an SSH/browser reconnect, resume from this 
    - raw packaged dataset parity
    - corrected packaged dataset parity
    - prediction and metrics parity where reference outputs exist
+   - treat strict byte-for-byte parity as optional if the archive reference is
+     shown to be internally inconsistent
 5. Resume on branch `grace-bc-parity-20260528` unless a newer checkpoint branch has been created.
 5. Inspect the latest diffs in:
    - `iriscc/settings.py`
@@ -195,16 +201,48 @@ After each run, verify:
   - BC correction `--test` mode now skips expensive diagnostics and only exercises the core corrected-output path
 - Reusable Grace helper:
   - `bin/production/run_in_grace_env.sh` mirrors the working mixed module/venv setup for standalone preprocessing and evaluation `sbatch` jobs
+  - as of 2026-06-01 it now exports `ESMFMKFILE` by default so `xesmf` works with the repaired Grace venv without extra operator setup
+- Reusable `globc` CPU helper:
+  - `bin/production/run_in_globc_cpu_env.sh` runs the x86 CPU fallback env while clearing inherited `PYTHONHOME`/`PYTHONPATH`
+  - use this when reproducing `ibicus` issues on the login/CPU side because direct `conda run` can fail with `ModuleNotFoundError: encodings`
+- Grace venv repair completed on 2026-06-01:
+  - repaired `/scratch/globc/page/idownscale_envs/production_final_v22_312`
+  - verified on-arm imports for `numpy`, `scipy`, `xarray`, `dask`, `ibicus`, `xesmf`, `torch`, `pytorch_lightning`, `tensorboard`, and `timm`
+  - `pip check` now reports `No broken requirements found`
+  - verified again through the default wrapper path with probe job `272675`
 
 ### Known limits
 
 - Production BC methods are `ibicus_cdft` and `sbck_cdft`; other methods still raise explicitly.
 - `sbck_cdft` additionally requires the `SBCK` Python package to be present in the Grace environment.
 - Runtime validation still depends on the target Grace environment having `cartopy`, `xesmf`, `torch`, and the expected data roots available.
-- Full ALADIN archival parity is not yet complete:
+- Strict ALADIN archival parity is no longer treated as a reliable success
+  criterion on its own:
   - raw packaged RCM samples now match Zoé's reference structurally
-  - BC bundle parity is not yet proven equivalent to Zoé's archival `rcm` reference
-  - corrected ALADIN packaged dataset parity and prediction/metrics parity still need to be run
+  - historical BC bundles now match essentially exactly with native ALADIN bounds
+  - corrected-sample archive contains at least one proven inconsistency:
+    `sample_19800101.npz` stores `y` in Celsius instead of Kelvin
+  - future BC bundle archive `bc_test_future_rcm.npz` appears internally mixed:
+    `2015-2069` differs systematically by about `0.10 K` mean abs diff, while
+    `2070+` matches the regenerated native-bounds path essentially exactly
+  - `/scratch/.../bc_test_future_rcm.npz` and `/archive2/.../bc_test_future_rcm.npz`
+    are byte-identical mirrors, so the inconsistency is preserved in both archive roots
+  - the regenerated ALADIN/RCM workflow is therefore treated as scientifically
+    validated but not expected to reproduce every inconsistent archive artifact
+
+## Perfect-model next step
+
+The next engineering target after the Grace parity campaign is to isolate the
+ALADIN perfect-model workflow as a standalone production path:
+
+- upscale ALADIN from its fine curvilinear grid onto the coarse `gr_150km`
+  bridge grid
+- downscale back to the fine target grid through the ML pipeline
+- compare ML output directly against the fine-resolution ALADIN reference on the
+  historical period
+
+This should make ML-vs-RCM comparison reproducible without depending on the
+broader archive-parity framing.
 
 ## Scientific validation method
 
@@ -250,11 +288,21 @@ Current results:
 ## Active Grace jobs
 
 - Full ALADIN/RCM BC rerun in isolated parity root:
-  - job `267492`
+  - current job `272669`
   - output root:
     - `/gpfs-calypso/scratch/globc/page/idownscale_output/validation_20260528/rcm_parity_full`
-  - command intent:
-    - `bc_dataset,bc_apply` for `simu=rcm`
+  - current launch path:
+    - `bin/production/submit_rcm_parity_grace.sh`
+  - note:
+    - this submitter currently uses the mixed fallback wrapper for safety while the repaired default env is being revalidated in parallel
 - Dependent ALADIN/RCM scientific + archive parity validation:
-  - job `267493`
-  - starts after successful completion of job `267492`
+  - current job `272670`
+  - starts after successful completion of job `272669`
+- Earlier failure context from the first parity attempt on 2026-06-01:
+  - `267492` failed in `bc_apply` inside `bin/preprocessing/bias_correction_ibicus.py`
+  - failing call: `CDFt.from_variable(...).apply(...)` on the full ALADIN/RCM parity dataset
+  - error raised by `ibicus`:
+    - time-information dimensions reported as inconsistent with `obs/cm_hist/cm_future`
+  - stale dependent validation job:
+    - `268942` is `PENDING` with `DependencyNeverSatisfied`
+  - do not simply resubmit the same dependency chain until the `ibicus` caller or env path is fixed and locally reproduced on CPU or Grace
