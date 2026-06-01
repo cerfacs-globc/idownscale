@@ -42,8 +42,12 @@ cd "${REPO_ROOT}"
 TEST_NAME="${TEST_NAME:-unet_grace30}"
 SIMU_TEST="${SIMU_TEST:-gcm_bc}"
 IF_EXISTS="${IF_EXISTS:-overwrite}"
-PREDICT_START_DATE="${PREDICT_START_DATE:-20000101}"
-PREDICT_END_DATE="${PREDICT_END_DATE:-20141231}"
+PREDICT_START_DATE="${PREDICT_START_DATE:-}"
+PREDICT_END_DATE="${PREDICT_END_DATE:-}"
+METRICS_START_DATE="${METRICS_START_DATE:-}"
+METRICS_END_DATE="${METRICS_END_DATE:-}"
+VALUE_START_DATE="${VALUE_START_DATE:-}"
+VALUE_END_DATE="${VALUE_END_DATE:-}"
 STEPS="${STEPS:-predict_loop,metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month}"
 CHECKPOINT_BUNDLE="${CHECKPOINT_BUNDLE:-}"
 
@@ -61,12 +65,28 @@ CMD=(
   --if-exists "${IF_EXISTS}"
   --test-name "${TEST_NAME}"
   --simu-test "${SIMU_TEST}"
-  --predict-start-date "${PREDICT_START_DATE}"
-  --predict-end-date "${PREDICT_END_DATE}"
 )
 
 if [[ -n "${CHECKPOINT_BUNDLE}" ]]; then
   CMD+=(--checkpoint-bundle "${CHECKPOINT_BUNDLE}")
+fi
+if [[ -n "${PREDICT_START_DATE}" ]]; then
+  CMD+=(--predict-start-date "${PREDICT_START_DATE}")
+fi
+if [[ -n "${PREDICT_END_DATE}" ]]; then
+  CMD+=(--predict-end-date "${PREDICT_END_DATE}")
+fi
+if [[ -n "${METRICS_START_DATE}" ]]; then
+  CMD+=(--metrics-start-date "${METRICS_START_DATE}")
+fi
+if [[ -n "${METRICS_END_DATE}" ]]; then
+  CMD+=(--metrics-end-date "${METRICS_END_DATE}")
+fi
+if [[ -n "${VALUE_START_DATE}" ]]; then
+  CMD+=(--value-start-date "${VALUE_START_DATE}")
+fi
+if [[ -n "${VALUE_END_DATE}" ]]; then
+  CMD+=(--value-end-date "${VALUE_END_DATE}")
 fi
 
 echo "command: ${CMD[*]}"

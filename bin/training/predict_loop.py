@@ -22,7 +22,9 @@ from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissing
 from iriscc.settings import (PREDICTION_DIR, 
                              RUNS_DIR, 
                              DATASET_BC_DIR, 
-                             CONFIG,)
+                             CONFIG,
+                             DATES_BC_TEST_FUTURE,
+                             DATES_BC_TEST_HIST,)
 from iriscc.datautils import (remove_countries,
                               Data)
 
@@ -52,8 +54,8 @@ def get_target_format(exp:str, dates):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Predict and plot results for full period")
-    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
-    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
+    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'))
+    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default=DATES_BC_TEST_FUTURE[-1].strftime('%Y%m%d'))
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--test-name', type=str, help='Test name (e.g., mask_continents)')
     parser.add_argument('--simu-test', type=str, help='gcm or gcm_bc, rcm, rcm_bc', default=None)
