@@ -18,7 +18,7 @@ Optional downstream steps extend the same runner to Phase 3 and Phase 4 style ta
 .. code-block:: bash
 
    python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
-   python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date 20000101 --predict-end-date 20141231
+   python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 
 **Workload Manager (Slurm):**
 

@@ -351,13 +351,13 @@ if __name__=='__main__':
                             time=('time', test_future['dates'])
                             ))
     if simu == 'gcm':
-        ds_train_hist_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc')
-        ds_test_hist_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc')
-        ds_test_future_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc')
+        ds_train_hist_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_{DATES_BC_TRAIN_HIST[0].strftime("%Y%m%d")}-{DATES_BC_TRAIN_HIST[-1].strftime("%Y%m%d")}_bc.nc')
+        ds_test_hist_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_{DATES_BC_TEST_HIST[0].strftime("%Y%m%d")}-{DATES_BC_TEST_HIST[-1].strftime("%Y%m%d")}_bc.nc')
+        ds_test_future_bc.to_netcdf(GCM_BC_DIR/f'{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_{DATES_BC_TEST_FUTURE[0].strftime("%Y%m%d")}-{DATES_BC_TEST_FUTURE[-1].strftime("%Y%m%d")}_bc.nc')
     elif simu == 'rcm':
-        ds_train_hist_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_historical_r1i1p1f2_gr_19800101-19991231_150km_bc.nc')
-        ds_test_hist_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_historical_r1i1p1f2_gr_20000101-20141231_150km_bc.nc')
-        ds_test_future_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_20150101-21001231_150km_bc.nc')
+        ds_train_hist_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_historical_r1i1p1f2_gr_{DATES_BC_TRAIN_HIST[0].strftime("%Y%m%d")}-{DATES_BC_TRAIN_HIST[-1].strftime("%Y%m%d")}_150km_bc.nc')
+        ds_test_hist_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_historical_r1i1p1f2_gr_{DATES_BC_TEST_HIST[0].strftime("%Y%m%d")}-{DATES_BC_TEST_HIST[-1].strftime("%Y%m%d")}_150km_bc.nc')
+        ds_test_future_bc.to_netcdf(RCM_BC_DIR/f'{var}_day_ALADIN_{ssp}_r1i1p1f2_gr_{DATES_BC_TEST_FUTURE[0].strftime("%Y%m%d")}-{DATES_BC_TEST_FUTURE[-1].strftime("%Y%m%d")}_150km_bc.nc')
     
     for date in DATES_BC_TRAIN_HIST:
         print(date)

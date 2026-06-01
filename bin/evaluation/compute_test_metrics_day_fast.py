@@ -30,7 +30,7 @@ def main():
     metric_dir.mkdir(parents=True, exist_ok=True)
     
     # Identify prediction file
-    period = 'historical' if pd.Timestamp(args.enddate) <= pd.Timestamp('2014-12-31') else CONFIG[args.exp].get('ssp', 'ssp585')
+    period = 'historical' if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get('ssp', 'ssp585')
     pred_files = list(
         PREDICTION_DIR.glob(
             f'tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc'

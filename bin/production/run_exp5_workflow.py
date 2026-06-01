@@ -70,6 +70,10 @@ def default_metrics_window() -> tuple[str, str]:
     return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
 
 
+def default_value_window() -> tuple[str, str]:
+    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the exp5 workflow end to end.")
     parser.add_argument("--exp", default="exp5", help="Experiment name. Currently tuned for exp5.")
@@ -183,8 +187,8 @@ def main() -> int:
     predict_end_date = args.predict_end_date or default_prediction_window()[1]
     metrics_start_date = args.metrics_start_date or default_metrics_window()[0]
     metrics_end_date = args.metrics_end_date or default_metrics_window()[1]
-    value_start_date = args.value_start_date or default_metrics_window()[0]
-    value_end_date = args.value_end_date or default_metrics_window()[1]
+    value_start_date = args.value_start_date or default_value_window()[0]
+    value_end_date = args.value_end_date or default_value_window()[1]
     dataset_dir = Path(exp_cfg["dataset"])
     phase1_outputs = list_phase1_outputs(dataset_dir, phase1_start_date, phase1_end_date)
 
@@ -198,6 +202,9 @@ def main() -> int:
         Path(exp_cfg["target_file"]),
         Path(exp_cfg["orog_file"]),
     ]
+    phase1_start = yyyymmdd(DATES[0])
+    hist_start = yyyymmdd(DATES_BC_TEST_HIST[0])
+    future_start = yyyymmdd(DATES_BC_TEST_FUTURE[0])
     bc_outputs = [
         DATASET_BC_DIR / f"bc_train_hist_{args.simu}.npz",
         DATASET_BC_DIR / f"bc_test_hist_{args.simu}.npz",
@@ -208,18 +215,18 @@ def main() -> int:
     bc_netcdf_dir = GCM_BC_DIR if args.simu == "gcm" else RCM_BC_DIR
     bc_hist_suffix = "gr" if args.simu == "gcm" else "gr_150km"
     bc_apply_outputs = [
-        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_historical_r1i1p1f2_{bc_hist_suffix}_19800101-19991231_bc.nc",
-        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_historical_r1i1p1f2_{bc_hist_suffix}_20000101-20141231_bc.nc",
-        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_{ssp}_r1i1p1f2_{bc_hist_suffix}_20150101-21001231_bc.nc",
-        bc_dataset_dir / "sample_19800101.npz",
+        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_historical_r1i1p1f2_{bc_hist_suffix}_{DATES_TRAIN[0]}0101-{(pd.Timestamp(DATES_BC_TEST_HIST[0]) - pd.Timedelta(days=1)).strftime('%Y%m%d')}_bc.nc",
+        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_historical_r1i1p1f2_{bc_hist_suffix}_{hist_start}-{yyyymmdd(DATES_BC_TEST_HIST[-1])}_bc.nc",
+        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_{ssp}_r1i1p1f2_{bc_hist_suffix}_{future_start}-{yyyymmdd(DATES_BC_TEST_FUTURE[-1])}_bc.nc",
+        bc_dataset_dir / f"sample_{phase1_start}.npz",
     ]
-    pp_outputs = [bc_dataset_dir / "sample_19800101.npz"]
+    pp_outputs = [bc_dataset_dir / f"sample_{phase1_start}.npz"]
     raw_outputs = [
-        raw_dataset_dir / "sample_20000101.npz",
-        raw_dataset_dir / "sample_20150101.npz",
+        raw_dataset_dir / f"sample_{hist_start}.npz",
+        raw_dataset_dir / f"sample_{future_start}.npz",
     ]
     prediction_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
-    prediction_period = "historical" if pd.Timestamp(predict_end_date) <= pd.Timestamp("2014-12-31") else ssp
+    prediction_period = "historical" if pd.Timestamp(predict_end_date) <= DATES_BC_TEST_HIST[-1] else ssp
     prediction_outputs = []
     if prediction_test_name:
         prediction_outputs = [
