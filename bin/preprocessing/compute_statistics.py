@@ -10,6 +10,7 @@ author : Zoé GARCIA
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import Tuple
 
 sys.path.append('.')
@@ -67,11 +68,13 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
     parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
     parser.add_argument('--dataset_dir', type=str, help='Path to dataset directory', default=None)
+    parser.add_argument('--train-start-year', type=str, default=DATES_TRAIN[0], help='Training split start year.')
+    parser.add_argument('--val-start-year', type=str, default=DATES_TRAIN[1], help='Validation split start year.')
+    parser.add_argument('--test-start-year', type=str, default=DATES_TRAIN[2], help='Test split start year.')
     parser.add_argument('--force', action='store_true', help='Force reconnection')
     args = parser.parse_args()
 
     if args.dataset_dir:
-        from pathlib import Path
         dataset_dir = Path(args.dataset_dir).resolve()
     else:
         dataset_dir = CONFIG[args.exp]['dataset'].resolve()
@@ -92,9 +95,9 @@ if __name__=='__main__':
     #train_end = int(0.6 * nb) 
     #val_end = train_end + int(0.2 * nb)
     
-    train_start = np.where(dataset == str((dataset_dir/f'sample_{DATES_TRAIN[0]}0101.npz').resolve()))[0][0]
-    val_start = np.where(dataset == str((dataset_dir/f'sample_{DATES_TRAIN[1]}0101.npz').resolve()))[0][0]
-    test_start = np.where(dataset == str((dataset_dir/f'sample_{DATES_TRAIN[2]}0101.npz').resolve()))[0][0]
+    train_start = np.where(dataset == str((dataset_dir / f'sample_{args.train_start_year}0101.npz').resolve()))[0][0]
+    val_start = np.where(dataset == str((dataset_dir / f'sample_{args.val_start_year}0101.npz').resolve()))[0][0]
+    test_start = np.where(dataset == str((dataset_dir / f'sample_{args.test_start_year}0101.npz').resolve()))[0][0]
    
     y_data = {'train' : [],
                  'val' : [],
@@ -180,4 +183,3 @@ if __name__=='__main__':
                     dataset_dir/f'hist_y_{data_type}.png')
  
     
-

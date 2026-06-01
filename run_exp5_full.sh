@@ -33,6 +33,25 @@ export PYTHONNOUSERSITE=1
 export ESMFMKFILE="$CONDA_PREFIX/lib/esmf.mk"
 export PYTHONUNBUFFERED=1
 
+readarray -t SETTINGS_DATES < <("$PYTHON" - <<'PY'
+from iriscc.settings import DATES, DATES_BC_TEST_FUTURE, DATES_BC_TEST_HIST
+
+print(DATES[0].strftime("%Y%m%d"))
+print(DATES[-1].strftime("%Y%m%d"))
+print(DATES_BC_TEST_HIST[0].strftime("%Y%m%d"))
+print(DATES_BC_TEST_HIST[-1].strftime("%Y%m%d"))
+print(DATES_BC_TEST_FUTURE[-1].strftime("%Y%m%d"))
+PY
+)
+PHASE1_START_DATE="${PHASE1_START_DATE:-${SETTINGS_DATES[0]}}"
+PHASE1_END_DATE="${PHASE1_END_DATE:-${SETTINGS_DATES[1]}}"
+START_DATE_INF="${START_DATE_INF:-${SETTINGS_DATES[2]}}"
+END_DATE_INF="${END_DATE_INF:-${SETTINGS_DATES[4]}}"
+START_DATE_METRICS="${START_DATE_METRICS:-${SETTINGS_DATES[2]}}"
+END_DATE_METRICS="${END_DATE_METRICS:-${SETTINGS_DATES[3]}}"
+START_DATE_VALUE="${START_DATE_VALUE:-${SETTINGS_DATES[2]}}"
+END_DATE_VALUE="${END_DATE_VALUE:-${SETTINGS_DATES[3]}}"
+
 # --- Modular execution control ---
 # Use START_PHASE and STOP_PHASE to skip ranges (e.g. START_PHASE=4 ./run_exp5_full.sh)
 # Use FORCE=1 to ignore existing .done markers and run the step.
@@ -79,8 +98,8 @@ complete_phase() {
 
 if run_phase 1; then
     log_progress "--- Phase 1: Preprocessing START ---"
-    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
-    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
+    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --start_date "$PHASE1_START_DATE" --end_date "$PHASE1_END_DATE" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
+    $PYTHON bin/preprocessing/build_dataset.py --exp "$EXP" --baseline --start_date "$PHASE1_START_DATE" --end_date "$PHASE1_END_DATE" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     $PYTHON bin/preprocessing/compute_statistics.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     $PYTHON bin/preprocessing/compute_statistics_gamma.py --exp "$EXP" $FORCE_FLAG >> "$LOG_DIR/phase1.log" 2>&1
     srun $PYTHON bin/utils/check_pipeline_integrity.py --phase 1 --exp "$EXP" | tee -a "output/$EXP/validation/pipeline_integrity.log" >> "$LOG_DIR/integrity_checks.log" 2>&1
@@ -124,7 +143,7 @@ if run_phase 6; then
     # 6.0 Original Master Evaluation (Legacy - Optimized)
     log_progress "--- Phase 6.0: Original Master Evaluation (Legacy) ---"
     mkdir -p "graph/metrics/$EXP/$TEST_NAME_$SIMU_TEST"
-    srun $PYTHON bin/evaluation/compute_test_metrics_day_fast.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" >> "$LOG_DIR/phase6_metrics.log" 2>&1
+    srun $PYTHON bin/evaluation/compute_test_metrics_day_fast.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" --startdate "$START_DATE_METRICS" --enddate "$END_DATE_METRICS" >> "$LOG_DIR/phase6_metrics.log" 2>&1
     srun $PYTHON bin/evaluation/plot_test_metrics.py --exp "$EXP" --test-name "${TEST_NAME}_${SIMU_TEST}" --scale daily >> "$LOG_DIR/phase6_plots.log" 2>&1
     
     # 6.1 Future Trend Analysis (Qualitative)
@@ -132,8 +151,8 @@ if run_phase 6; then
     
     # 6.2 Historical Validation (Quantitative - VALUE Framework)
     log_progress "--- Phase 6.2: Historical Validation (VALUE) ---"
-    srun $PYTHON bin/training/predict_loop.py --startdate 20000101 --enddate 20141231 --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" $FORCE_FLAG >> "$LOG_DIR/phase6_historical.log" 2>&1
-    srun $PYTHON bin/evaluation/compute_value_metrics.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" >> "$LOG_DIR/phase6_value.log" 2>&1
+    srun $PYTHON bin/training/predict_loop.py --startdate "$START_DATE_VALUE" --enddate "$END_DATE_VALUE" --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" $FORCE_FLAG >> "$LOG_DIR/phase6_historical.log" 2>&1
+    srun $PYTHON bin/evaluation/compute_value_metrics.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" --startdate "$START_DATE_VALUE" --enddate "$END_DATE_VALUE" >> "$LOG_DIR/phase6_value.log" 2>&1
     
     # 6.3 Automated PDF Reporting
     log_progress "--- Phase 6.3: Generating PDF Evaluation Report ---"

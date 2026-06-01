@@ -16,8 +16,8 @@ import pandas as pd
 import xarray as xr
 from tqdm import tqdm
 
-from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR, 
-                             DATASET_DIR, METRICS_DIR)
+from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR,
+                             DATES_BC_TEST_HIST, METRICS_DIR)
 from iriscc.value_metrics import (get_marginal_metrics, get_temporal_metrics, 
                                   get_spatial_metrics, get_spell_length)
 
@@ -27,6 +27,8 @@ def main():
     parser.add_argument('--test-name', type=str, default='unet_all', help='Test name')
     parser.add_argument('--simu', type=str, default='gcm', help='Simulation source (gcm/rcm)')
     parser.add_argument('--simu-test', type=str, default='gcm_bc', help='Simulation test variant')
+    parser.add_argument('--startdate', type=str, default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'), help='Historical validation start date')
+    parser.add_argument('--enddate', type=str, default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'), help='Historical validation end date')
     args = parser.parse_args()
 
     # 1. Setup paths
@@ -36,7 +38,12 @@ def main():
     # 2. Identify historical test files
     # Note: These are expected in PREDICTION_DIR for the and test period (2000-2014)
     # We use the naming pattern: tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_exp5_unet_all_gcm_bc.nc
-    pred_files = list(PREDICTION_DIR.glob(f'tas*historical*{args.exp}_{args.test_name}_{args.simu_test}.nc'))
+    period = 'historical' if pd.Timestamp(args.enddate) <= pd.Timestamp('2014-12-31') else CONFIG[args.exp].get('ssp', 'ssp585')
+    pred_files = list(
+        PREDICTION_DIR.glob(
+            f'tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc'
+        )
+    )
     if not pred_files:
         print(f"Error: No prediction files found for {args.exp}/{args.test_name} in historical period.")
         sys.exit(1)

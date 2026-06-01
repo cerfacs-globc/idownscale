@@ -22,7 +22,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from iriscc.settings import CONFIG, DATASET_BC_DIR, GCM_BC_DIR, GRAPHS_DIR, METRICS_DIR, PREDICTION_DIR, RCM_BC_DIR, RUNS_DIR
+from iriscc.settings import (
+    CONFIG,
+    DATASET_BC_DIR,
+    DATES,
+    DATES_BC_TEST_FUTURE,
+    DATES_BC_TEST_HIST,
+    DATES_TRAIN,
+    GCM_BC_DIR,
+    GRAPHS_DIR,
+    METRICS_DIR,
+    PREDICTION_DIR,
+    RCM_BC_DIR,
+    RUNS_DIR,
+)
 
 
 DEFAULT_STEPS = ["phase1", "stats", "bc_dataset", "bc_apply"]
@@ -39,6 +52,22 @@ OPTIONAL_STEPS = [
     "plot_metrics_month",
 ]
 ALL_STEPS = DEFAULT_STEPS + OPTIONAL_STEPS
+
+
+def yyyymmdd(value: pd.Timestamp) -> str:
+    return pd.Timestamp(value).strftime("%Y%m%d")
+
+
+def default_phase1_window() -> tuple[str, str]:
+    return yyyymmdd(DATES[0]), yyyymmdd(DATES[-1])
+
+
+def default_prediction_window() -> tuple[str, str]:
+    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_FUTURE[-1])
+
+
+def default_metrics_window() -> tuple[str, str]:
+    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,8 +100,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-model", default="unet", help="Model family for the optional train step.")
     parser.add_argument("--train-loss", default=None, help="Optional loss override for the train step.")
     parser.add_argument("--train-output-norm", action="store_true", help="Enable output normalization in the train step.")
-    parser.add_argument("--predict-start-date", default="20000101", help="Prediction/evaluation start date.")
-    parser.add_argument("--predict-end-date", default="21001231", help="Prediction/evaluation end date.")
+    parser.add_argument("--predict-start-date", default=None, help="Prediction start date. Defaults to the settings.py historical-test start.")
+    parser.add_argument("--predict-end-date", default=None, help="Prediction end date. Defaults to the settings.py future-test end.")
+    parser.add_argument("--metrics-start-date", default=None, help="Metrics evaluation start date. Defaults to the settings.py historical-test start.")
+    parser.add_argument("--metrics-end-date", default=None, help="Metrics evaluation end date. Defaults to the settings.py historical-test end.")
+    parser.add_argument("--value-start-date", default=None, help="VALUE validation start date. Defaults to the settings.py historical-test start.")
+    parser.add_argument("--value-end-date", default=None, help="VALUE validation end date. Defaults to the settings.py historical-test end.")
     parser.add_argument("--simu-test", default="gcm_bc", help="Inference sample variant, e.g. gcm or gcm_bc.")
     parser.add_argument("--python-bin", default=sys.executable, help="Python executable to use for subprocess steps.")
     parser.add_argument("--dry-run", action="store_true", help="Print decisions without executing commands.")
@@ -90,10 +123,9 @@ def resolve_steps(raw_steps: str) -> list[str]:
 
 
 def list_phase1_outputs(dataset_dir: Path, start: str | None, end: str | None) -> list[Path]:
-    if start and end:
-        dates = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="D")
-    else:
-        dates = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+    if not start or not end:
+        start, end = default_phase1_window()
+    dates = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="D")
     return [dataset_dir / f"sample_{date.strftime('%Y%m%d')}.npz" for date in dates]
 
 
@@ -142,8 +174,19 @@ def main() -> int:
     exp = args.exp
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
+    phase1_start_date, phase1_end_date = (
+        (args.phase1_start_date, args.phase1_end_date)
+        if args.phase1_start_date and args.phase1_end_date
+        else default_phase1_window()
+    )
+    predict_start_date = args.predict_start_date or default_prediction_window()[0]
+    predict_end_date = args.predict_end_date or default_prediction_window()[1]
+    metrics_start_date = args.metrics_start_date or default_metrics_window()[0]
+    metrics_end_date = args.metrics_end_date or default_metrics_window()[1]
+    value_start_date = args.value_start_date or default_metrics_window()[0]
+    value_end_date = args.value_end_date or default_metrics_window()[1]
     dataset_dir = Path(exp_cfg["dataset"])
-    phase1_outputs = list_phase1_outputs(dataset_dir, args.phase1_start_date, args.phase1_end_date)
+    phase1_outputs = list_phase1_outputs(dataset_dir, phase1_start_date, phase1_end_date)
 
     stats_outputs = [
         dataset_dir / "statistics.json",
@@ -176,11 +219,11 @@ def main() -> int:
         raw_dataset_dir / "sample_20150101.npz",
     ]
     prediction_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
-    prediction_period = "historical" if pd.Timestamp(args.predict_end_date) <= pd.Timestamp("2014-12-31") else ssp
+    prediction_period = "historical" if pd.Timestamp(predict_end_date) <= pd.Timestamp("2014-12-31") else ssp
     prediction_outputs = []
     if prediction_test_name:
         prediction_outputs = [
-            PREDICTION_DIR / f"{args.var}_day_CNRM-CM6-1_{prediction_period}_r1i1p1f2_gr_{args.predict_start_date}_{args.predict_end_date}_{exp}_{prediction_test_name}.nc"
+            PREDICTION_DIR / f"{args.var}_day_CNRM-CM6-1_{prediction_period}_r1i1p1f2_gr_{predict_start_date}_{predict_end_date}_{exp}_{prediction_test_name}.nc"
         ]
     value_outputs = []
     if args.test_name:
@@ -237,7 +280,20 @@ def main() -> int:
             "cleanup": phase1_outputs,
         },
         "stats": {
-            "command": [args.python_bin, "bin/preprocessing/compute_statistics.py", "--exp", exp],
+            "command": [
+                args.python_bin,
+                "bin/preprocessing/compute_statistics.py",
+                "--exp",
+                exp,
+                "--dataset_dir",
+                str(dataset_dir),
+                "--train-start-year",
+                DATES_TRAIN[0],
+                "--val-start-year",
+                DATES_TRAIN[1],
+                "--test-start-year",
+                DATES_TRAIN[2],
+            ],
             "expected": stats_outputs,
             "cleanup": stats_outputs,
         },
@@ -335,9 +391,9 @@ def main() -> int:
                 "--simu-test",
                 args.simu_test,
                 "--startdate",
-                args.predict_start_date,
+                predict_start_date,
                 "--enddate",
-                args.predict_end_date,
+                predict_end_date,
             ] + (["--checkpoint-bundle", args.checkpoint_bundle] if args.checkpoint_bundle else []),
             "expected": prediction_outputs,
             "cleanup": prediction_outputs,
@@ -354,6 +410,10 @@ def main() -> int:
                 args.simu_test,
                 "--simu",
                 args.simu,
+                "--startdate",
+                value_start_date,
+                "--enddate",
+                value_end_date,
             ],
             "expected": value_outputs,
             "cleanup": value_outputs,
@@ -363,9 +423,9 @@ def main() -> int:
                 args.python_bin,
                 "bin/evaluation/compute_test_metrics_day.py",
                 "--startdate",
-                args.predict_start_date,
+                metrics_start_date,
                 "--enddate",
-                args.predict_end_date,
+                metrics_end_date,
                 "--exp",
                 exp,
                 "--test-name",
@@ -381,9 +441,9 @@ def main() -> int:
                 args.python_bin,
                 "bin/evaluation/compute_test_metrics_month.py",
                 "--startdate",
-                args.predict_start_date,
+                metrics_start_date,
                 "--enddate",
-                args.predict_end_date,
+                metrics_end_date,
                 "--exp",
                 exp,
                 "--test-name",
@@ -424,10 +484,7 @@ def main() -> int:
         },
     }
 
-    if args.phase1_start_date:
-        step_table["phase1"]["command"].extend(["--start_date", args.phase1_start_date])
-    if args.phase1_end_date:
-        step_table["phase1"]["command"].extend(["--end_date", args.phase1_end_date])
+    step_table["phase1"]["command"].extend(["--start_date", phase1_start_date, "--end_date", phase1_end_date])
     if "pp_dataset" in steps and args.simu != "gcm":
         raise ValueError("pp_dataset currently supports only --simu gcm")
     if "raw_dataset" in steps and args.simu != "gcm":
