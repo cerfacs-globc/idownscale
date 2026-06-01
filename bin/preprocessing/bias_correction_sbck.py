@@ -29,6 +29,8 @@ from iriscc.settings import (
     DATES_BC_TRAIN_HIST,
     GRAPHS_DIR,
     get_bias_corrected_netcdf_path,
+    get_simu_family,
+    get_simu_source,
 )
 
 
@@ -169,6 +171,27 @@ def apply_sbck_cdft(train_hist: dict, test_hist: dict, test_future: dict, simu: 
     )
 
 
+def corrected_geometry_reference(exp: str, simu: str, simu_source: str) -> str:
+    if get_simu_family(exp, simu) == 'rcm':
+        return CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    return simu_source
+
+
+def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates: np.ndarray) -> xr.Dataset:
+    spatial_dims = reference_ds["tas"].dims
+    coords = {'time': ('time', dates)}
+    for coord_name in ('lon', 'lat', 'x', 'y'):
+        if coord_name not in reference_ds.coords:
+            continue
+        coord = reference_ds.coords[coord_name]
+        if coord.dims:
+            coords[coord_name] = (coord.dims, coord.values)
+    return xr.Dataset(
+        data_vars=dict(tas=(('time',) + spatial_dims, values)),
+        coords=coords,
+    )
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Bias correct and plot results with SBCK CDFt")
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
@@ -184,7 +207,7 @@ if __name__ == '__main__':
     var = args.var
     domain = CONFIG[exp]['domain']
     bc_domain = CONFIG[exp].get('bc_domain', [-12.5, 27.5, 31., 71.])
-    gcm_source = CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    simu_source = get_simu_source(exp, simu)
     orog_file = CONFIG[exp]['orog_file']
     target_file = CONFIG[exp]['target_file']
     dataset_bc_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu}_bc'
@@ -193,8 +216,8 @@ if __name__ == '__main__':
     graphs_bias_dir.mkdir(parents=True, exist_ok=True)
 
     get_data_bc = Data(bc_domain)
-    gcm_ds = get_data_bc.get_model_dataset(gcm_source, var, DATES_BC_TRAIN_HIST[0], ssp=ssp)
-    lon, lat = gcm_ds.lon.values, gcm_ds.lat.values
+    geometry_source = corrected_geometry_reference(exp, simu, simu_source)
+    model_ds = get_data_bc.get_model_dataset(geometry_source, var, DATES_BC_TRAIN_HIST[0], ssp=ssp)
     get_data = Data(domain=domain)
 
     train_hist = dict(np.load(DATASET_BC_DIR / f'bc_train_hist_{simu}.npz', allow_pickle=True))
@@ -344,18 +367,9 @@ if __name__ == '__main__':
             simu=simu,
         )
 
-    ds_train_hist_bc = xr.Dataset(
-        data_vars=dict(tas=(['time', 'lat', 'lon'], train_hist_bc)),
-        coords=dict(lat=('lat', lat), lon=('lon', lon), time=('time', train_hist['dates'])),
-    )
-    ds_test_hist_bc = xr.Dataset(
-        data_vars=dict(tas=(['time', 'lat', 'lon'], test_hist_bc)),
-        coords=dict(lat=('lat', lat), lon=('lon', lon), time=('time', test_hist['dates'])),
-    )
-    ds_test_future_bc = xr.Dataset(
-        data_vars=dict(tas=(['time', 'lat', 'lon'], test_future_bc)),
-        coords=dict(lat=('lat', lat), lon=('lon', lon), time=('time', test_future['dates'])),
-    )
+    ds_train_hist_bc = build_corrected_dataset(model_ds, train_hist_bc, train_hist['dates'])
+    ds_test_hist_bc = build_corrected_dataset(model_ds, test_hist_bc, test_hist['dates'])
+    ds_test_future_bc = build_corrected_dataset(model_ds, test_future_bc, test_future['dates'])
     ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'train_hist', ssp=ssp))
     ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_hist', ssp=ssp))
     ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_future', ssp=ssp))

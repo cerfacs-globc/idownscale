@@ -106,7 +106,10 @@ if __name__=='__main__':
             target_grid = load_batch_dataset(simu_source, pd.DatetimeIndex([dates[0]])).isel(time=0, drop=True)
         else:
             ds_gcm_target = load_batch_dataset(gcm_source, pd.DatetimeIndex([dates[0]]))
-            target_grid = crop_domain_from_ds(ds_gcm_target, domain).isel(time=0, drop=True)
+            # Preserve the archival BC geometry on the GCM bridge grid; the
+            # later sample materialization step is responsible for reformatting
+            # corrected fields onto the final target domain.
+            target_grid = ds_gcm_target.isel(time=0, drop=True)
 
         for batch_file, batch_dates in date_batches:
             print(
@@ -120,18 +123,30 @@ if __name__=='__main__':
                 ds_simu = interpolation_target_grid(
                     ds_simu,
                     ds_target=target_grid,
-                    method="conservative_normed",
+                    # The archival ALADIN BC bundles were built on the cropped
+                    # GCM bridge grid with bilinear remapping. The conservative
+                    # path currently collapses this RCM crop to zeros because
+                    # the fabricated source bounds do not match the native
+                    # ALADIN footprint.
+                    method="bilinear",
                     input_projection=input_projection,
                 )
 
             if not is_future:
-                ds_era5 = load_batch_dataset(
-                    bc_reanalysis_source,
-                    batch_dates,
-                    domain_override=era5_domain,
-                )
-                ds_target_regrid = interpolation_target_grid(ds_era5, ds_target=target_grid, method="conservative_normed")
-                era5_list.append(ds_target_regrid[args.var].values)
+                era5_batch_list = []
+                for _, era5_batch_dates in grouped_dates_for_source(bc_reanalysis_source, batch_dates):
+                    ds_era5 = load_batch_dataset(
+                        bc_reanalysis_source,
+                        era5_batch_dates,
+                        domain_override=era5_domain,
+                    )
+                    ds_target_regrid = interpolation_target_grid(
+                        ds_era5,
+                        ds_target=target_grid,
+                        method="conservative_normed",
+                    )
+                    era5_batch_list.append(ds_target_regrid[args.var].values)
+                era5_list.append(np.concatenate(era5_batch_list, axis=0))
             
             simu_list.append(ds_simu[args.var].values)
         

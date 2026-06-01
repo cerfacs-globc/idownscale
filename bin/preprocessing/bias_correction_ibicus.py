@@ -26,7 +26,62 @@ from iriscc.settings import (GRAPHS_DIR,
                              DATES_BC_TEST_HIST,
                              DATES_BC_TRAIN_HIST,
                              DATASET_BC_DIR,
-                             get_bias_corrected_netcdf_path)
+                             get_bias_corrected_netcdf_path,
+                             get_simu_family,
+                             get_simu_source)
+
+
+def apply_cdft_locationwise(
+        debiaser: CDFt,
+        obs: np.ndarray,
+        cm_hist: np.ndarray,
+        cm_future: np.ndarray,
+        time_obs: np.ndarray,
+        time_cm_hist: np.ndarray,
+        time_cm_future: np.ndarray,
+    ) -> np.ndarray:
+    """
+    Apply IBICUS CDFt one grid cell at a time.
+
+    The upstream ``Debiaser.apply`` API is intended to do this internally, but
+    with running-window mode enabled it currently validates the full 3D array
+    sizes against the 1D time axes before location-wise dispatch. For our
+    datasets that raises a false time-dimension mismatch. Dispatching through
+    ``apply_location`` preserves the intended algorithm and matches the
+    documented per-location contract.
+    """
+    output = np.empty_like(cm_future)
+    for i, j in np.ndindex(obs.shape[1:]):
+        output[:, i, j] = debiaser.apply_location(
+            obs=obs[:, i, j],
+            cm_hist=cm_hist[:, i, j],
+            cm_future=cm_future[:, i, j],
+            time_obs=time_obs,
+            time_cm_hist=time_cm_hist,
+            time_cm_future=time_cm_future,
+        )
+    return output
+
+
+def corrected_geometry_reference(exp: str, simu: str, simu_source: str) -> str:
+    if get_simu_family(exp, simu) == 'rcm':
+        return CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    return simu_source
+
+
+def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates: np.ndarray) -> xr.Dataset:
+    spatial_dims = reference_ds["tas"].dims
+    coords = {'time': ('time', dates)}
+    for coord_name in ('lon', 'lat', 'x', 'y'):
+        if coord_name not in reference_ds.coords:
+            continue
+        coord = reference_ds.coords[coord_name]
+        if coord.dims:
+            coords[coord_name] = (coord.dims, coord.values)
+    return xr.Dataset(
+        data_vars=dict(tas=(('time',) + spatial_dims, values)),
+        coords=coords,
+    )
 
 
 def plot_tprofiles_short_range(
@@ -158,7 +213,7 @@ if __name__=='__main__':
     var = args.var
     domain =  CONFIG[exp]['domain']
     bc_domain = CONFIG[exp].get('bc_domain', [-12.5, 27.5, 31., 71.])
-    gcm_source = CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    simu_source = get_simu_source(exp, simu)
     orog_file = CONFIG[exp]['orog_file']
     target_file = CONFIG[exp]['target_file']
     dataset = CONFIG[exp]['dataset']
@@ -169,8 +224,8 @@ if __name__=='__main__':
     
 
     get_data_bc = Data(bc_domain)
-    gcm_ds = get_data_bc.get_model_dataset(gcm_source, var, DATES_BC_TRAIN_HIST[0], ssp=ssp)
-    lon, lat = gcm_ds.lon.values, gcm_ds.lat.values
+    geometry_source = corrected_geometry_reference(exp, simu, simu_source)
+    model_ds = get_data_bc.get_model_dataset(geometry_source, var, DATES_BC_TRAIN_HIST[0], ssp=ssp)
     get_data = Data(domain=domain)
 
     debiaser = CDFt.from_variable(variable=var)
@@ -182,25 +237,31 @@ if __name__=='__main__':
    
     print("Applying IBICUS CDFt", flush=True)
     ##### 1980-1999
-    train_hist_bc = debiaser.apply(obs=train_hist['era5'],
-                                cm_hist=train_hist[simu], 
-                                cm_future=train_hist[simu], 
-                                time_obs=train_hist['dates'], 
+    train_hist_bc = apply_cdft_locationwise(
+                                debiaser=debiaser,
+                                obs=train_hist['era5'],
+                                cm_hist=train_hist[simu],
+                                cm_future=train_hist[simu],
+                                time_obs=train_hist['dates'],
                                 time_cm_hist=train_hist['dates'],
                                 time_cm_future=train_hist['dates'])
     ##### 2000-2014
-    test_hist_bc = debiaser.apply(obs=train_hist['era5'],
-                                cm_hist=train_hist[simu], 
-                                cm_future=test_hist[simu], 
-                                time_obs=train_hist['dates'], 
+    test_hist_bc = apply_cdft_locationwise(
+                                debiaser=debiaser,
+                                obs=train_hist['era5'],
+                                cm_hist=train_hist[simu],
+                                cm_future=test_hist[simu],
+                                time_obs=train_hist['dates'],
                                 time_cm_hist=train_hist['dates'],
                                 time_cm_future=test_hist['dates'])
     
     ##### 2015-2100
-    test_future_bc = debiaser.apply(obs=train_hist['era5'],
-                            cm_hist=train_hist[simu], 
-                            cm_future=test_future[simu], 
-                            time_obs=train_hist['dates'], 
+    test_future_bc = apply_cdft_locationwise(
+                            debiaser=debiaser,
+                            obs=train_hist['era5'],
+                            cm_hist=train_hist[simu],
+                            cm_future=test_future[simu],
+                            time_obs=train_hist['dates'],
                             time_cm_hist=train_hist['dates'],
                             time_cm_future=test_future['dates'])
     if args.test:
@@ -325,28 +386,9 @@ if __name__=='__main__':
                            savedir=GRAPHS_DIR/f'biascorrection/{var}_ibicus_test_future_histo_{ssp}_{simu}.png',
                            simu=simu)
 
-    ds_train_hist_bc = xr.Dataset(data_vars=dict(
-                            tas=(['time', 'lat', 'lon'], train_hist_bc)),
-                            coords=dict(
-                            lat=('lat', lat),
-                            lon=('lon', lon),
-                            time=('time', train_hist['dates'])
-                            ))
-    ds_test_hist_bc = xr.Dataset(data_vars=dict(
-                            tas=(['time', 'lat', 'lon'], test_hist_bc)),
-                            coords=dict(
-                            lat=('lat', lat),
-                            lon=('lon', lon),
-                            time=('time', test_hist['dates'])
-                            ))
-    
-    ds_test_future_bc = xr.Dataset(data_vars=dict(
-                            tas=(['time', 'lat', 'lon'], test_future_bc)),
-                            coords=dict(
-                            lat=('lat', lat),
-                            lon=('lon', lon),
-                            time=('time', test_future['dates'])
-                            ))
+    ds_train_hist_bc = build_corrected_dataset(model_ds, train_hist_bc, train_hist['dates'])
+    ds_test_hist_bc = build_corrected_dataset(model_ds, test_hist_bc, test_hist['dates'])
+    ds_test_future_bc = build_corrected_dataset(model_ds, test_future_bc, test_future['dates'])
     ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'train_hist', ssp=ssp))
     ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_hist', ssp=ssp))
     ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_future', ssp=ssp))
