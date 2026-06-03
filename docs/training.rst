@@ -20,53 +20,36 @@ On environments where TensorBoard is available, you can monitor progress with:
 
    tensorboard --logdir=runs/
 
-On Grace GPU nodes, we currently recommend using CSV logging instead of TensorBoard
-for the first smoke or production training runs. The repository training entrypoint
-supports this through the ``IDOWNSCALE_FORCE_CSV_LOGGER=1`` environment variable.
+On constrained or unusual environments, CSV logging can be safer than
+TensorBoard for first smoke or production runs. The repository training
+entrypoint supports this through the ``IDOWNSCALE_FORCE_CSV_LOGGER=1``
+environment variable.
 
-Grace GPU training
-------------------
+Cluster Training Notes
+----------------------
 
-A known-good Grace GPU training route is now available.
+For HPC or cluster training, the exact Python, CUDA, and remapping stack can be
+site-specific.
 
-Working combination:
+Commonly useful flags:
 
-* module stack:
-  
-  * ``python/gloenv3.12_arm``
-  * ``nvidia/cuda/12.4``
-* Python environment:
-  
-  * ``/scratch/globc/page/idownscale_envs/production_final_v22_312``
-* recommended training flags:
-  
-  * ``IDOWNSCALE_FORCE_CSV_LOGGER=1``
-  * ``IDOWNSCALE_SKIP_TEST_FIGURES=1``
+* ``IDOWNSCALE_FORCE_CSV_LOGGER=1``
+* ``IDOWNSCALE_SKIP_TEST_FIGURES=1``
+* ``IDOWNSCALE_SKIP_TEST=1``
 
-Typical Grace submit pattern:
+If your environment uses ``xesmf``, it may also require an installation-specific
+``ESMFMKFILE`` setting for ``ESMF`` / ``esmpy``.
+
+Typical pattern:
 
 .. code-block:: bash
 
-   sbatch --export=ALL,\
-   TEST_NAME=unet_smoke,\
-   STEPS=train,\
-   IF_EXISTS=overwrite,\
-   MAX_EPOCH=1,\
-   IDOWNSCALE_VENV_PATH=/scratch/globc/page/idownscale_envs/production_final_v22_312,\
-   IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES=tqdm,\
-   IDOWNSCALE_FORCE_CSV_LOGGER=1,\
-   IDOWNSCALE_SKIP_TEST_FIGURES=1 \
-   bin/production/submit_exp5_train_grace.sh
+   export ESMFMKFILE=/path/to/esmf.mk
 
-The longer engineer-facing note with failure history and reconstruction advice is
-stored in ``doc/GRACE_TRAINING_ENGINEER_NOTE.md``.
-
-Small environment probes are also versioned:
-
-.. code-block:: bash
-
-   bash bin/production/submit_grace_venv_probe.sh
-   TORCH_VERSION=2.5.1 bash bin/production/submit_grace_torch_version_probe.sh
+For the standalone perfect-model workflow, the repository launcher uses
+``--skip-test`` during training and relies on the explicit prediction,
+comparison, and validation phases afterwards. This avoids spending cluster time
+on a redundant post-fit test pass.
 
 Architectures
 -------------
@@ -86,5 +69,9 @@ To generate predictions for specific dates or long loops:
    # Single date prediction
    python bin/training/predict.py --date 20121018 --exp exp5
 
-   # Loop prediction (e.g., full 2015-2100 period)
-   python bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5
+   # Loop prediction over an explicit configured window
+   python bin/training/predict_loop.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5
+
+``predict_loop.py`` also supports ``--var`` and writes lightweight dataset
+provenance attributes so downstream diagnostics can recover experiment, sample,
+and source-role context from the prediction NetCDF itself.
