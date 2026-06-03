@@ -49,7 +49,7 @@ This approach assesses models across multiple dimensions to establish state-of-t
 Advanced Metrics Calculation
 ----------------------------
 
-The ``compute_value_metrics.py`` script provides a consolidated summary table based on the VALUE framework, comparing the downscaled model against ERA5 ground truth for the historical test period (2000-2014).
+The ``compute_value_metrics.py`` script provides a consolidated summary table based on the VALUE framework, comparing the downscaled model against ERA5 ground truth for the configured historical validation window.
 
 .. code-block:: bash
 
@@ -58,3 +58,37 @@ The ``compute_value_metrics.py`` script provides a consolidated summary table ba
 For more information on the validation standards, visit the `VALUE website <http://www.value-cost.eu/>`_.
 
 Diagnostics assets and EGU-oriented materials are indexed in ``doc/DIAGNOSTICS_INDEX.md``.
+
+Perfect-Model Validation
+------------------------
+
+The standalone perfect-model workflow has its own validation chain because the
+reference is not an observational dataset but the native-resolution RCM
+pseudo-truth packed in the sample ``y`` field.
+
+Main utilities:
+
+* ``bin/evaluation/validate_perfect_model_samples.py``
+* ``bin/evaluation/compare_perfect_model_predictions_vs_truth.py``
+* ``bin/evaluation/aggregate_perfect_model_comparisons.py``
+* ``bin/evaluation/plot_perfect_model_comparison.py``
+* ``bin/evaluation/plot_perfect_model_distribution_pdf.py``
+
+Typical workflow:
+
+.. code-block:: bash
+
+   python bin/production/run_exp5_perfect_model.py \
+     --exp perfect_model_rcm \
+     --test-name unet_perfect_model_rcm \
+     --steps build_train_dataset,build_eval_dataset,validate_train_dataset,validate_eval_dataset,stats,train,predict,compare_predictions,aggregate_comparison,plot_score_comparison,plot_distribution
+
+Validation is designed to fail early on:
+
+* sample inventory mismatches
+* incorrect ``x`` / ``y`` structure
+* suspicious cross-period repetition in the coarse predictor
+* distribution drift visible in the probability-density comparison
+
+Where metadata are available in NetCDF outputs, these diagnostics prefer
+``long_name`` / ``standard_name`` / ``units`` over hardcoded variable labels.
