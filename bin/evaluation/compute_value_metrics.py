@@ -36,9 +36,8 @@ def main():
     metric_dir.mkdir(parents=True, exist_ok=True)
     
     # 2. Identify historical test files
-    # Note: These are expected in PREDICTION_DIR for the and test period (2000-2014)
-    # We use the naming pattern: tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_exp5_unet_all_gcm_bc.nc
-    period = 'historical' if pd.Timestamp(args.enddate) <= pd.Timestamp('2014-12-31') else CONFIG[args.exp].get('ssp', 'ssp585')
+    # Note: These are expected in PREDICTION_DIR for the configured validation window.
+    period = 'historical' if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get('ssp', 'ssp585')
     pred_files = list(
         PREDICTION_DIR.glob(
             f'tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc'

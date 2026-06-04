@@ -14,13 +14,13 @@ sys.path.append('.')
 
 from bin.training.predict_loop import get_target_format
 from iriscc.datautils import Data, reformat_as_target
-from iriscc.settings import CONFIG, RCM_RAW_DIR
+from iriscc.settings import CONFIG, RCM_RAW_DIR, DATES_BC_TEST_HIST
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Reformat RCM to target for comparison ")
-    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20000101)', default='20000101')
-    parser.add_argument('--enddate', type=str, help='End date (e.g., 20141231)', default='20141231')
+    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20000101)', default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'))
+    parser.add_argument('--enddate', type=str, help='End date (e.g., 20141231)', default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'))
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--var', type=str, help='Variable to reformat', default='tas') 
     args = parser.parse_args()
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     target = CONFIG[exp]['target']  
     
     dates = pd.date_range(start=startdate, end=enddate, freq='D')
-    period = 'historical' if dates[-1] < pd.Timestamp('2014-12-31 00:00:00') else CONFIG[exp]['ssp']
+    period = 'historical' if dates[-1] <= DATES_BC_TEST_HIST[-1] else CONFIG[exp]['ssp']
     ds_test_future, _ = get_target_format(exp, dates)
     for i, date in enumerate(dates):
         print(date)
@@ -51,5 +51,4 @@ if __name__ == '__main__':
         
         ds_test_future[var][i] = ds[var].values
     ds_test_future.to_netcdf(RCM_RAW_DIR/f'ALADIN_reformat/tas_EUR-12_CNRM-ESM2-1_{period}_r1i1p1f2_CNRM-MF_CNRM-ALADIN64E1_v1-r1_day_{startdate}-{enddate}_reformat_{target}.nc')
-
 

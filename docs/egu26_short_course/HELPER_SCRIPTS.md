@@ -13,7 +13,7 @@ published `.tar.gz` files from Mercure as the quickest way to obtain the course 
 
 The most direct setup helper for the short-course layout is:
 
-- [bin/production/setup_egu26_short_course_tree.sh](/Users/page/src/idownscale/bin/production/setup_egu26_short_course_tree.sh)
+- [bin/production/setup_egu26_short_course_tree.sh](../../bin/production/setup_egu26_short_course_tree.sh)
 
 Example:
 
@@ -58,7 +58,7 @@ For the fastest attendee path after the course, combine this script with:
 
 ## 2. France cropping helper
 
-Use [bin/preprocessing/crop_domain.py](/Users/page/src/idownscale/bin/preprocessing/crop_domain.py) to standardize coordinates and crop a NetCDF file to the `exp5` France domain.
+Use [bin/preprocessing/crop_domain.py](../../bin/preprocessing/crop_domain.py) to standardize coordinates and crop a NetCDF file to the `exp5` France domain.
 
 Example:
 
@@ -81,7 +81,7 @@ scientific and technical explanation before the command and output checks after 
 
 ## 3. Main workflow runner
 
-Use [bin/production/run_exp5_workflow.py](/Users/page/src/idownscale/bin/production/run_exp5_workflow.py) as the main phase-by-phase entrypoint.
+Use [bin/production/run_exp5_workflow.py](../../bin/production/run_exp5_workflow.py) as the main phase-by-phase entrypoint.
 
 Useful examples:
 
@@ -89,7 +89,7 @@ Useful examples:
 python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats
 python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
 python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
-python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,metrics_day,metrics_month,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date 20000101 --predict-end-date 20141231
+python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,metrics_day,metrics_month,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --metrics-start-date <STARTDATE> --metrics-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 ```
 
 Useful options:
@@ -106,12 +106,12 @@ rather than launching the whole workflow in one block.
 
 Attendees can also call the lower-level scripts directly when they want finer control:
 
-- [bin/preprocessing/build_dataset.py](/Users/page/src/idownscale/bin/preprocessing/build_dataset.py)
-- [bin/preprocessing/compute_statistics.py](/Users/page/src/idownscale/bin/preprocessing/compute_statistics.py)
-- [bin/preprocessing/build_dataset_bc.py](/Users/page/src/idownscale/bin/preprocessing/build_dataset_bc.py)
-- [bin/preprocessing/bias_correction_ibicus.py](/Users/page/src/idownscale/bin/preprocessing/bias_correction_ibicus.py)
-- [bin/training/train.py](/Users/page/src/idownscale/bin/training/train.py)
-- [bin/training/predict_loop.py](/Users/page/src/idownscale/bin/training/predict_loop.py)
+- [bin/preprocessing/build_dataset.py](../../bin/preprocessing/build_dataset.py)
+- [bin/preprocessing/compute_statistics.py](../../bin/preprocessing/compute_statistics.py)
+- [bin/preprocessing/build_dataset_bc.py](../../bin/preprocessing/build_dataset_bc.py)
+- [bin/preprocessing/bias_correction_ibicus.py](../../bin/preprocessing/bias_correction_ibicus.py)
+- [bin/training/train.py](../../bin/training/train.py)
+- [bin/training/predict_loop.py](../../bin/training/predict_loop.py)
 
 In the short course, the workflow runner should usually be preferred because it
 keeps phase ordering and output locations consistent.
@@ -120,7 +120,7 @@ keeps phase ordering and output locations consistent.
 
 For Grace-style batch usage, the existing wrapper is:
 
-- [bin/production/run_exp5_workflow_grace.sh](/Users/page/src/idownscale/bin/production/run_exp5_workflow_grace.sh)
+- [bin/production/run_exp5_workflow_grace.sh](../../bin/production/run_exp5_workflow_grace.sh)
 
 That wrapper is useful when attendees move the same workflow from a local machine
 to a supercomputer environment.

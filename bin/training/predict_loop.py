@@ -30,9 +30,10 @@ from iriscc.datautils import (remove_countries,
 
 def get_target_format(exp:str, dates):
     get_data = Data(CONFIG[exp]['domain'])
+    reference_date = DATES_BC_TEST_HIST[-1]
     ds_target = get_data.get_target_dataset(target = CONFIG[exp]['target'], 
                                             var = CONFIG[exp]['target_vars'][0],
-                                            date=pd.Timestamp('2014-12-31 00:00:00'))
+                                            date=reference_date)
     y = ds_target.tas.values
     
     if 'x' in ds_target.dims:
@@ -97,7 +98,7 @@ if __name__=='__main__':
     startdate = args.startdate
     enddate = args.enddate
     dates = pd.date_range(start=startdate, end=enddate, freq='D')
-    if dates[-1] <= pd.Timestamp('2014-12-31'):
+    if dates[-1] <= DATES_BC_TEST_HIST[-1]:
         period = 'historical'
     else:
         period = 'ssp585'

@@ -15,7 +15,7 @@ To run evaluation for a specific experiment and model:
 
 .. code-block:: bash
 
-   python3 bin/evaluation/compute_test_metrics_day.py --exp exp5 --test-name unet --startdate 20150101 --enddate 21001231
+   python3 bin/evaluation/compute_test_metrics_day.py --exp exp5 --test-name unet --startdate <STARTDATE> --enddate <ENDDATE>
 
 Score Visualization
 -------------------

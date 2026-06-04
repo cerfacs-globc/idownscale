@@ -87,4 +87,4 @@ To generate predictions for specific dates or long loops:
    python bin/training/predict.py --date 20121018 --exp exp5
 
    # Loop prediction (e.g., full 2015-2100 period)
-   python bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5
+   python bin/training/predict_loop.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5

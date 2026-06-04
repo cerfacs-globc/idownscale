@@ -39,16 +39,16 @@ def gcm_netcdf_path(var: str, ssp: str, corrected: bool, period: str) -> Path:
 
     if period == "train_hist":
         if corrected:
-            return base / f"{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc"
+            return base / f"{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_{DATES_BC_TRAIN_HIST[0].strftime('%Y%m%d')}-{DATES_BC_TRAIN_HIST[-1].strftime('%Y%m%d')}_bc.nc"
         return base / f"{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc"
     if period == "test_hist":
         if corrected:
-            return base / f"{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc"
+            return base / f"{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_{DATES_BC_TEST_HIST[0].strftime('%Y%m%d')}-{DATES_BC_TEST_HIST[-1].strftime('%Y%m%d')}_bc.nc"
         return base / f"{var}_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc"
     if period == "test_future":
         if corrected:
-            return base / f"{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231_bc.nc"
-        return base / f"{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_20150101-21001231.nc"
+            return base / f"{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_{DATES_BC_TEST_FUTURE[0].strftime('%Y%m%d')}-{DATES_BC_TEST_FUTURE[-1].strftime('%Y%m%d')}_bc.nc"
+        return base / f"{var}_day_CNRM-CM6-1_{ssp}_r1i1p1f2_gr_{DATES_BC_TEST_FUTURE[0].strftime('%Y%m%d')}-{DATES_BC_TEST_FUTURE[-1].strftime('%Y%m%d')}.nc"
     raise ValueError(f"Unsupported period: {period}")
 
 

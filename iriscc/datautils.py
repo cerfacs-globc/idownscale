@@ -27,7 +27,8 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
                              RCM_RAW_DIR,
                              ERA5_DIR,
                              ERA5_OROG_FILE,
-                             REGRID_WEIGHTS_DIR)
+                             REGRID_WEIGHTS_DIR,
+                             DATES_BC_TEST_FUTURE)
 
 
 def _grid_signature(ds: xr.Dataset) -> str:
@@ -349,7 +350,7 @@ class Data(object):
 
    def get_gcm_dataset(self, var:str, date, ssp:str=None, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
       import xesmf as xe
-      if date is None or date < pd.Timestamp('2015-01-01'):
+      if date is None or date < DATES_BC_TEST_FUTURE[0]:
          file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*historical*r1i1p1f2*'))[0]
       else:
          file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*{ssp}*'))[0]
@@ -402,7 +403,7 @@ class Data(object):
          file = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
          ds = xr.open_dataset(file).isel(time=0)
       else :
-         if date < pd.Timestamp('2015-01-01'):
+         if date < DATES_BC_TEST_FUTURE[0]:
             file_for_xy = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
             ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
             xref = ds_for_xy['x'].values

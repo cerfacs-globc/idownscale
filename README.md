@@ -158,7 +158,7 @@ python3 bin/production/run_exp5_workflow.py --exp exp5 --if-exists overwrite
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850131
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
-python3 bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date 20000101 --predict-end-date 20141231
+python3 bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 ```
 
 The workflow runner skips fully completed steps by default. With `--if-exists overwrite`,
@@ -279,7 +279,7 @@ python bin/training/predict.py --date 20121018 --exp exp5 --test-name unet_all -
 ```
 The following command creates a netCDF file to predict a long period without having to compare with the reference (for the future, for example): 
 ```bash
-python bin/training/predict_loop.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet_all --simu-test gcm_bc
+python bin/training/predict_loop.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5 --test-name unet_all --simu-test gcm_bc
 ```
 
 Rq: The `--simu-test gcm` option indicates whether the input data is ERA5 (`None`), CNRM-CM6-1 (`gcm`) or corrected CNRM-CM6-1 (`gcm_bc`), as well as for RCM ALADIN (`rcm` and `rcm_bc`). Data are then retrieved from the associated directories.
@@ -291,11 +291,11 @@ The neural network predictions are compared with the reference data for the hist
 #### Metrics computing
 Daily metrics : 
 ```bash
-python3 bin/evaluation/compute_test_metrics_day.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet
+python3 bin/evaluation/compute_test_metrics_day.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5 --test-name unet
 ```
 Monthly metrics :
 ```bash
-python3 bin/evaluation/compute_test_metrics_month.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet 
+python3 bin/evaluation/compute_test_metrics_month.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5 --test-name unet 
 ```
 To calculate metrics in the ‘perfect prognosis’ framework, we need to add the argument `--simu-test gcm_bc`.
 
@@ -303,11 +303,11 @@ To calculate metrics under perfect condition framework (RCM as reference) we use
 
 Daily metrics : 
 ```bash
-python3 bin/evaluation/compute_test_metrics_day_rcm.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet
+python3 bin/evaluation/compute_test_metrics_day_rcm.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5 --test-name unet
 ```
 Monthly metrics :
 ```bash
-python3 bin/evaluation/compute_test_metrics_month_rcm.py --startdate 20150101 --enddate 21001231 --exp exp5 --test-name unet 
+python3 bin/evaluation/compute_test_metrics_month_rcm.py --startdate <STARTDATE> --enddate <ENDDATE> --exp exp5 --test-name unet 
 ```
 
 #### Score visualization
