@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+RUNTIME_ROOT_DEFAULT="/gpfs-calypso/scratch/globc/${USER}/idownscale_runtime"
 
 fail_with_layout_help() {
   echo "ERROR: ${1}" >&2
@@ -11,8 +12,8 @@ fail_with_layout_help() {
   echo "Expected output root : ${IDOWNSCALE_OUTPUT_DIR}" >&2
   echo >&2
   echo "Recommended fixes:" >&2
-  echo "  1. Put the raw files under ${REPO_ROOT}/rawdata" >&2
-  echo "  2. or export IDOWNSCALE_RAW_DIR=/path/to/rawdata" >&2
+  echo "  1. export IDOWNSCALE_RUNTIME_ROOT=${RUNTIME_ROOT_DEFAULT}" >&2
+  echo "  2. export IDOWNSCALE_RAW_DIR=/path/to/rawdata" >&2
   echo "  3. or create a symlink: ln -s /path/to/rawdata ${REPO_ROOT}/rawdata" >&2
   echo >&2
   echo "See doc/CALYPSO_RUNBOOK.md for the Calypso layout and commands." >&2
@@ -23,12 +24,18 @@ module load python/gloenv3.12_arm
 
 unset PYTHONHOME
 export PYTHONNOUSERSITE=1
-export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${REPO_ROOT}/rawdata}"
-export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-/gpfs-calypso/scratch/globc/page/idownscale_output}"
+export IDOWNSCALE_RUNTIME_ROOT="${IDOWNSCALE_RUNTIME_ROOT:-${RUNTIME_ROOT_DEFAULT}}"
+if [[ -z "${IDOWNSCALE_RAW_DIR:-}" && -d "${REPO_ROOT}/rawdata" ]]; then
+  export IDOWNSCALE_RAW_DIR="${REPO_ROOT}/rawdata"
+else
+  export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/rawdata}"
+fi
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
 export IDOWNSCALE_REGRID_WEIGHTS_DIR="${IDOWNSCALE_REGRID_WEIGHTS_DIR:-${IDOWNSCALE_OUTPUT_DIR}/weights}"
 export IDOWNSCALE_VENV_PATH="${IDOWNSCALE_VENV_PATH:-}"
 export IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES="${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES:-}"
 export IDOWNSCALE_FORCE_VENV_SITEPACKAGES="${IDOWNSCALE_FORCE_VENV_SITEPACKAGES:-}"
+export ESMFMKFILE="${ESMFMKFILE:-/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk}"
 
 if [[ -n "${IDOWNSCALE_EXTRA_PYTHONPATH:-}" ]]; then
   export PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH}:${PYTHONPATH:-}"

@@ -13,14 +13,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+RUNTIME_ROOT_DEFAULT="/gpfs-calypso/scratch/globc/${USER}/idownscale_runtime"
 
 module load python/gloenv3.12_arm
 module load nvidia/cuda/12.4
 
 unset PYTHONHOME
 export PYTHONNOUSERSITE=1
-export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${REPO_ROOT}/rawdata}"
-export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-/gpfs-calypso/scratch/globc/page/idownscale_output}"
+export IDOWNSCALE_RUNTIME_ROOT="${IDOWNSCALE_RUNTIME_ROOT:-${RUNTIME_ROOT_DEFAULT}}"
+if [[ -z "${IDOWNSCALE_RAW_DIR:-}" && -d "${REPO_ROOT}/rawdata" ]]; then
+  export IDOWNSCALE_RAW_DIR="${REPO_ROOT}/rawdata"
+else
+  export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/rawdata}"
+fi
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
 export IDOWNSCALE_REGRID_WEIGHTS_DIR="${IDOWNSCALE_REGRID_WEIGHTS_DIR:-${IDOWNSCALE_OUTPUT_DIR}/weights}"
 export IDOWNSCALE_VENV_PATH="${IDOWNSCALE_VENV_PATH:-}"
 export IDOWNSCALE_EXTRA_PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH:-}"
@@ -42,8 +48,12 @@ cd "${REPO_ROOT}"
 TEST_NAME="${TEST_NAME:-unet_grace30}"
 SIMU_TEST="${SIMU_TEST:-gcm_bc}"
 IF_EXISTS="${IF_EXISTS:-overwrite}"
-PREDICT_START_DATE="${PREDICT_START_DATE:-20000101}"
-PREDICT_END_DATE="${PREDICT_END_DATE:-20141231}"
+PREDICT_START_DATE="${PREDICT_START_DATE:-}"
+PREDICT_END_DATE="${PREDICT_END_DATE:-}"
+METRICS_START_DATE="${METRICS_START_DATE:-}"
+METRICS_END_DATE="${METRICS_END_DATE:-}"
+VALUE_START_DATE="${VALUE_START_DATE:-}"
+VALUE_END_DATE="${VALUE_END_DATE:-}"
 STEPS="${STEPS:-predict_loop,metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month}"
 CHECKPOINT_BUNDLE="${CHECKPOINT_BUNDLE:-}"
 
@@ -61,12 +71,28 @@ CMD=(
   --if-exists "${IF_EXISTS}"
   --test-name "${TEST_NAME}"
   --simu-test "${SIMU_TEST}"
-  --predict-start-date "${PREDICT_START_DATE}"
-  --predict-end-date "${PREDICT_END_DATE}"
 )
 
 if [[ -n "${CHECKPOINT_BUNDLE}" ]]; then
   CMD+=(--checkpoint-bundle "${CHECKPOINT_BUNDLE}")
+fi
+if [[ -n "${PREDICT_START_DATE}" ]]; then
+  CMD+=(--predict-start-date "${PREDICT_START_DATE}")
+fi
+if [[ -n "${PREDICT_END_DATE}" ]]; then
+  CMD+=(--predict-end-date "${PREDICT_END_DATE}")
+fi
+if [[ -n "${METRICS_START_DATE}" ]]; then
+  CMD+=(--metrics-start-date "${METRICS_START_DATE}")
+fi
+if [[ -n "${METRICS_END_DATE}" ]]; then
+  CMD+=(--metrics-end-date "${METRICS_END_DATE}")
+fi
+if [[ -n "${VALUE_START_DATE}" ]]; then
+  CMD+=(--value-start-date "${VALUE_START_DATE}")
+fi
+if [[ -n "${VALUE_END_DATE}" ]]; then
+  CMD+=(--value-end-date "${VALUE_END_DATE}")
 fi
 
 echo "command: ${CMD[*]}"

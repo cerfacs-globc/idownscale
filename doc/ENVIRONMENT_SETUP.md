@@ -8,9 +8,12 @@ The short operational summary is:
 
 - GPU is mainly needed for `train` and `predict_loop`
 - preprocessing and most evaluation phases can run on CPU
-- raw data are discovered from `IDOWNSCALE_RAW_DIR` or `repo/rawdata`
+- raw data are discovered from `IDOWNSCALE_RAW_DIR`, otherwise from
+  `repo/rawdata` if that directory exists, otherwise from
+  `IDOWNSCALE_RUNTIME_ROOT/rawdata`
 - writable output paths should be overridden if the defaults point to someone
   else's protected project space
+- the safest layout is `code in $HOME`, `runtime/data/output on scratch`
 
 ## Validated Grace GPU environment
 
@@ -22,6 +25,7 @@ module load nvidia/cuda/12.4
 source /scratch/globc/page/idownscale_envs/production_final_v22_312/bin/activate
 unset PYTHONHOME
 export PYTHONNOUSERSITE=1
+export ESMFMKFILE=/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk
 ```
 
 This is the environment that was proven to work for the Calypso Grace parity
@@ -44,6 +48,20 @@ export IDOWNSCALE_METRICS_DIR=/path/to/output/metrics
 export IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR=/path/to/archive/dataset_exp5_30y
 export IDOWNSCALE_GCM_BC_DIR=/path/to/writable/gcm_bc
 export IDOWNSCALE_RCM_BC_DIR=/path/to/writable/rcm_bc
+```
+
+Recommended split layout when the repository lives in backed-up `home`:
+
+```bash
+export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
+export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_DATASET_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets
+export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
+export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
+export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_OUTPUT_DIR/graph
 ```
 
 On Calypso, the intended defaults are usually:
@@ -73,20 +91,26 @@ export IDOWNSCALE_RCM_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/rcm_bc
 
 The most common source of confusion is `rawdata/`.
 
-By default, the cleaned workflow expects raw data under the repository root:
+If `repo/rawdata` exists, the cleaned workflow can still read raw data there.
+If it does not exist, the default fallback is:
 
 ```bash
-/scratch/globc/page/idownscale_rerun/rawdata
+$IDOWNSCALE_RUNTIME_ROOT/rawdata
 ```
 
 This comes directly from `iriscc/settings.py`:
 
-- `RAW_DIR = env_path('IDOWNSCALE_RAW_DIR', PROJECT_ROOT / 'rawdata')`
+- `RAW_DIR = IDOWNSCALE_RAW_DIR if set`
+- otherwise `repo/rawdata` if that directory exists
+- otherwise `IDOWNSCALE_RUNTIME_ROOT/rawdata`
+- `OUTPUT_DIR = IDOWNSCALE_OUTPUT_DIR if set`
+- otherwise `IDOWNSCALE_RUNTIME_ROOT/idownscale_output`
 
 So the discovery rule is simple:
 
 1. use `IDOWNSCALE_RAW_DIR` if set
-2. otherwise use `repo/rawdata`
+2. otherwise use `repo/rawdata` if it exists
+3. otherwise use `IDOWNSCALE_RUNTIME_ROOT/rawdata`
 
 That can be:
 
@@ -103,7 +127,7 @@ export IDOWNSCALE_RAW_DIR=/shared/location/rawdata
 or:
 
 ```bash
-cd /scratch/globc/page/idownscale_rerun
+cd /home/globc/$USER/src/idownscale
 ln -s /shared/location/rawdata rawdata
 ```
 
@@ -152,18 +176,66 @@ For Grace GPU runs, reuse:
 /scratch/globc/page/idownscale_envs/production_final_v22_312
 ```
 
+Repair note from 2026-06-01:
+
+- this env had drifted into an inconsistent mixed stack
+- the repaired working core is now:
+  - `numpy 1.26.4`
+  - `scipy 1.12.0`
+  - `xarray 2024.7.0`
+  - `dask 2024.5.2`
+  - `xesmf 0.8.5`
+  - `torch 2.5.1`
+  - `pytorch_lightning 2.4.0`
+  - `ibicus 1.1.1`
+- on Grace, `xesmf` still requires:
+  - `ESMFMKFILE=/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk`
+- default wrapper validation now passes through:
+  - `bin/production/run_in_grace_env.sh`
+  - `bin/production/run_exp5_workflow_grace.sh`
+  - `bin/production/submit_exp5_workflow_grace.sh`
+- verified on-arm via default wrapper probe job `272675`
+
 The generic Grace submitters in `bin/production/` default to that path unless
 you override `IDOWNSCALE_VENV_PATH`.
+
+If that venv is inconsistent on a given node, use the mixed Calypso fallback
+that keeps the Grace module stack and switches to the documented site-packages
+overlay:
+
+```bash
+bash bin/production/run_in_calypso_mixed_env.sh python -c "import xarray, xesmf, torch, ibicus; print('ok')"
+```
 
 For `globc` CPU fallback, the same workflow commands are valid, but the exact
 Python environment may need to be set differently if the Grace venv is not
 usable on that partition.
+
+Validated `globc` CPU fallback:
+
+```bash
+/scratch/globc/page/idownscale_envs/globc_cpu_py312_v2
+```
+
+Important shell hygiene on Calypso login nodes:
+
+- inherited `PYTHONHOME=/softs/Anaconda/...` can break alternate envs with
+  `ModuleNotFoundError: encodings`
+- use the wrapper below, or manually `unset PYTHONHOME` and `unset PYTHONPATH`
+  before invoking that CPU env
+
+Recommended wrapper:
+
+```bash
+bash bin/production/run_in_globc_cpu_env.sh -c "import xarray, xesmf, ibicus; print('ok')"
+```
 
 Useful checks:
 
 ```bash
 bash bin/production/submit_grace_venv_probe.sh
 TORCH_VERSION=2.5.1 bash bin/production/submit_grace_torch_version_probe.sh
+bash bin/production/run_in_grace_env.sh python -c "import numpy, scipy, xarray, dask, xesmf, torch, ibicus; print('ok')"
 ```
 
 ## Rebuilding the environment

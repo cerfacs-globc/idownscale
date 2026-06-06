@@ -29,6 +29,24 @@ The main runtime paths are configured with environment variables:
    export IDOWNSCALE_PREDICTION_DIR=/path/to/prediction
    export IDOWNSCALE_METRICS_DIR=/path/to/metrics
 
+Recommended separation when the repository lives in ``$HOME``:
+
+.. code-block:: bash
+
+   export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
+   export IDOWNSCALE_RAW_DIR=/scratch/globc/$USER/idownscale_runtime/rawdata
+   export IDOWNSCALE_OUTPUT_DIR=/scratch/globc/$USER/idownscale_runtime/idownscale_output
+   export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+
+If ``IDOWNSCALE_RAW_DIR`` is not set explicitly, the code now uses:
+
+1. ``repo/rawdata`` if that directory exists
+2. otherwise ``$IDOWNSCALE_RUNTIME_ROOT/rawdata``
+
+If ``IDOWNSCALE_OUTPUT_DIR`` is not set explicitly, the code now uses:
+
+1. ``$IDOWNSCALE_RUNTIME_ROOT/idownscale_output``
+
 Optional archival parity reference:
 
 .. code-block:: bash
@@ -38,8 +56,6 @@ Optional archival parity reference:
 For more detail, see:
 
 * ``doc/ENVIRONMENT_SETUP.md``
-* ``doc/CALYPSO_RUNBOOK.md``
-* ``doc/GRACE_TRAINING_ENGINEER_NOTE.md``
 
 First Workflow Run
 ------------------
@@ -50,36 +66,29 @@ The cleaned exp5 entrypoint is:
 
    python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850103
 
-On Grace, you can use the local wrapper:
+If you are working on an HPC system and maintain local wrapper scripts, you can
+use them instead of calling the Python entrypoint directly.
 
 .. code-block:: bash
 
    bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
 
-For Calypso batch usage, the generic submitters are:
-
-.. code-block:: bash
-
-   sbatch --export=ALL bin/production/submit_exp5_workflow_grace.sh
-   sbatch --export=ALL bin/production/submit_exp5_workflow_globc.sh
-
 GPU is mainly useful for ``train`` and ``predict_loop``. Preprocessing and most
-evaluation phases can run on CPU if Grace GPU capacity is unavailable.
+evaluation phases can run on CPU if GPU capacity is unavailable.
 
 Once coarse bias correction is built, the same runner can also package raw GCM test samples
 and drive downstream prediction or VALUE evaluation steps if a trained checkpoint is available.
 
-Grace GPU training
-------------------
+HPC note
+--------
 
-For Grace GPU training, the currently validated route is:
+On some HPC systems, ``xesmf`` may require an additional environment variable
+such as ``ESMFMKFILE`` so that ``ESMF`` / ``esmpy`` can be discovered correctly.
+That path is installation-specific, so consult your local environment notes or
+cluster documentation.
 
-* modules:
-  
-  * ``python/gloenv3.12_arm``
-  * ``nvidia/cuda/12.4``
-* venv:
-  
-  * ``/scratch/globc/page/idownscale_envs/production_final_v22_312``
+Typical pattern:
 
-The longer engineering note is stored in ``doc/GRACE_TRAINING_ENGINEER_NOTE.md``.
+.. code-block:: bash
+
+   export ESMFMKFILE=/path/to/esmf.mk

@@ -16,17 +16,24 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+RUNTIME_ROOT_DEFAULT="/scratch/globc/${USER}/idownscale_runtime"
 
 unset PYTHONHOME
 export PYTHONNOUSERSITE=1
-export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${REPO_ROOT}/rawdata}"
-export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-/scratch/globc/page/idownscale_output}"
+export IDOWNSCALE_RUNTIME_ROOT="${IDOWNSCALE_RUNTIME_ROOT:-${RUNTIME_ROOT_DEFAULT}}"
+if [[ -z "${IDOWNSCALE_RAW_DIR:-}" && -d "${REPO_ROOT}/rawdata" ]]; then
+  export IDOWNSCALE_RAW_DIR="${REPO_ROOT}/rawdata"
+else
+  export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/rawdata}"
+fi
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
 export IDOWNSCALE_REGRID_WEIGHTS_DIR="${IDOWNSCALE_REGRID_WEIGHTS_DIR:-${IDOWNSCALE_OUTPUT_DIR}/weights}"
 export IDOWNSCALE_VENV_PATH="${IDOWNSCALE_VENV_PATH:-/scratch/globc/page/idownscale_envs/kraken_gpu_py312_v1}"
+export PYTHON_BIN="${PYTHON_BIN:-${IDOWNSCALE_VENV_PATH}/bin/python}"
 
-if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
-  # shellcheck disable=SC1090
-  source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  echo "Python interpreter not found: ${PYTHON_BIN}" >&2
+  exit 1
 fi
 
 cd "${REPO_ROOT}"
@@ -51,7 +58,7 @@ VALIDATION_HISTORICAL_ENDDATE="${VALIDATION_HISTORICAL_ENDDATE:-}"
 VALIDATION_UNIT="${VALIDATION_UNIT:-}"
 
 CMD=(
-  python
+  "${PYTHON_BIN}"
   bin/production/run_exp5_perfect_model.py
   --exp "${EXP}"
   --var "${VAR}"
@@ -96,7 +103,7 @@ fi
 
 echo "--- RCM perfect-model Kraken workflow start: $(date) ---"
 echo "repo_root=${REPO_ROOT}"
-echo "python=$(command -v python || true)"
+echo "python=${PYTHON_BIN}"
 echo "venv=${IDOWNSCALE_VENV_PATH:-<none>}"
 echo "command: ${CMD[*]}"
 "${CMD[@]}"

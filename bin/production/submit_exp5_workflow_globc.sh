@@ -14,11 +14,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
+RUNTIME_ROOT_DEFAULT="/gpfs-calypso/scratch/globc/${USER}/idownscale_runtime"
 
 unset PYTHONHOME
 export PYTHONNOUSERSITE=1
-export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${REPO_ROOT}/rawdata}"
-export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-/gpfs-calypso/scratch/globc/page/idownscale_output}"
+export IDOWNSCALE_RUNTIME_ROOT="${IDOWNSCALE_RUNTIME_ROOT:-${RUNTIME_ROOT_DEFAULT}}"
+if [[ -z "${IDOWNSCALE_RAW_DIR:-}" && -d "${REPO_ROOT}/rawdata" ]]; then
+  export IDOWNSCALE_RAW_DIR="${REPO_ROOT}/rawdata"
+else
+  export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/rawdata}"
+fi
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
 export IDOWNSCALE_REGRID_WEIGHTS_DIR="${IDOWNSCALE_REGRID_WEIGHTS_DIR:-${IDOWNSCALE_OUTPUT_DIR}/weights}"
 export IDOWNSCALE_VENV_PATH="${IDOWNSCALE_VENV_PATH:-}"
 export IDOWNSCALE_PYTHON_BIN="${IDOWNSCALE_PYTHON_BIN:-python3}"
@@ -45,8 +51,12 @@ VAR="${VAR:-tas}"
 SSP="${SSP:-ssp585}"
 TEST_NAME="${TEST_NAME:-}"
 SIMU_TEST="${SIMU_TEST:-gcm_bc}"
-PREDICT_START_DATE="${PREDICT_START_DATE:-20000101}"
-PREDICT_END_DATE="${PREDICT_END_DATE:-21001231}"
+PREDICT_START_DATE="${PREDICT_START_DATE:-}"
+PREDICT_END_DATE="${PREDICT_END_DATE:-}"
+METRICS_START_DATE="${METRICS_START_DATE:-}"
+METRICS_END_DATE="${METRICS_END_DATE:-}"
+VALUE_START_DATE="${VALUE_START_DATE:-}"
+VALUE_END_DATE="${VALUE_END_DATE:-}"
 CHECKPOINT_BUNDLE="${CHECKPOINT_BUNDLE:-}"
 TRAIN_MAX_EPOCH="${TRAIN_MAX_EPOCH:-30}"
 TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-32}"
@@ -64,8 +74,6 @@ CMD=(
   --var "${VAR}"
   --ssp "${SSP}"
   --simu-test "${SIMU_TEST}"
-  --predict-start-date "${PREDICT_START_DATE}"
-  --predict-end-date "${PREDICT_END_DATE}"
   --train-max-epoch "${TRAIN_MAX_EPOCH}"
   --train-batch-size "${TRAIN_BATCH_SIZE}"
   --train-learning-rate "${TRAIN_LEARNING_RATE}"
@@ -83,6 +91,24 @@ if [[ -n "${TEST_NAME}" ]]; then
 fi
 if [[ -n "${CHECKPOINT_BUNDLE}" ]]; then
   CMD+=(--checkpoint-bundle "${CHECKPOINT_BUNDLE}")
+fi
+if [[ -n "${PREDICT_START_DATE}" ]]; then
+  CMD+=(--predict-start-date "${PREDICT_START_DATE}")
+fi
+if [[ -n "${PREDICT_END_DATE}" ]]; then
+  CMD+=(--predict-end-date "${PREDICT_END_DATE}")
+fi
+if [[ -n "${METRICS_START_DATE}" ]]; then
+  CMD+=(--metrics-start-date "${METRICS_START_DATE}")
+fi
+if [[ -n "${METRICS_END_DATE}" ]]; then
+  CMD+=(--metrics-end-date "${METRICS_END_DATE}")
+fi
+if [[ -n "${VALUE_START_DATE}" ]]; then
+  CMD+=(--value-start-date "${VALUE_START_DATE}")
+fi
+if [[ -n "${VALUE_END_DATE}" ]]; then
+  CMD+=(--value-end-date "${VALUE_END_DATE}")
 fi
 if [[ -n "${TRAIN_LOSS}" ]]; then
   CMD+=(--train-loss "${TRAIN_LOSS}")

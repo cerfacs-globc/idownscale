@@ -31,7 +31,7 @@ the repository.
 
 ## 2. Set the main runtime paths
 
-From the repository root:
+For a self-contained local clone, from the repository root:
 
 ```bash
 export IDOWNSCALE_RAW_DIR=$PWD/rawdata
@@ -42,7 +42,21 @@ export IDOWNSCALE_PREDICTION_DIR=$PWD/idownscale_output/prediction
 export IDOWNSCALE_METRICS_DIR=$PWD/idownscale_output/metrics
 ```
 
-These settings keep the short-course workflow self-contained inside the local clone.
+These settings keep the short-course workflow self-contained inside the local
+clone.
+
+If you use the repository on an HPC system and want the code in backed-up
+`home`, prefer:
+
+```bash
+export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
+export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
+export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
+export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
+```
 
 ## 3. Create the local directory tree
 
@@ -101,6 +115,19 @@ This is the most common installation issue.
 
 If `import xesmf` fails, recreate the environment with the Conda-based route above.
 
+HPC note:
+
+- on some HPC systems, `xesmf` may also need an environment variable such as
+  `ESMFMKFILE` so that `ESMF` / `esmpy` can be discovered correctly
+- the exact value is installation-specific and should come from the local
+  platform documentation or support team
+
+Typical pattern:
+
+```bash
+export ESMFMKFILE=/path/to/esmf.mk
+```
+
 ### `SBCK`
 
 `SBCK` is listed in `requirements.txt`:
@@ -129,7 +156,7 @@ For local CPU-only use, the standard `pip install -r requirements.txt` route may
 enough.
 
 For GPU/HPC use, the exact `torch` environment can matter a lot. The project docs
-contain a validated Grace-specific route, but for the short course it is better to
+contain internal HPC-oriented notes, but for the short course it is better to
 present local CPU use as the default.
 
 ### TensorBoard not available

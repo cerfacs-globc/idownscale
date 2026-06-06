@@ -24,10 +24,30 @@ def env_path(name: str, default: Path | str) -> Path:
     return Path(os.getenv(name, str(default))).expanduser()
 
 
+def _user_scratch_root() -> Path:
+    user = os.getenv("USER") or os.getenv("LOGNAME") or "user"
+    return Path("/scratch/globc") / user
+
+
+def default_runtime_root() -> Path:
+    if "IDOWNSCALE_RUNTIME_ROOT" in os.environ:
+        return env_path("IDOWNSCALE_RUNTIME_ROOT", _user_scratch_root() / "idownscale_runtime")
+    return _user_scratch_root() / "idownscale_runtime"
+
+
+def default_raw_dir() -> Path:
+    if "IDOWNSCALE_RAW_DIR" in os.environ:
+        return env_path("IDOWNSCALE_RAW_DIR", PROJECT_ROOT / "rawdata")
+    repo_raw = PROJECT_ROOT / "rawdata"
+    if repo_raw.exists():
+        return repo_raw
+    return RUNTIME_ROOT / "rawdata"
+
+
 def default_output_dir() -> Path:
     if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
-        return env_path("IDOWNSCALE_OUTPUT_DIR", PROJECT_ROOT / "idownscale_output")
-    return PROJECT_ROOT / "idownscale_output"
+        return env_path("IDOWNSCALE_OUTPUT_DIR", RUNTIME_ROOT / "idownscale_output")
+    return RUNTIME_ROOT / "idownscale_output"
 
 
 def safe_mkdir(directory: Path) -> None:
@@ -57,7 +77,8 @@ def pyproj_proj(spec: str, **kwargs):
 # Base directories
 PROJECT_ROOT = Path(__file__).parents[1].resolve()
 REPO_DIR = PROJECT_ROOT
-RAW_DIR = env_path('IDOWNSCALE_RAW_DIR', PROJECT_ROOT / 'rawdata')
+RUNTIME_ROOT = default_runtime_root()
+RAW_DIR = default_raw_dir()
 OUTPUT_DIR = default_output_dir()
 
 SAFRAN_DIR = RAW_DIR / 'safran'
