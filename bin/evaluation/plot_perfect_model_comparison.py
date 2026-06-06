@@ -17,6 +17,7 @@ from iriscc.settings import GRAPHS_DIR, METRICS_DIR
 
 
 MODEL_LABELS = {
+    "bc_baseline": "BC baseline",
     "unet_outputnorm_perfect_model_rcm": "UNet + output norm",
     "unet_perfect_model_rcm": "UNet",
     "unet_rep3_perfect_model_rcm": "UNet replicate",
@@ -25,6 +26,7 @@ MODEL_LABELS = {
 }
 
 MODEL_COLORS = {
+    "bc_baseline": "#2A9D8F",
     "unet_outputnorm_perfect_model_rcm": "#006D77",
     "unet_perfect_model_rcm": "#E76F51",
     "unet_rep3_perfect_model_rcm": "#457B9D",
@@ -51,10 +53,15 @@ def window_label(window: str) -> str:
 
 
 def model_label(model: str) -> str:
+    if model.startswith("bc_baseline_") and model not in MODEL_LABELS:
+        suffix = model[len("bc_baseline_") :].replace("_", " ")
+        return f"BC baseline ({suffix})"
     return MODEL_LABELS.get(model, model)
 
 
 def model_color(model: str) -> str:
+    if model.startswith("bc_baseline_") and model not in MODEL_COLORS:
+        return "#3D9970"
     return MODEL_COLORS.get(model, "#4A4A4A")
 
 
@@ -86,11 +93,8 @@ def main() -> int:
     rmse_reduction_col = "rmse_reduction" if "rmse_reduction" in df.columns else "rmse_gain_K"
     unit_suffix = f" [{unit}]" if unit else ""
     df["window_label"] = df["window"].map(window_label)
-    model_order = [
-        model
-        for model in MODEL_LABELS
-        if model in set(df["model"])
-    ] + [model for model in df["model"].unique() if model not in MODEL_LABELS]
+    model_order = [model for model in MODEL_LABELS if model in set(df["model"])]
+    model_order += [model for model in df["model"].unique() if model not in MODEL_LABELS]
     window_order = list(dict.fromkeys(df["window_label"]))
     x = np.arange(len(window_order))
 

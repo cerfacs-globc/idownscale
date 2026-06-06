@@ -17,7 +17,7 @@ from typing import Optional, List, Tuple
 from ibicus.evaluate import marginal, metrics, trend
 from ibicus.debias import CDFt
 
-
+from bin.preprocessing.build_dataset_pp import build_perfect_model_target
 from iriscc.datautils import (reformat_as_target, 
                               Data)
 from iriscc.settings import (GRAPHS_DIR,
@@ -26,9 +26,12 @@ from iriscc.settings import (GRAPHS_DIR,
                              DATES_BC_TEST_HIST,
                              DATES_BC_TRAIN_HIST,
                              DATASET_BC_DIR,
+                             get_bias_corrected_sample_dir,
                              get_bias_corrected_netcdf_path,
                              get_simu_family,
-                             get_simu_source)
+                             normalize_bc_tag,
+                             get_simu_source,
+                             get_source_output_label)
 
 
 def apply_cdft_locationwise(
@@ -69,6 +72,14 @@ def corrected_geometry_reference(exp: str, simu: str, simu_source: str) -> str:
     return simu_source
 
 
+def bundle_obs(bundle: dict) -> np.ndarray:
+    if 'obs' in bundle:
+        return bundle['obs']
+    if 'era5' in bundle:
+        return bundle['era5']
+    raise KeyError("BC bundle does not contain an 'obs' or legacy 'era5' reference field.")
+
+
 def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates: np.ndarray) -> xr.Dataset:
     spatial_dims = reference_ds["tas"].dims
     coords = {'time': ('time', dates)}
@@ -82,6 +93,87 @@ def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates:
         data_vars=dict(tas=(('time',) + spatial_dims, values)),
         coords=coords,
     )
+
+
+def target_sample_for_date(
+    get_data: Data,
+    exp: str,
+    var: str,
+    date,
+    ssp: str,
+    target_file,
+    domain,
+) -> np.ndarray:
+    perfect_model_target_source = CONFIG[exp].get('perfect_model_target_source')
+    if perfect_model_target_source:
+        target_method = CONFIG[exp].get('perfect_model_target_method', 'conservative_normed')
+        y = build_perfect_model_target(
+            get_data,
+            perfect_model_target_source,
+            var,
+            date,
+            ssp,
+            target_file,
+            domain,
+            target_method,
+        )
+        return np.expand_dims(y, axis=0).astype(np.float32)
+
+    ds_target = get_data.get_target_dataset(
+        target=CONFIG[exp]['target'],
+        var=var,
+        date=date,
+        source_name=CONFIG[exp].get('target_source'),
+    )
+    try:
+        return np.expand_dims(ds_target[var].values, axis=0).astype(np.float32)
+    finally:
+        ds_target.close()
+
+
+def materialize_corrected_samples(
+    *,
+    corrected_ds: xr.Dataset,
+    dates,
+    dataset_bc_dir,
+    orog: np.ndarray,
+    target_file,
+    domain,
+    get_data: Data,
+    exp: str,
+    var: str,
+    ssp: str,
+    include_target: bool,
+) -> None:
+    for date in pd.DatetimeIndex(dates):
+        print(date)
+        ds_day = corrected_ds.sel(time=corrected_ds.time.dt.date == date.date()).isel(time=0, drop=True)
+        ds_day_target = reformat_as_target(
+            ds_day,
+            target_file=target_file,
+            domain=domain,
+            method="conservative_normed",
+            mask=True,
+        )
+        try:
+            x = np.stack([orog, ds_day_target[var].values], axis=0).astype(np.float32)
+        finally:
+            ds_day_target.close()
+
+        sample = {'x': x}
+        if include_target:
+            sample['y'] = target_sample_for_date(
+                get_data=get_data,
+                exp=exp,
+                var=var,
+                date=date,
+                ssp=ssp,
+                target_file=target_file,
+                domain=domain,
+            )
+
+        date_str = date.date().strftime('%Y%m%d')
+        np.savez(dataset_bc_dir / f'sample_{date_str}.npz', **sample)
 
 
 def plot_tprofiles_short_range(
@@ -205,19 +297,23 @@ if __name__=='__main__':
     parser.add_argument('--simu', type=str, help='Simulation alias or model source key', default='gcm')
     parser.add_argument('--var', type=str, help='tas, pr', default='tas')
     parser.add_argument('--test', action='store_true', help='Skip expensive diagnostics and only materialize corrected outputs')
+    parser.add_argument('--bc-tag', type=str, default=None, help='Optional suffix to keep BC outputs separate across methods.')
     args = parser.parse_args()
 
     exp = args.exp
     ssp = args.ssp
     simu = args.simu
     var = args.var
+    bc_tag = normalize_bc_tag(args.bc_tag)
     domain =  CONFIG[exp]['domain']
     bc_domain = CONFIG[exp].get('bc_domain', [-12.5, 27.5, 31., 71.])
     simu_source = get_simu_source(exp, simu)
+    bc_reference_source = CONFIG[exp].get('bc_reanalysis_source', 'era5')
+    bc_reference_label = get_source_output_label(bc_reference_source)
     orog_file = CONFIG[exp]['orog_file']
     target_file = CONFIG[exp]['target_file']
     dataset = CONFIG[exp]['dataset']
-    dataset_bc_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu}_bc'
+    dataset_bc_dir = get_bias_corrected_sample_dir(exp, simu, bc_tag)
     graphs_bias_dir = GRAPHS_DIR / 'biascorrection'
     dataset_bc_dir.mkdir(parents=True, exist_ok=True)
     graphs_bias_dir.mkdir(parents=True, exist_ok=True)
@@ -233,13 +329,15 @@ if __name__=='__main__':
     train_hist = dict(np.load(DATASET_BC_DIR/f'bc_train_hist_{simu}.npz', allow_pickle=True))
     test_hist = dict(np.load(DATASET_BC_DIR/f'bc_test_hist_{simu}.npz', allow_pickle=True))
     test_future = dict(np.load(DATASET_BC_DIR/f'bc_test_future_{simu}.npz', allow_pickle=True))
+    train_obs = bundle_obs(train_hist)
+    test_obs = bundle_obs(test_hist)
 
    
     print("Applying IBICUS CDFt", flush=True)
     ##### 1980-1999
     train_hist_bc = apply_cdft_locationwise(
                                 debiaser=debiaser,
-                                obs=train_hist['era5'],
+                                obs=train_obs,
                                 cm_hist=train_hist[simu],
                                 cm_future=train_hist[simu],
                                 time_obs=train_hist['dates'],
@@ -248,7 +346,7 @@ if __name__=='__main__':
     ##### 2000-2014
     test_hist_bc = apply_cdft_locationwise(
                                 debiaser=debiaser,
-                                obs=train_hist['era5'],
+                                obs=train_obs,
                                 cm_hist=train_hist[simu],
                                 cm_future=test_hist[simu],
                                 time_obs=train_hist['dates'],
@@ -258,7 +356,7 @@ if __name__=='__main__':
     ##### 2015-2100
     test_future_bc = apply_cdft_locationwise(
                             debiaser=debiaser,
-                            obs=train_hist['era5'],
+                            obs=train_obs,
                             cm_hist=train_hist[simu],
                             cm_future=test_future[simu],
                             time_obs=train_hist['dates'],
@@ -269,7 +367,7 @@ if __name__=='__main__':
     else:
         var_marginal_bias_data = marginal.calculate_marginal_bias(metrics = [metrics.cold_days, metrics.warm_days], 
                                                                 percentage_or_absolute='absolute',
-                                                                obs = test_hist['era5'],
+                                                                obs = test_obs,
                                                                 raw = test_hist[simu],
                                                                 CDFt = test_hist_bc)
         plot = marginal.plot_marginal_bias(variable = var,
@@ -285,10 +383,10 @@ if __name__=='__main__':
         plot = trend.plot_future_trend_bias_boxplot(variable =var, bias_df = var_trend_bias_data,remove_outliers = True)
         plot.savefig(GRAPHS_DIR / f'biascorrection/{var}_ibicus_bias_futur_trend_{ssp}_{simu}.png')
 
-        Y0 = np.mean(train_hist['era5'], axis=(1,2))
+        Y0 = np.mean(train_obs, axis=(1,2))
         X0 = np.mean(train_hist[simu], axis=(1,2))
         Z0 = np.mean(train_hist_bc, axis=(1,2))
-        Y1 = np.mean(test_hist['era5'], axis=(1,2))
+        Y1 = np.mean(test_obs, axis=(1,2))
         X1 = np.mean(test_hist[simu], axis=(1,2))
         Z1 = np.mean(test_hist_bc, axis=(1,2))
         X2 = np.mean(test_future[simu], axis=(1,2))
@@ -335,14 +433,14 @@ if __name__=='__main__':
         df_simu['year'] = pd.to_datetime(df_simu['dates']).dt.year
         df_simu_year = df_simu.groupby('year').mean()
 
-        df_era5 = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
+        df_obs = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
                                                     test_hist['dates']), axis=None),
                         'values' : np.concatenate((Y0, 
                                                     Y1), axis=None),
                         'labels' : np.concatenate((np.ones_like(Y0),
                                                     2*np.ones_like(Y1)), axis=None)})
-        df_era5['year'] = pd.to_datetime(df_era5['dates']).dt.year
-        df_era5_year = df_era5.groupby('year').mean()
+        df_obs['year'] = pd.to_datetime(df_obs['dates']).dt.year
+        df_obs_year = df_obs.groupby('year').mean()
 
         df_simu_bc = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
                                                  test_hist['dates'], 
@@ -357,10 +455,10 @@ if __name__=='__main__':
         df_simu_bc_year = df_simu_bc.groupby('year').mean()
 
         plt.figure(figsize=(8, 4))
-        plt.plot(df_era5_year.index, np.where(df_era5_year["labels"]==1., df_era5_year["values"], None), color="red", label='ERA5')
+        plt.plot(df_obs_year.index, np.where(df_obs_year["labels"]==1., df_obs_year["values"], None), color="red", label=bc_reference_label)
         plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==1., df_simu_year["values"], None), color="blue", label=simu)
         plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==1., df_simu_bc_year["values"], None), color="green", label=simu)
-        plt.plot(df_era5_year.index, np.where(df_era5_year["labels"]==2., df_era5_year["values"], None), color="red")
+        plt.plot(df_obs_year.index, np.where(df_obs_year["labels"]==2., df_obs_year["values"], None), color="red")
         plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==2., df_simu_year["values"], None), color="blue")
         plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==2., df_simu_bc_year["values"], None), color="green")
         plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==3., df_simu_year["values"], None), color="blue")
@@ -389,98 +487,52 @@ if __name__=='__main__':
     ds_train_hist_bc = build_corrected_dataset(model_ds, train_hist_bc, train_hist['dates'])
     ds_test_hist_bc = build_corrected_dataset(model_ds, test_hist_bc, test_hist['dates'])
     ds_test_future_bc = build_corrected_dataset(model_ds, test_future_bc, test_future['dates'])
-    ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'train_hist', ssp=ssp))
-    ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_hist', ssp=ssp))
-    ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_future', ssp=ssp))
-    
-    for date in pd.DatetimeIndex(ds_train_hist_bc.time.values):
-        print(date)
-        x = []
+    ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'train_hist', ssp=ssp, bc_tag=bc_tag))
+    ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_hist', ssp=ssp, bc_tag=bc_tag))
+    ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_future', ssp=ssp, bc_tag=bc_tag))
+    with xr.open_dataset(orog_file) as ds_orog:
+        orog = ds_orog['elevation'].values.astype(np.float32)
 
-        ds = xr.open_dataset(orog_file)
-        x.append(ds['elevation'].values)
-        ds_train_hist_bc_i = ds_train_hist_bc.sel(time=ds_train_hist_bc.time.dt.date == date.date())
-        ds_train_hist_bc_i = ds_train_hist_bc_i.isel(time=0, drop=True)
-
-        ds_train_hist_bc_i = reformat_as_target(ds_train_hist_bc_i, 
-                                         target_file=target_file,
-                                         domain=domain, 
-                                         method="conservative_normed",
-                                         mask=True
-                                         )
-        
-
-    
-        x.append(ds_train_hist_bc_i.tas.values)
-        x = np.stack(x, axis = 0)
-        ds_target = get_data.get_target_dataset(target=CONFIG[exp]['target'], 
-                                     var = var, 
-                                     date = date,
-                                     source_name=CONFIG[exp].get('target_source'))
-        y = ds_target[var].values
-        y = np.expand_dims(y, axis= 0)
-        
-        sample = {'x' : x,
-                    'y' : y}
-        date_str = date.date().strftime('%Y%m%d')
-        np.savez(dataset_bc_dir/f'sample_{date_str}.npz', **sample)
-
-
-    
-    for date in pd.DatetimeIndex(ds_test_hist_bc.time.values):
-        print(date)
-        x = []
-
-        ds = xr.open_dataset(orog_file)
-        x.append(ds['elevation'].values)
-
-        ds_test_hist_bc_i = ds_test_hist_bc.sel(time=ds_test_hist_bc.time.dt.date == date.date())
-        ds_test_hist_bc_i = ds_test_hist_bc_i.isel(time=0, drop=True)
-
-        ds_test_hist_bc_i = reformat_as_target(ds_test_hist_bc_i, 
-                                         target_file=target_file,
-                                         domain=domain, 
-                                         method="conservative_normed",
-                                         mask=True
-                                         )
-                                         
-    
-        x.append(ds_test_hist_bc_i.tas.values)
-        x = np.stack(x, axis = 0)
-        ds_target = get_data.get_target_dataset(target=CONFIG[exp]['target'], 
-                                     var = var, 
-                                     date = date,
-                                     source_name=CONFIG[exp].get('target_source'))
-        y = ds_target[var].values
-        y = np.expand_dims(y, axis= 0)
-        
-        sample = {'x' : x,
-                    'y' : y}
-        date_str = date.date().strftime('%Y%m%d')
-        np.savez(dataset_bc_dir/f'sample_{date_str}.npz', **sample)
-
-    
-
-    for date in pd.DatetimeIndex(ds_test_future_bc.time.values):
-        print(date)
-        x = []
-
-        ds = xr.open_dataset(orog_file)
-        x.append(ds['elevation'].values)
-
-        ds_test_future_bc_i = ds_test_future_bc.sel(time=ds_test_future_bc.time.dt.date == date.date())
-        ds_test_future_bc_i = ds_test_future_bc_i.isel(time=0, drop=True)
-        ds_test_future_bc_i = reformat_as_target(ds_test_future_bc_i, 
-                                         target_file=target_file,
-                                         domain=domain, 
-                                         method="conservative_normed",
-                                         mask=True
-                                         )  
-    
-        x.append(ds_test_future_bc_i.tas.values)
-        x = np.stack(x, axis = 0)
-        
-        sample = {'x' : x}
-        date_str = date.date().strftime('%Y%m%d')
-        np.savez(dataset_bc_dir/f'sample_{date_str}.npz', **sample)
+    materialize_corrected_samples(
+        corrected_ds=ds_train_hist_bc,
+        dates=ds_train_hist_bc.time.values,
+        dataset_bc_dir=dataset_bc_dir,
+        orog=orog,
+        target_file=target_file,
+        domain=domain,
+        get_data=get_data,
+        exp=exp,
+        var=var,
+        ssp=ssp,
+        include_target=True,
+    )
+    materialize_corrected_samples(
+        corrected_ds=ds_test_hist_bc,
+        dates=ds_test_hist_bc.time.values,
+        dataset_bc_dir=dataset_bc_dir,
+        orog=orog,
+        target_file=target_file,
+        domain=domain,
+        get_data=get_data,
+        exp=exp,
+        var=var,
+        ssp=ssp,
+        include_target=True,
+    )
+    materialize_corrected_samples(
+        corrected_ds=ds_test_future_bc,
+        dates=ds_test_future_bc.time.values,
+        dataset_bc_dir=dataset_bc_dir,
+        orog=orog,
+        target_file=target_file,
+        domain=domain,
+        get_data=get_data,
+        exp=exp,
+        var=var,
+        ssp=ssp,
+        include_target=False,
+    )
+    ds_train_hist_bc.close()
+    ds_test_hist_bc.close()
+    ds_test_future_bc.close()
     

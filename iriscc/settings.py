@@ -27,9 +27,7 @@ def env_path(name: str, default: Path | str) -> Path:
 def default_output_dir() -> Path:
     if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
         return env_path("IDOWNSCALE_OUTPUT_DIR", PROJECT_ROOT / "idownscale_output")
-    if os.getenv("GITHUB_ACTIONS") == "true":
-        return PROJECT_ROOT / "idownscale_output"
-    return Path("/gpfs-calypso/scratch/globc/page/idownscale_output/").expanduser()
+    return PROJECT_ROOT / "idownscale_output"
 
 
 def safe_mkdir(directory: Path) -> None:
@@ -91,6 +89,11 @@ EXP5_ARCHIVE_DATASET_DIR = env_path(
     'IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR',
     '/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y',
 )
+LEGACY_DATASET_ROOTS = [
+    Path(path).expanduser()
+    for path in os.getenv('IDOWNSCALE_LEGACY_DATASET_ROOTS', '').split(os.pathsep)
+    if path
+]
 REGRID_WEIGHTS_DIR = env_path('IDOWNSCALE_REGRID_WEIGHTS_DIR', OUTPUT_DIR / 'weights')
 
 def build_custom_obs_source() -> dict:
@@ -225,6 +228,20 @@ def get_source_grid_label(source_name: str) -> str:
     return get_source_spec(source_name).get('grid_label', 'gr')
 
 
+def get_source_scenario_start(source_name: str) -> pd.Timestamp:
+    env_override = {
+        'gcm_cnrm_cm6_1': 'IDOWNSCALE_GCM_SCENARIO_START',
+        'cordex': 'IDOWNSCALE_CORDEX_SCENARIO_START',
+        'rcm_aladin': 'IDOWNSCALE_RCM_SCENARIO_START',
+    }.get(source_name)
+    raw_value = os.getenv(env_override) if env_override is not None else None
+    if raw_value is None:
+        raw_value = get_source_spec(source_name).get('scenario_start')
+    if raw_value is None:
+        return pd.Timestamp(DATES_BC_TEST_FUTURE[0])
+    return pd.Timestamp(raw_value)
+
+
 def get_simu_source(exp: str, simu: str) -> str:
     if simu == 'gcm':
         return CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
@@ -265,22 +282,41 @@ def get_bias_corrected_root(exp: str, simu: str) -> Path:
     return Path(root)
 
 
-def get_bias_corrected_netcdf_path(exp: str, simu: str, var: str, period: str, ssp: str | None = None) -> Path:
+def normalize_bc_tag(bc_tag: str | None) -> str:
+    if not bc_tag:
+        return ""
+    return str(bc_tag).strip().replace(" ", "_")
+
+
+def get_bias_corrected_netcdf_path(
+    exp: str,
+    simu: str,
+    var: str,
+    period: str,
+    ssp: str | None = None,
+    bc_tag: str | None = None,
+) -> Path:
     source_name = get_simu_source(exp, simu)
     scenario = 'historical'
     if period == 'train_hist':
-        date_range = '19800101-19991231'
+        date_range = f"{DATES_BC_TRAIN_HIST[0].strftime('%Y%m%d')}-{DATES_BC_TRAIN_HIST[-1].strftime('%Y%m%d')}"
     elif period == 'test_hist':
-        date_range = '20000101-20141231'
+        date_range = f"{DATES_BC_TEST_HIST[0].strftime('%Y%m%d')}-{DATES_BC_TEST_HIST[-1].strftime('%Y%m%d')}"
     elif period == 'test_future':
         scenario = ssp or CONFIG[exp].get('ssp', 'ssp585')
-        date_range = '20150101-21001231'
+        date_range = f"{DATES_BC_TEST_FUTURE[0].strftime('%Y%m%d')}-{DATES_BC_TEST_FUTURE[-1].strftime('%Y%m%d')}"
     else:
         raise ValueError(f"Unsupported BC period '{period}'.")
+    tag_suffix = f"_{normalize_bc_tag(bc_tag)}" if normalize_bc_tag(bc_tag) else ""
     return get_bias_corrected_root(exp, simu) / (
         f"{var}_day_{get_source_output_label(source_name)}_{scenario}_"
-        f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_{date_range}_bc.nc"
+        f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_{date_range}_bc{tag_suffix}.nc"
     )
+
+
+def get_bias_corrected_sample_dir(exp: str, simu: str, bc_tag: str | None = None) -> Path:
+    tag_suffix = f"_{normalize_bc_tag(bc_tag)}" if normalize_bc_tag(bc_tag) else ""
+    return DATASET_BC_DIR / f"dataset_{exp}_test_{simu}_bc{tag_suffix}"
 
 
 def get_prediction_output_path(
@@ -293,7 +329,8 @@ def get_prediction_output_path(
     ssp: str | None = None,
 ) -> Path:
     source_name = get_variant_source(exp, simu_variant)
-    period = 'historical' if pd.Timestamp(enddate) <= pd.Timestamp('2014-12-31') else (ssp or CONFIG[exp].get('ssp', 'ssp585'))
+    scenario_start = get_source_scenario_start(source_name)
+    period = 'historical' if pd.Timestamp(enddate) < scenario_start else (ssp or CONFIG[exp].get('ssp', 'ssp585'))
     return PREDICTION_DIR / (
         f"{var}_day_{get_source_output_label(source_name)}_{period}_"
         f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_"
@@ -301,11 +338,24 @@ def get_prediction_output_path(
     )
 
 
+def get_metrics_test_name(test_name: str, simu_test: str | None = None) -> str:
+    if simu_test:
+        return f"{test_name}_{simu_test}"
+    return test_name
+
+
+def get_value_metrics_output_path(exp: str, test_name: str, simu_test: str | None = None) -> Path:
+    metrics_test_name = get_metrics_test_name(test_name, simu_test)
+    return METRICS_DIR / exp / f"value_metrics_{exp}_{metrics_test_name}.csv"
+
+
 def get_dataset_variant_dir(exp: str, variant: str) -> Path:
     return DATASET_BC_DIR / f"dataset_{exp}_test_{variant}"
 
 
 def get_evaluation_sample_dir(exp: str, test_name: str, simu_test: str | None = None) -> Path | None:
+    if CONFIG.get(exp, {}).get('target') == 'perfect_model':
+        return Path(CONFIG[exp]['dataset'])
     if test_name.startswith('baseline'):
         return DATASET_DIR / f'dataset_{exp}_baseline'
     if test_name == 'era5_raw':
@@ -572,4 +622,21 @@ CONFIG['exp5_audit'] = {
     'channels': ['elevation', 'tas input', 'tas target'],
     'ssp': 'ssp585',
     'lapse_rate_correction': False
+}
+
+CONFIG['perfect_model_rcm'] = {
+    **CONFIG['exp5'],
+    'target': 'perfect_model',
+    'bc_reanalysis_source': 'rcm_aladin',
+    'target_source': 'rcm_aladin',
+    'dataset': DATASET_BC_DIR / 'dataset_perfect_model_rcm',
+    'perfect_model_input_source': 'rcm_aladin',
+    'perfect_model_input_resolution': '150km',
+    'perfect_model_input_grid_source': 'gcm_cnrm_cm6_1',
+    'perfect_model_input_coarse_method': 'conservative_normed',
+    'perfect_model_input_target_method': 'bilinear',
+    'perfect_model_target_source': 'rcm_aladin',
+    'perfect_model_target_resolution': 'native',
+    'perfect_model_target_method': 'conservative_normed',
+    'channels': ['elevation', 'degraded model input', 'native model target'],
 }

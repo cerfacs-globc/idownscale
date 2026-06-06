@@ -14,7 +14,16 @@ import xarray as xr
 
 sys.path.append(".")
 
-from iriscc.settings import CONFIG, METRICS_DIR, get_prediction_output_path
+from iriscc.datautils import reformat_as_target
+from iriscc.settings import (
+    CONFIG,
+    DATES_BC_TEST_HIST,
+    DATES_BC_TRAIN_HIST,
+    METRICS_DIR,
+    get_bias_corrected_netcdf_path,
+    get_prediction_output_path,
+    normalize_bc_tag,
+)
 
 
 def resolve_channel_indices(exp: str, var: str) -> tuple[int, int]:
@@ -43,6 +52,40 @@ def get_prediction_metadata(prediction_path: Path, var: str, fallback_unit: str 
         "idownscale_perfect_model_input_resolution": str(ds_attrs.get("idownscale_perfect_model_input_resolution", "")),
         "idownscale_perfect_model_target_resolution": str(ds_attrs.get("idownscale_perfect_model_target_resolution", "")),
     }
+
+
+def resolve_bc_period(startdate: str, enddate: str) -> str:
+    start = pd.Timestamp(startdate)
+    end = pd.Timestamp(enddate)
+    if start >= DATES_BC_TRAIN_HIST[0] and end <= DATES_BC_TRAIN_HIST[-1]:
+        return "train_hist"
+    if start >= DATES_BC_TEST_HIST[0] and end <= DATES_BC_TEST_HIST[-1]:
+        return "test_hist"
+    return "test_future"
+
+
+def load_bc_on_target_grid(
+    *,
+    exp: str,
+    simu_test: str,
+    var: str,
+    startdate: str,
+    enddate: str,
+    bc_tag: str | None = None,
+) -> xr.Dataset:
+    period = resolve_bc_period(startdate, enddate)
+    bc_path = get_bias_corrected_netcdf_path(exp, simu_test, var, period, ssp=CONFIG[exp].get("ssp"), bc_tag=bc_tag)
+    ds_bc = xr.open_dataset(bc_path)
+    ds_bc = ds_bc.sel(time=slice(pd.Timestamp(startdate), pd.Timestamp(enddate)))
+    return reformat_as_target(
+        ds_bc,
+        target_file=CONFIG[exp]["target_file"],
+        domain=CONFIG[exp]["domain"],
+        method="conservative_normed",
+        mask=True,
+        input_projection=None,
+        reuse_weights=True,
+    )
 
 
 @dataclass
@@ -107,9 +150,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--startdate", required=True)
     parser.add_argument("--enddate", required=True)
     parser.add_argument("--sample-dir", default=None)
+    parser.add_argument(
+        "--raw-sample-dir",
+        default=None,
+        help="Sample directory providing the raw degraded input channel. Defaults to the experiment training/eval sample tree.",
+    )
     parser.add_argument("--unit", default=None, help="Fallback unit if the prediction NetCDF does not carry one.")
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--stem-suffix", default="")
+    parser.add_argument("--include-bc-baseline", action="store_true", help="Also compare the bias-corrected RCM baseline against pseudo-truth.")
+    parser.add_argument("--bc-tag", default=None, help="Optional BC output tag, e.g. sbck_cdft.")
+    parser.add_argument("--bc-model-label", default="bc_baseline", help="Model label used for the BC baseline rows in downstream aggregate tables.")
     return parser.parse_args()
 
 
@@ -130,6 +181,7 @@ def _markdown(df: pd.DataFrame) -> str:
 def main() -> int:
     args = parse_args()
     sample_dir = Path(args.sample_dir) if args.sample_dir else Path(CONFIG[args.exp]["dataset"])
+    raw_sample_dir = Path(args.raw_sample_dir) if args.raw_sample_dir else Path(CONFIG[args.exp]["dataset"])
     test_name = f"{args.test_name}_{args.simu_test}"
     prediction_path = get_prediction_output_path(args.exp, args.simu_test, args.var, args.startdate, args.enddate, test_name)
     output_dir = Path(args.output_dir) if args.output_dir else METRICS_DIR / args.exp / "comparison_tables"
@@ -139,23 +191,47 @@ def main() -> int:
 
     ml = Accumulator()
     raw = Accumulator()
+    bc = Accumulator()
+    bc_tag = normalize_bc_tag(args.bc_tag)
+    bc_ds = load_bc_on_target_grid(
+        exp=args.exp,
+        simu_test=args.simu_test,
+        var=args.var,
+        startdate=args.startdate,
+        enddate=args.enddate,
+        bc_tag=bc_tag,
+    ) if args.include_bc_baseline else None
     with xr.open_dataset(prediction_path) as ds:
-        dates = pd.to_datetime(ds.time.values)
-        for i, date in enumerate(dates):
-            sample = np.load(sample_dir / f"sample_{pd.Timestamp(date).strftime('%Y%m%d')}.npz")
-            truth = sample["y"][target_channel_index]
-            raw_input = sample["x"][input_channel_index]
-            prediction = ds[args.var].isel(time=i).values
-            ml.update(prediction, truth)
-            raw.update(raw_input, truth)
+        try:
+            dates = pd.to_datetime(ds.time.values)
+            for i, date in enumerate(dates):
+                sample = np.load(sample_dir / f"sample_{pd.Timestamp(date).strftime('%Y%m%d')}.npz")
+                raw_sample = np.load(raw_sample_dir / f"sample_{pd.Timestamp(date).strftime('%Y%m%d')}.npz")
+                truth = sample["y"][target_channel_index]
+                raw_input = raw_sample["x"][input_channel_index]
+                prediction = ds[args.var].isel(time=i).values
+                ml.update(prediction, truth)
+                raw.update(raw_input, truth)
+                if bc_ds is not None:
+                    bc_field = bc_ds[args.var].sel(time=pd.Timestamp(date)).values
+                    bc.update(bc_field, truth)
+        finally:
+            if bc_ds is not None:
+                bc_ds.close()
 
     window = f"{args.startdate}_{args.enddate}"
-    df = pd.DataFrame([ml.row(window, "ml_minus_truth"), raw.row(window, "raw_input_minus_truth")])
+    rows = [ml.row(window, "ml_minus_truth"), raw.row(window, "raw_input_minus_truth")]
+    if bc_ds is not None:
+        rows.append(bc.row(window, "bc_input_minus_truth"))
+    df = pd.DataFrame(rows)
     for key, value in metadata.items():
         df[key] = value
     df["input_channel_index"] = input_channel_index
     df["target_channel_index"] = target_channel_index
-    stem = f"perfect_model_predictions_vs_truth_{args.exp}_{test_name}{args.stem_suffix}"
+    df["bc_tag"] = bc_tag
+    df["bc_model"] = args.bc_model_label
+    bc_suffix = f"_bc_{bc_tag}" if bc_tag else ""
+    stem = f"perfect_model_predictions_vs_truth_{args.exp}_{test_name}{args.stem_suffix}{bc_suffix}"
     csv_path = output_dir / f"{stem}.csv"
     md_path = output_dir / f"{stem}.md"
     df.to_csv(csv_path, index=False)
@@ -172,8 +248,12 @@ def main() -> int:
                 f"- unit: `{metadata['unit'] or 'not available'}`",
                 f"- prediction: `{prediction_path}`",
                 f"- sample-dir: `{sample_dir}`",
+                f"- raw-sample-dir: `{raw_sample_dir}`",
                 f"- input channel index: `{input_channel_index}`",
                 f"- target channel index: `{target_channel_index}`",
+                f"- BC baseline included: `{args.include_bc_baseline}`",
+                f"- BC tag: `{bc_tag or 'default'}`",
+                f"- BC model label: `{args.bc_model_label}`",
                 "",
                 _markdown(df),
                 "",

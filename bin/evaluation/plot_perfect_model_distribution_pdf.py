@@ -14,10 +14,21 @@ import xarray as xr
 
 sys.path.append(".")
 
-from iriscc.settings import CONFIG, GRAPHS_DIR, METRICS_DIR, get_prediction_output_path
+from iriscc.datautils import reformat_as_target
+from iriscc.settings import (
+    CONFIG,
+    DATES_BC_TEST_HIST,
+    DATES_BC_TRAIN_HIST,
+    GRAPHS_DIR,
+    METRICS_DIR,
+    get_bias_corrected_netcdf_path,
+    get_prediction_output_path,
+    normalize_bc_tag,
+)
 
 
 MODEL_LABELS = {
+    "bc_baseline": "BC baseline",
     "unet_outputnorm_perfect_model_rcm": "UNet + output norm",
     "unet_perfect_model_rcm": "UNet",
     "unet_rep3_perfect_model_rcm": "UNet replicate",
@@ -26,6 +37,7 @@ MODEL_LABELS = {
 }
 
 MODEL_COLORS = {
+    "bc_baseline": "#2A9D8F",
     "unet_outputnorm_perfect_model_rcm": "#006D77",
     "unet_perfect_model_rcm": "#E76F51",
     "unet_rep3_perfect_model_rcm": "#457B9D",
@@ -41,10 +53,15 @@ REFERENCE_COLORS = {
 
 
 def model_label(model: str) -> str:
+    if model.startswith("bc_baseline_") and model not in MODEL_LABELS:
+        suffix = model[len("bc_baseline_") :].replace("_", " ")
+        return f"BC baseline ({suffix})"
     return MODEL_LABELS.get(model, model)
 
 
 def model_color(model: str) -> str:
+    if model.startswith("bc_baseline_") and model not in MODEL_COLORS:
+        return "#5B8E7D"
     return MODEL_COLORS.get(model, "#4A4A4A")
 
 
@@ -56,6 +73,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unit", default=None, help="Fallback unit if NetCDF metadata is missing.")
     parser.add_argument("--input-csv", default=None)
     parser.add_argument("--sample-dir", default=None)
+    parser.add_argument("--raw-sample-dir", default=None)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--bins", type=int, default=120)
     parser.add_argument(
@@ -79,10 +97,69 @@ def dates_from_window(window: str) -> pd.DatetimeIndex:
     return pd.date_range(start=start, end=end, freq="D")
 
 
+def resolve_window_sample_dir(exp: str, simu_test: str, base_sample_dir: Path | None, window: str) -> Path:
+    dates = dates_from_window(window)
+    candidates: list[Path] = []
+    if base_sample_dir is not None:
+        candidates.append(base_sample_dir)
+    for candidate in (
+        Path(CONFIG[exp]["dataset"]),
+        Path(CONFIG[exp]["dataset"]).parent / f"dataset_{exp}_test_{simu_test}_bc",
+        Path(CONFIG[exp]["dataset"]).parent / f"dataset_{exp}_validation_windows_{simu_test}_bc",
+    ):
+        if candidate not in candidates:
+            candidates.append(candidate)
+
+    first_name = f"sample_{dates[0].strftime('%Y%m%d')}.npz"
+    last_name = f"sample_{dates[-1].strftime('%Y%m%d')}.npz"
+    for candidate in candidates:
+        if candidate.exists() and (candidate / first_name).exists() and (candidate / last_name).exists():
+            return candidate
+    searched = ", ".join(str(path) for path in candidates)
+    raise FileNotFoundError(f"No sample directory found for window {window}. Searched: {searched}")
+
+
 def prediction_path(exp: str, simu_test: str, var: str, window: str, model: str) -> Path:
     start, end = window.split("_")
     test_name = f"{model}_{simu_test}"
     return get_prediction_output_path(exp, simu_test, var, start, end, test_name, ssp=CONFIG[exp].get("ssp"))
+
+
+def resolve_bc_period(window: str) -> str:
+    start_s, end_s = window.split("_")
+    start = pd.Timestamp(start_s)
+    end = pd.Timestamp(end_s)
+    if start >= DATES_BC_TRAIN_HIST[0] and end <= DATES_BC_TRAIN_HIST[-1]:
+        return "train_hist"
+    if start >= DATES_BC_TEST_HIST[0] and end <= DATES_BC_TEST_HIST[-1]:
+        return "test_hist"
+    return "test_future"
+
+
+def open_bc_on_target_grid(exp: str, simu_test: str, var: str, window: str) -> xr.Dataset:
+    return open_bc_on_target_grid_for_tag(exp, simu_test, var, window, bc_tag=None)
+
+
+def open_bc_on_target_grid_for_tag(exp: str, simu_test: str, var: str, window: str, bc_tag: str | None) -> xr.Dataset:
+    start_s, end_s = window.split("_")
+    bc_path = get_bias_corrected_netcdf_path(
+        exp,
+        simu_test,
+        var,
+        resolve_bc_period(window),
+        ssp=CONFIG[exp].get("ssp"),
+        bc_tag=normalize_bc_tag(bc_tag),
+    )
+    ds = xr.open_dataset(bc_path).sel(time=slice(pd.Timestamp(start_s), pd.Timestamp(end_s)))
+    return reformat_as_target(
+        ds,
+        target_file=CONFIG[exp]["target_file"],
+        domain=CONFIG[exp]["domain"],
+        method="conservative_normed",
+        mask=True,
+        input_projection=None,
+        reuse_weights=True,
+    )
 
 
 def update_range(current: tuple[float, float] | None, values: np.ndarray) -> tuple[float, float] | None:
@@ -96,15 +173,29 @@ def update_range(current: tuple[float, float] | None, values: np.ndarray) -> tup
     return min(current[0], vmin), max(current[1], vmax)
 
 
-def collect_range(sample_dir: Path, window: str, predictions: dict[str, Path], var: str) -> tuple[float, float]:
+def collect_range(
+    sample_dir: Path,
+    raw_sample_dir: Path,
+    window: str,
+    predictions: dict[str, Path | None],
+    bc_tags: dict[str, str],
+    var: str,
+    exp: str,
+    simu_test: str,
+) -> tuple[float, float]:
     value_range: tuple[float, float] | None = None
     for date in dates_from_window(window):
         sample = np.load(sample_dir / f"sample_{date.strftime('%Y%m%d')}.npz")
+        raw_sample = np.load(raw_sample_dir / f"sample_{date.strftime('%Y%m%d')}.npz")
         value_range = update_range(value_range, sample["y"][0])
-        value_range = update_range(value_range, sample["x"][1])
-    for path in predictions.values():
-        with xr.open_dataset(path) as ds:
-            value_range = update_range(value_range, ds[var].values)
+        value_range = update_range(value_range, raw_sample["x"][1])
+    for model, path in predictions.items():
+        if model == "bc_baseline" or model.startswith("bc_baseline_"):
+            with open_bc_on_target_grid_for_tag(exp, simu_test, var, window, bc_tags.get(model)) as ds:
+                value_range = update_range(value_range, ds[var].values)
+        else:
+            with xr.open_dataset(path) as ds:
+                value_range = update_range(value_range, ds[var].values)
     if value_range is None:
         raise ValueError(f"No finite values found for window {window}")
     span = value_range[1] - value_range[0]
@@ -136,7 +227,7 @@ def write_markdown(path: Path, *, exp: str, simu_test: str, var: str, label: str
         f"- variable label: `{label}`",
         f"- unit: `{unit or 'not available in metadata'}`",
         f"- sample directory: `{sample_dir}`",
-        f"- reference curves: native RCM pseudo-truth `y_{var}` and the selected coarse-resolution predictor channel for `{var}`",
+        f"- reference curves: native RCM pseudo-truth `y_{var}` and the raw degraded coarse-resolution predictor channel for `{var}`",
         f"- windows: `{', '.join(windows)}`",
         f"- ML methods: `{', '.join(models)}`",
         "",
@@ -149,7 +240,7 @@ def write_markdown(path: Path, *, exp: str, simu_test: str, var: str, label: str
 def main() -> int:
     args = parse_args()
     var = args.var or CONFIG[args.exp]["target_vars"][0]
-    sample_dir = Path(args.sample_dir) if args.sample_dir else Path(CONFIG[args.exp]["dataset"])
+    sample_dir = Path(args.sample_dir) if args.sample_dir else None
     input_csv = (
         Path(args.input_csv)
         if args.input_csv
@@ -164,11 +255,25 @@ def main() -> int:
     validation_dir.mkdir(parents=True, exist_ok=True)
 
     summary = pd.read_csv(input_csv)
-    models = [model for model in MODEL_LABELS if model in set(summary["model"])]
-    models += [model for model in summary["model"].unique() if model not in models]
+    discovered = list(summary["model"].unique())
+    bc_tags: dict[str, str] = {}
+    if "bc_tag" in summary.columns:
+        for model in discovered:
+            rows = summary[summary["model"] == model]
+            if rows.empty:
+                continue
+            tag = normalize_bc_tag(str(rows["bc_tag"].fillna("").iloc[0]))
+            if tag:
+                bc_tags[model] = tag
+    models = [model for model in MODEL_LABELS if model in set(discovered)]
+    models += [model for model in discovered if model not in models]
     windows = args.window or ["20000101_20141231", "20900101_21001231"]
+    raw_sample_dir = Path(args.raw_sample_dir) if args.raw_sample_dir else Path(CONFIG[args.exp]["dataset"])
 
-    first_path = prediction_path(args.exp, args.simu_test, var, windows[0], models[0])
+    first_model = next((model for model in models if not model.startswith("bc_baseline")), None)
+    if first_model is None:
+        raise ValueError("No ML model found in the summary table.")
+    first_path = prediction_path(args.exp, args.simu_test, var, windows[0], first_model)
     var_label, unit = get_var_metadata(first_path, var, args.unit)
     if "var_label" in summary and summary["var_label"].notna().any():
         var_label = str(summary["var_label"].dropna().iloc[0])
@@ -180,8 +285,21 @@ def main() -> int:
     fig.suptitle(f"Perfect-model probability density comparison: {var_label}", fontsize=15, fontweight="bold")
 
     for ax, window in zip(axes[0], windows):
-        predictions = {model: prediction_path(args.exp, args.simu_test, var, window, model) for model in models}
-        value_min, value_max = collect_range(sample_dir, window, predictions, var)
+        predictions = {
+            model: None if model == "bc_baseline" or model.startswith("bc_baseline_") else prediction_path(args.exp, args.simu_test, var, window, model)
+            for model in models
+        }
+        window_sample_dir = resolve_window_sample_dir(args.exp, args.simu_test, sample_dir, window)
+        value_min, value_max = collect_range(
+            window_sample_dir,
+            raw_sample_dir,
+            window,
+            predictions,
+            bc_tags,
+            var,
+            args.exp,
+            args.simu_test,
+        )
         edges = np.linspace(value_min, value_max, args.bins + 1)
         centers = 0.5 * (edges[:-1] + edges[1:])
         histograms = {
@@ -192,14 +310,20 @@ def main() -> int:
 
         dates = dates_from_window(window)
         for date in dates:
-            sample = np.load(sample_dir / f"sample_{date.strftime('%Y%m%d')}.npz")
+            sample = np.load(window_sample_dir / f"sample_{date.strftime('%Y%m%d')}.npz")
+            raw_sample = np.load(raw_sample_dir / f"sample_{date.strftime('%Y%m%d')}.npz")
             add_hist(histograms["truth"], sample["y"][0], edges)
-            add_hist(histograms["coarse_input"], sample["x"][1], edges)
+            add_hist(histograms["coarse_input"], raw_sample["x"][1], edges)
 
         for model, path in predictions.items():
-            with xr.open_dataset(path) as ds:
-                for i in range(ds.sizes["time"]):
-                    add_hist(histograms[model], ds[var].isel(time=i).values, edges)
+            if model == "bc_baseline" or model.startswith("bc_baseline_"):
+                with open_bc_on_target_grid_for_tag(args.exp, args.simu_test, var, window, bc_tags.get(model)) as ds:
+                    for i in range(ds.sizes["time"]):
+                        add_hist(histograms[model], ds[var].isel(time=i).values, edges)
+            else:
+                with xr.open_dataset(path) as ds:
+                    for i in range(ds.sizes["time"]):
+                        add_hist(histograms[model], ds[var].isel(time=i).values, edges)
 
         ax.plot(centers, density_from_hist(histograms["truth"], edges), lw=2.8, color=REFERENCE_COLORS["truth"], label="Native RCM pseudo-truth")
         ax.plot(
@@ -229,7 +353,17 @@ def main() -> int:
     fig.savefig(png, dpi=180, bbox_inches="tight")
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)
-    write_markdown(md, exp=args.exp, simu_test=args.simu_test, var=var, label=var_label, unit=unit, windows=windows, sample_dir=sample_dir, models=models)
+    write_markdown(
+        md,
+        exp=args.exp,
+        simu_test=args.simu_test,
+        var=var,
+        label=var_label,
+        unit=unit,
+        windows=windows,
+        sample_dir=sample_dir or Path(CONFIG[args.exp]["dataset"]),
+        models=models,
+    )
     print(f"png={png}")
     print(f"pdf={pdf}")
     print(f"validation_md={md}")
