@@ -39,7 +39,7 @@ def markdown_table(df: pd.DataFrame) -> str:
 
 
 def resolve_shared_bc_rows(chunks_dir: Path, exp: str, simu_test: str, window: str) -> list[pd.Series]:
-    pattern = f"perfect_model_predictions_vs_truth_{exp}_*_{simu_test}_{window}.csv"
+    pattern = f"perfect_model_predictions_vs_truth_{exp}_*_{simu_test}_{window}*.csv"
     matches: list[pd.Series] = []
     for candidate in sorted(chunks_dir.glob(pattern)):
         df = pd.read_csv(candidate)

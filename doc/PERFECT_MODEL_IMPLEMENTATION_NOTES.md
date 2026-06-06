@@ -1,6 +1,6 @@
 # Perfect-Model Implementation Notes
 
-Date: 2026-06-05
+Date: 2026-06-06
 
 This note keeps the implementation and recovery history separate from the
 science-facing perfect-model report.
@@ -164,3 +164,100 @@ If we want complete future-period perfect-model diagnostics, we should define a
 canonical corrected future sample workflow that materializes all intended
 future windows with target-bearing sample packaging, not only the historical
 blocks plus the late-century helper window.
+
+## 7. Multi-BC comparison implementation
+
+The perfect-model comparison layer was extended so several BC baselines can be
+compared side by side without changing the production rule that one workflow run
+uses one selected BC method.
+
+Current implementation:
+
+- workflow level:
+  - one selected BC method per run
+- evaluation level:
+  - several BC baselines can coexist in the aggregated diagnostics
+
+This is handled through:
+
+- tagged BC outputs in:
+  - `bin/preprocessing/bias_correction_ibicus.py`
+  - `bin/preprocessing/bias_correction_sbck.py`
+- tagged BC-aware comparison rows in:
+  - `bin/evaluation/compare_perfect_model_predictions_vs_truth.py`
+- aggregated synthetic BC rows in:
+  - `bin/evaluation/aggregate_perfect_model_comparisons.py`
+
+## 8. Additional bug found in the multi-BC aggregation
+
+### SBCK chunk files were produced but not aggregated
+
+Problem:
+
+- SBCK chunk files were written with names such as:
+  - `..._20000101_20141231_bc_sbck_cdft.csv`
+- the aggregate helper only searched for chunk files ending exactly with:
+  - `..._{window}.csv`
+- result:
+  - SBCK rows existed on disk but were silently absent from the combined table
+
+Fix:
+
+- broadened the chunk-file pattern in:
+  - `bin/evaluation/aggregate_perfect_model_comparisons.py`
+- after that fix, the combined CSV now contains:
+  - `bc_baseline`
+  - `bc_baseline_sbck_cdft`
+
+## 9. Filesystem/runtime issue observed on Kraken
+
+Several final diagnostic reruns entered `D` state on Kraken while streaming many
+sample files from scratch.
+
+Observed symptoms:
+
+- direct Python processes stuck in `D`
+- small Slurm reruns failing immediately with:
+  - `RaisedSignal:53(Real-time_signal_19)`
+
+Interpretation:
+
+- this does not look like an ordinary user block/file quota problem
+- it is more consistent with scratch/GPFS runtime instability or metadata/I/O
+  pressure
+
+Operational consequence:
+
+- summary-table regeneration succeeded
+- the heavy file-streaming diagnostics can still be sensitive to the current
+  filesystem state
+
+## 10. Git metadata failure on scratch
+
+The Kraken repository itself hit a separate Git metadata problem.
+
+Observed state:
+
+- `.git` had grown to about `100G`
+- `.git/objects/pack` contained several stale `tmp_pack_*` files
+- Git then failed with:
+  - `Disk quota exceeded`
+  - inability to create `.git/index.lock`
+
+Interpretation:
+
+- most likely an interrupted Git pack/repack/fetch operation left temporary
+  packfiles behind on scratch
+
+Recovery:
+
+- remove stale temporary packfiles
+- create a clean clone in `/tmp`
+- checkpoint and push work from the healthy clone
+- replace the damaged local `.git` with the clean `.git`
+
+Follow-up:
+
+- keep code in backed-up `home`
+- keep runtime data on `scratch`
+- avoid letting `.git` metadata live inside the most fragile runtime area
