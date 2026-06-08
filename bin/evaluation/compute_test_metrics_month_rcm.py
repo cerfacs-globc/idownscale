@@ -20,10 +20,11 @@ from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, Log10Transform
-from iriscc.settings import (CONFIG, 
-                             GRAPHS_DIR, 
-                             RUNS_DIR, 
-                             METRICS_DIR, 
+from iriscc.settings import (CONFIG,
+                             DATES_BC_TEST_HIST,
+                             GRAPHS_DIR,
+                             RUNS_DIR,
+                             METRICS_DIR,
                              RCM_RAW_DIR)
 from iriscc.transforms import UnPad
 from iriscc.datautils import Data
@@ -32,8 +33,8 @@ from iriscc.datautils import Data
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
-    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default='20000101')
-    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default='20141231')
+    parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'))
+    parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'))
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='(e.g., gcm or gcm_bc)', default=None)

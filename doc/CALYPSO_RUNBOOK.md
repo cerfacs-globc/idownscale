@@ -358,8 +358,12 @@ sbatch --export=ALL,\
 STEPS=predict_loop,metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month,\
 TEST_NAME=unet_all,\
 SIMU_TEST=gcm_bc,\
-PREDICT_START_DATE=20000101,\
-PREDICT_END_DATE=20141231,\
+PREDICT_START_DATE=<STARTDATE>,\
+PREDICT_END_DATE=<ENDDATE>,\
+METRICS_START_DATE=<STARTDATE>,\
+METRICS_END_DATE=<ENDDATE>,\
+VALUE_START_DATE=<STARTDATE>,\
+VALUE_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite \
 bin/production/submit_exp5_workflow_grace.sh
 ```
@@ -425,8 +429,12 @@ sbatch --export=ALL,\
 STEPS=metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month,\
 TEST_NAME=unet_all,\
 SIMU_TEST=gcm_bc,\
-PREDICT_START_DATE=20000101,\
-PREDICT_END_DATE=20141231,\
+PREDICT_START_DATE=<STARTDATE>,\
+PREDICT_END_DATE=<ENDDATE>,\
+METRICS_START_DATE=<STARTDATE>,\
+METRICS_END_DATE=<ENDDATE>,\
+VALUE_START_DATE=<STARTDATE>,\
+VALUE_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite \
 bin/production/submit_exp5_workflow_globc.sh
 ```
@@ -449,8 +457,8 @@ sbatch --export=ALL,\
 STEPS=train,predict_loop,\
 TEST_NAME=unet_all,\
 SIMU_TEST=gcm_bc,\
-PREDICT_START_DATE=20000101,\
-PREDICT_END_DATE=20141231,\
+PREDICT_START_DATE=<STARTDATE>,\
+PREDICT_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite,\
 IDOWNSCALE_FORCE_CSV_LOGGER=1,\
 IDOWNSCALE_SKIP_TEST_FIGURES=1 \
@@ -464,8 +472,12 @@ sbatch --export=ALL,\
 STEPS=metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month,\
 TEST_NAME=unet_all,\
 SIMU_TEST=gcm_bc,\
-PREDICT_START_DATE=20000101,\
-PREDICT_END_DATE=20141231,\
+PREDICT_START_DATE=<STARTDATE>,\
+PREDICT_END_DATE=<ENDDATE>,\
+METRICS_START_DATE=<STARTDATE>,\
+METRICS_END_DATE=<ENDDATE>,\
+VALUE_START_DATE=<STARTDATE>,\
+VALUE_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite \
 bin/production/submit_exp5_workflow_globc.sh
 ```
@@ -597,8 +609,12 @@ python bin/production/run_exp5_workflow.py \
   --steps predict_loop,metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month \
   --test-name unet_all \
   --simu-test gcm_bc \
-  --predict-start-date 20000101 \
-  --predict-end-date 20141231
+  --predict-start-date <STARTDATE> \
+  --predict-end-date <ENDDATE> \
+  --metrics-start-date <STARTDATE> \
+  --metrics-end-date <ENDDATE> \
+  --value-start-date <STARTDATE> \
+  --value-end-date <ENDDATE>
 ```
 
 ## 10. Environment reproduction

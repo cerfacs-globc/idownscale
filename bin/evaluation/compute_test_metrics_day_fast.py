@@ -13,16 +13,16 @@ from pathlib import Path
 from tqdm import tqdm
 
 sys.path.append('.')
-from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR, 
-                             DATASET_DIR, METRICS_DIR)
+from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR,
+                             DATES_BC_TEST_HIST, METRICS_DIR)
 
 def main():
     parser = argparse.ArgumentParser(description="Fast vectorized legacy metrics")
     parser.add_argument('--exp', type=str, default='exp5', help='Experiment')
     parser.add_argument('--test-name', type=str, default='unet_all', help='Test name')
     parser.add_argument('--simu-test', type=str, default='gcm_bc', help='Simu variant')
-    parser.add_argument('--startdate', type=str, default='20000101', help='Start date')
-    parser.add_argument('--enddate', type=str, default='20141231', help='End date')
+    parser.add_argument('--startdate', type=str, default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'), help='Start date')
+    parser.add_argument('--enddate', type=str, default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'), help='End date')
     args = parser.parse_args()
 
     # Paths
@@ -30,7 +30,12 @@ def main():
     metric_dir.mkdir(parents=True, exist_ok=True)
     
     # Identify prediction file
-    pred_files = list(PREDICTION_DIR.glob(f'tas*historical*{args.exp}_{args.test_name}_{args.simu_test}.nc'))
+    period = 'historical' if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get('ssp', 'ssp585')
+    pred_files = list(
+        PREDICTION_DIR.glob(
+            f'tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc'
+        )
+    )
     if not pred_files:
         print("Error: No prediction files found for fast legacy evaluation.")
         sys.exit(1)

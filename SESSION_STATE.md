@@ -385,7 +385,7 @@ Current live job:
 
 ## Resume checklist
 
-1. Read [doc/OBJECTIVE_PLAN.md](/scratch/globc/page/idownscale_rerun/doc/OBJECTIVE_PLAN.md:1), especially `Current objective`, `Current task status`, and `Recovery context`.
+1. Read `doc/OBJECTIVE_PLAN.md`, especially `Current objective`, `Current task status`, and `Recovery context`.
 2. Inspect the latest local diffs before changing code:
    `git status --short`
 3. Focus first on parity-validation files and source-resolution paths, especially:

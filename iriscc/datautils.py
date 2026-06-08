@@ -410,9 +410,24 @@ class Data(object):
       return data
    
    def get_era5_dataset(self, var:str, date, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
-      return self.get_reanalysis_dataset('era5', var, date, lapse_rate_correction=lapse_rate_correction, orog_target_file=orog_target_file, reuse_weights=reuse_weights)
+      return self.get_reanalysis_dataset(
+         'era5',
+         var,
+         date,
+         lapse_rate_correction=lapse_rate_correction,
+         orog_target_file=orog_target_file,
+         reuse_weights=reuse_weights,
+      )
 
-   def get_reanalysis_dataset(self, source_name: str, var: str, date, lapse_rate_correction: bool = False, orog_target_file: str = None, reuse_weights: bool = False):
+   def get_reanalysis_dataset(
+      self,
+      source_name: str,
+      var: str,
+      date,
+      lapse_rate_correction: bool = False,
+      orog_target_file: str = None,
+      reuse_weights: bool = False,
+   ):
       import xesmf as xe
       spec = self.get_source_spec(source_name)
       ds = self._open_source_dataset(source_name, var, date=date)
@@ -455,13 +470,37 @@ class Data(object):
       return ds
 
    def get_gcm_dataset(self, var:str, date, ssp:str=None, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
-      return self.get_model_dataset('gcm_cnrm_cm6_1', var, date, ssp=ssp, lapse_rate_correction=lapse_rate_correction, orog_target_file=orog_target_file, reuse_weights=reuse_weights)
+      return self.get_model_dataset(
+         'gcm_cnrm_cm6_1',
+         var,
+         date,
+         ssp=ssp,
+         lapse_rate_correction=lapse_rate_correction,
+         orog_target_file=orog_target_file,
+         reuse_weights=reuse_weights,
+      )
 
-   def get_model_dataset(self, source_name: str, var: str, date, ssp: str = None, lapse_rate_correction: bool = False, orog_target_file: str = None, reuse_weights: bool = False):
+   def get_model_dataset(
+      self,
+      source_name: str,
+      var: str,
+      date,
+      ssp: str = None,
+      lapse_rate_correction: bool = False,
+      orog_target_file: str = None,
+      reuse_weights: bool = False,
+   ):
       import xesmf as xe
       spec = self.get_source_spec(source_name)
       if spec.get('geometry') == 'rcm':
-         return self.get_rcm_dataset_from_source(source_name, var, date, ssp=ssp, lapse_rate_correction=lapse_rate_correction, orog_target_file=orog_target_file)
+         return self.get_rcm_dataset_from_source(
+            source_name,
+            var,
+            date,
+            ssp=ssp,
+            lapse_rate_correction=lapse_rate_correction,
+            orog_target_file=orog_target_file,
+         )
       ds = self._open_source_dataset(source_name, var, date=date, ssp=ssp)
 
       if lapse_rate_correction and var == 'tas' and orog_target_file:

@@ -25,6 +25,9 @@ if str(PROJECT_ROOT) not in sys.path:
 from iriscc.settings import (
     CONFIG,
     DATASET_BC_DIR,
+    DATES,
+    DATES_BC_TEST_FUTURE,
+    DATES_BC_TEST_HIST,
     GRAPHS_DIR,
     METRICS_DIR,
     RUNS_DIR,
@@ -47,6 +50,26 @@ OPTIONAL_STEPS = [
     "plot_metrics_month",
 ]
 ALL_STEPS = DEFAULT_STEPS + OPTIONAL_STEPS
+
+
+def yyyymmdd(value: pd.Timestamp) -> str:
+    return pd.Timestamp(value).strftime("%Y%m%d")
+
+
+def default_phase1_window() -> tuple[str, str]:
+    return yyyymmdd(DATES[0]), yyyymmdd(DATES[-1])
+
+
+def default_prediction_window() -> tuple[str, str]:
+    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_FUTURE[-1])
+
+
+def default_metrics_window() -> tuple[str, str]:
+    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
+
+
+def default_value_window() -> tuple[str, str]:
+    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
 
 
 def parse_args() -> argparse.Namespace:
@@ -88,8 +111,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-model", default="unet", help="Model family for the optional train step.")
     parser.add_argument("--train-loss", default=None, help="Optional loss override for the train step.")
     parser.add_argument("--train-output-norm", action="store_true", help="Enable output normalization in the train step.")
-    parser.add_argument("--predict-start-date", default="20000101", help="Prediction/evaluation start date.")
-    parser.add_argument("--predict-end-date", default="21001231", help="Prediction/evaluation end date.")
+    parser.add_argument("--predict-start-date", default=None, help="Prediction start date. Defaults to the settings.py historical-test start.")
+    parser.add_argument("--predict-end-date", default=None, help="Prediction end date. Defaults to the settings.py future-test end.")
+    parser.add_argument("--metrics-start-date", default=None, help="Metrics evaluation start date. Defaults to the settings.py historical-test start.")
+    parser.add_argument("--metrics-end-date", default=None, help="Metrics evaluation end date. Defaults to the settings.py historical-test end.")
+    parser.add_argument("--value-start-date", default=None, help="VALUE validation start date. Defaults to the settings.py historical-test start.")
+    parser.add_argument("--value-end-date", default=None, help="VALUE validation end date. Defaults to the settings.py historical-test end.")
     parser.add_argument(
         "--simu-test",
         default="gcm_bc",
@@ -168,8 +195,19 @@ def main() -> int:
         "ibicus_cdft": "bin/preprocessing/bias_correction_ibicus.py",
         "sbck_cdft": "bin/preprocessing/bias_correction_sbck.py",
     }.get(bc_method)
+    phase1_start_date, phase1_end_date = (
+        (args.phase1_start_date, args.phase1_end_date)
+        if args.phase1_start_date and args.phase1_end_date
+        else default_phase1_window()
+    )
+    predict_start_date = args.predict_start_date or default_prediction_window()[0]
+    predict_end_date = args.predict_end_date or default_prediction_window()[1]
+    metrics_start_date = args.metrics_start_date or default_metrics_window()[0]
+    metrics_end_date = args.metrics_end_date or default_metrics_window()[1]
+    value_start_date = args.value_start_date or default_value_window()[0]
+    value_end_date = args.value_end_date or default_value_window()[1]
     dataset_dir = Path(exp_cfg["dataset"])
-    phase1_outputs = list_phase1_outputs(dataset_dir, args.phase1_start_date, args.phase1_end_date)
+    phase1_outputs = list_phase1_outputs(dataset_dir, phase1_start_date, phase1_end_date)
 
     stats_outputs = [
         dataset_dir / "statistics.json",
@@ -207,8 +245,8 @@ def main() -> int:
                 exp,
                 args.simu_test,
                 args.var,
-                args.predict_start_date,
-                args.predict_end_date,
+                predict_start_date,
+                predict_end_date,
                 prediction_test_name,
                 ssp=ssp,
             )
@@ -370,9 +408,9 @@ def main() -> int:
                 "--simu-test",
                 args.simu_test,
                 "--startdate",
-                args.predict_start_date,
+                predict_start_date,
                 "--enddate",
-                args.predict_end_date,
+                predict_end_date,
             ] + (["--checkpoint-bundle", args.checkpoint_bundle] if args.checkpoint_bundle else []),
             "expected": prediction_outputs,
             "cleanup": prediction_outputs,
@@ -389,6 +427,10 @@ def main() -> int:
                 args.simu_test,
                 "--simu",
                 args.simu,
+                "--startdate",
+                value_start_date,
+                "--enddate",
+                value_end_date,
             ],
             "expected": value_outputs,
             "cleanup": value_outputs,
@@ -398,9 +440,9 @@ def main() -> int:
                 args.python_bin,
                 "bin/evaluation/compute_test_metrics_day.py",
                 "--startdate",
-                args.predict_start_date,
+                metrics_start_date,
                 "--enddate",
-                args.predict_end_date,
+                metrics_end_date,
                 "--exp",
                 exp,
                 "--test-name",
@@ -416,9 +458,9 @@ def main() -> int:
                 args.python_bin,
                 "bin/evaluation/compute_test_metrics_month.py",
                 "--startdate",
-                args.predict_start_date,
+                metrics_start_date,
                 "--enddate",
-                args.predict_end_date,
+                metrics_end_date,
                 "--exp",
                 exp,
                 "--test-name",
@@ -459,10 +501,7 @@ def main() -> int:
         },
     }
 
-    if args.phase1_start_date:
-        step_table["phase1"]["command"].extend(["--start_date", args.phase1_start_date])
-    if args.phase1_end_date:
-        step_table["phase1"]["command"].extend(["--end_date", args.phase1_end_date])
+    step_table["phase1"]["command"].extend(["--start_date", phase1_start_date, "--end_date", phase1_end_date])
     if bc_apply_script is None and "bc_apply" in steps:
         raise NotImplementedError(
             f"Bias-correction method '{bc_method}' is not wired into the production workflow yet. "
@@ -470,7 +509,15 @@ def main() -> int:
         )
     if "train" in steps and not args.test_name:
         raise ValueError("--test-name is required for the train step")
-    if any(step in steps for step in ["predict_loop", "metrics_day", "metrics_month", "value_metrics", "plot_metrics_day", "plot_metrics_month"]) and not args.test_name:
+    evaluation_steps = [
+        "predict_loop",
+        "metrics_day",
+        "metrics_month",
+        "value_metrics",
+        "plot_metrics_day",
+        "plot_metrics_month",
+    ]
+    if any(step in steps for step in evaluation_steps) and not args.test_name:
         raise ValueError("--test-name is required for predict_loop, metrics_day, metrics_month, value_metrics, plot_metrics_day, and plot_metrics_month steps")
 
     for step in steps:
