@@ -228,9 +228,12 @@ Interpretation:
 
 Operational consequence:
 
-- summary-table regeneration succeeded
-- the heavy file-streaming diagnostics can still be sensitive to the current
-  filesystem state
+- summary-table regeneration succeeded on 2026-06-06
+- the heavy file-streaming diagnostics eventually landed as well
+- on 2026-06-08, the final files were verified present with SBCK included in:
+  - combined prediction-vs-truth table
+  - climate-signal table
+  - all-window statistics table
 
 ## 10. Git metadata failure on scratch
 

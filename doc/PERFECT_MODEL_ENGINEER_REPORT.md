@@ -239,6 +239,10 @@ Current signal diagnostics:
   - signal bias: `-0.035465 K`
   - signal RMSE: `0.159253 K`
   - correlation: `0.954662`
+- SBCK CDFt baseline:
+  - signal bias: `-0.068613 K`
+  - signal RMSE: `0.185034 K`
+  - correlation: `0.943932`
 - `UNet + output norm`:
   - signal bias: `-0.077079 K`
   - signal RMSE: `0.113563 K`
@@ -251,9 +255,11 @@ Current signal diagnostics:
 Interpretation:
 
 - ML improves the spatial climate-change signal fidelity relative to both the
-  raw coarse input and the default BC baseline
-- the default BC path preserves the warming tendency, but in the current setup
-  it does not beat the raw coarse input on signal RMSE
+  raw coarse input and both BC baselines
+- both BC paths preserve the broad warming tendency, but in the current setup
+  neither BC implementation beats the raw coarse input on signal RMSE
+- SBCK CDFt is slightly worse than the default CDFt path for the current
+  climate-signal diagnostic
 
 ### 6.4 Variability diagnostics
 
@@ -273,6 +279,8 @@ Main reading:
 - ML methods reduce that bias very substantially
 - `UNet + output norm` remains the best balanced method across mean error,
   RMSE, and variability behavior
+- IBICUS and SBCK are nearly identical up to mid-century; SBCK becomes slightly
+  worse than the default BC path in the later future windows
 
 ## 7. Main scientific interpretation
 
