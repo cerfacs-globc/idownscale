@@ -1,0 +1,29 @@
+"""Local user settings for idownscale.
+
+Copy this file to ``iriscc/settings_local.py`` and adapt the paths for your
+machine/account. The real ``settings_local.py`` file is ignored by Git.
+
+Environment variables still take precedence, which is useful for one-off runs
+or Slurm jobs.
+"""
+
+from pathlib import Path
+
+SCRATCH_ROOT = Path("/scratch/globc/<user>")
+
+PATHS = {
+    "IDOWNSCALE_RUNTIME_ROOT": SCRATCH_ROOT / "idownscale_runtime",
+    "IDOWNSCALE_RAW_DIR": SCRATCH_ROOT / "idownscale_rawdata",
+    "IDOWNSCALE_OUTPUT_DIR": SCRATCH_ROOT / "idownscale_output",
+    "IDOWNSCALE_GRAPHS_DIR": SCRATCH_ROOT / "idownscale_graphs",
+    "IDOWNSCALE_DATASET_DIR": SCRATCH_ROOT / "idownscale_output" / "datasets",
+    "IDOWNSCALE_DATASET_BC_DIR": SCRATCH_ROOT / "idownscale_output" / "datasets" / "dataset_bc",
+    "IDOWNSCALE_RUNS_DIR": SCRATCH_ROOT / "idownscale_output" / "runs",
+    "IDOWNSCALE_PREDICTION_DIR": SCRATCH_ROOT / "idownscale_output" / "prediction",
+    "IDOWNSCALE_METRICS_DIR": SCRATCH_ROOT / "idownscale_output" / "metrics",
+    "IDOWNSCALE_REGRID_WEIGHTS_DIR": SCRATCH_ROOT / "idownscale_output" / "regrid_weights",
+    "IDOWNSCALE_GCM_BC_DIR": SCRATCH_ROOT / "idownscale_rawdata" / "gcm" / "CNRM-CM6-1-BC",
+    "IDOWNSCALE_RCM_BC_DIR": SCRATCH_ROOT / "idownscale_rawdata" / "rcm" / "ALADIN-BC",
+    "IDOWNSCALE_CORDEX_BC_DIR": SCRATCH_ROOT / "idownscale_rawdata" / "rcm" / "CORDEX-BC",
+    "IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR": SCRATCH_ROOT / "idownscale_output" / "datasets" / "dataset_exp5_30y",
+}

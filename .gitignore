@@ -24,6 +24,7 @@ Thumbs.db
 slurm_logs/
 scratch/
 rawdata/
+iriscc/settings_local.py
 
 # Large local helper trees not meant for release commits
 utils/
