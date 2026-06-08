@@ -40,11 +40,6 @@ def resolve_statistics_dir(sample_dir: Union[str, Path]) -> Path:
     # Dedicated archival override for exp5 parity work.
     candidates.append(EXP5_ARCHIVE_DATASET_DIR)
 
-    # Historical Garcia path before /idownscale was inserted in the tree.
-    legacy = str(sample_dir)
-    if '/scratch/globc/garcia/datasets/' in legacy:
-        candidates.append(Path(legacy.replace('/scratch/globc/garcia/datasets/', '/scratch/globc/garcia/idownscale/datasets/')))
-
     # Optional explicit override from the environment.
     env_override = os.getenv('IDOWNSCALE_SAMPLE_STATS_DIR')
     if env_override:

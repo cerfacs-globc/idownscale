@@ -15,7 +15,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-RUNTIME_ROOT_DEFAULT="/gpfs-calypso/scratch/globc/${USER}/idownscale_runtime"
+SCRATCH_ROOT_DEFAULT="${SCRATCH_ROOT:-/scratch/globc/${USER}}"
+RUNTIME_ROOT_DEFAULT="${SCRATCH_ROOT_DEFAULT}/idownscale_runtime"
 
 module load python/gloenv3.12_arm
 
@@ -27,7 +28,7 @@ if [[ -z "${IDOWNSCALE_RAW_DIR:-}" && -d "${REPO_ROOT}/rawdata" ]]; then
 else
   export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/rawdata}"
 fi
-export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/output}"
 
 if [[ -n "${IDOWNSCALE_EXTRA_PYTHONPATH:-}" ]]; then
   export PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH}:${PYTHONPATH:-}"

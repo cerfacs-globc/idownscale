@@ -10,20 +10,24 @@ or Slurm jobs.
 from pathlib import Path
 
 SCRATCH_ROOT = Path("/scratch/globc/<user>")
+RUNTIME_ROOT = SCRATCH_ROOT / "idownscale_runtime"
+OUTPUT_ROOT = RUNTIME_ROOT / "output"
+GRAPHS_ROOT = RUNTIME_ROOT / "graphs"
+RAWDATA_ROOT = SCRATCH_ROOT / "idownscale_rawdata"
 
 PATHS = {
-    "IDOWNSCALE_RUNTIME_ROOT": SCRATCH_ROOT / "idownscale_runtime",
-    "IDOWNSCALE_RAW_DIR": SCRATCH_ROOT / "idownscale_rawdata",
-    "IDOWNSCALE_OUTPUT_DIR": SCRATCH_ROOT / "idownscale_output",
-    "IDOWNSCALE_GRAPHS_DIR": SCRATCH_ROOT / "idownscale_graphs",
-    "IDOWNSCALE_DATASET_DIR": SCRATCH_ROOT / "idownscale_output" / "datasets",
-    "IDOWNSCALE_DATASET_BC_DIR": SCRATCH_ROOT / "idownscale_output" / "datasets" / "dataset_bc",
-    "IDOWNSCALE_RUNS_DIR": SCRATCH_ROOT / "idownscale_output" / "runs",
-    "IDOWNSCALE_PREDICTION_DIR": SCRATCH_ROOT / "idownscale_output" / "prediction",
-    "IDOWNSCALE_METRICS_DIR": SCRATCH_ROOT / "idownscale_output" / "metrics",
-    "IDOWNSCALE_REGRID_WEIGHTS_DIR": SCRATCH_ROOT / "idownscale_output" / "regrid_weights",
-    "IDOWNSCALE_GCM_BC_DIR": SCRATCH_ROOT / "idownscale_rawdata" / "gcm" / "CNRM-CM6-1-BC",
-    "IDOWNSCALE_RCM_BC_DIR": SCRATCH_ROOT / "idownscale_rawdata" / "rcm" / "ALADIN-BC",
-    "IDOWNSCALE_CORDEX_BC_DIR": SCRATCH_ROOT / "idownscale_rawdata" / "rcm" / "CORDEX-BC",
-    "IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR": SCRATCH_ROOT / "idownscale_output" / "datasets" / "dataset_exp5_30y",
+    "IDOWNSCALE_RUNTIME_ROOT": RUNTIME_ROOT,
+    "IDOWNSCALE_RAW_DIR": RAWDATA_ROOT,
+    "IDOWNSCALE_OUTPUT_DIR": OUTPUT_ROOT,
+    "IDOWNSCALE_GRAPHS_DIR": GRAPHS_ROOT,
+    "IDOWNSCALE_DATASET_DIR": OUTPUT_ROOT / "datasets",
+    "IDOWNSCALE_DATASET_BC_DIR": OUTPUT_ROOT / "datasets" / "dataset_bc",
+    "IDOWNSCALE_RUNS_DIR": OUTPUT_ROOT / "runs",
+    "IDOWNSCALE_PREDICTION_DIR": OUTPUT_ROOT / "prediction",
+    "IDOWNSCALE_METRICS_DIR": OUTPUT_ROOT / "metrics",
+    "IDOWNSCALE_REGRID_WEIGHTS_DIR": OUTPUT_ROOT / "regrid_weights",
+    "IDOWNSCALE_GCM_BC_DIR": RAWDATA_ROOT / "gcm" / "CNRM-CM6-1-BC",
+    "IDOWNSCALE_RCM_BC_DIR": RAWDATA_ROOT / "rcm" / "ALADIN-BC",
+    "IDOWNSCALE_CORDEX_BC_DIR": RAWDATA_ROOT / "rcm" / "CORDEX-BC",
+    "IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR": OUTPUT_ROOT / "datasets" / "dataset_exp5_30y",
 }

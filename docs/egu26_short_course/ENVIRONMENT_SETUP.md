@@ -35,11 +35,12 @@ For a self-contained local clone, from the repository root:
 
 ```bash
 export IDOWNSCALE_RAW_DIR=$PWD/rawdata
-export IDOWNSCALE_OUTPUT_DIR=$PWD/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$PWD/idownscale_output/weights
-export IDOWNSCALE_RUNS_DIR=$PWD/idownscale_output/runs
-export IDOWNSCALE_PREDICTION_DIR=$PWD/idownscale_output/prediction
-export IDOWNSCALE_METRICS_DIR=$PWD/idownscale_output/metrics
+export IDOWNSCALE_OUTPUT_DIR=$PWD/output
+export IDOWNSCALE_GRAPHS_DIR=$PWD/graphs
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$PWD/output/regrid_weights
+export IDOWNSCALE_RUNS_DIR=$PWD/output/runs
+export IDOWNSCALE_PREDICTION_DIR=$PWD/output/prediction
+export IDOWNSCALE_METRICS_DIR=$PWD/output/metrics
 ```
 
 These settings keep the short-course workflow self-contained inside the local
@@ -51,8 +52,9 @@ If you use the repository on an HPC system and want the code in backed-up
 ```bash
 export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
 export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
-export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/output
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
 export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
 export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics

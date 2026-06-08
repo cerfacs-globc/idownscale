@@ -23,10 +23,10 @@ This creates the main directories expected by the short-course material, includi
 - `rawdata/gcm/CNRM-CM6-1/`
 - `rawdata/gcm/CNRM-CM6-1-BC/`
 - `scratch/checkpoint_bundles/`
-- `idownscale_output/datasets/dataset_exp5_30y/`
-- `idownscale_output/metrics/exp5/mean_metrics/`
-- `idownscale_output/graph/metrics/exp5/`
-- `idownscale_output/prediction/`
+- `output/datasets/dataset_exp5_30y/`
+- `output/metrics/exp5/mean_metrics/`
+- `graphs/metrics/exp5/`
+- `output/prediction/`
 
 ## 3. Download the Mercure material
 
@@ -65,10 +65,10 @@ These archives unpack into:
 ```bash
 cp -r required/checkpoint_bundles/* scratch/checkpoint_bundles/
 cp required/notebook/egu26_short_course_notebook.ipynb docs/egu26_short_course/
-cp required/metrics/statistics.json idownscale_output/datasets/dataset_exp5_30y/
-cp required/metrics/*.csv idownscale_output/metrics/exp5/mean_metrics/
-cp required/plots/*.png idownscale_output/graph/metrics/exp5/
-cp required/predictions/*.nc idownscale_output/prediction/
+cp required/metrics/statistics.json output/datasets/dataset_exp5_30y/
+cp required/metrics/*.csv output/metrics/exp5/mean_metrics/
+cp required/plots/*.png graphs/metrics/exp5/
+cp required/predictions/*.nc output/prediction/
 ```
 
 ### Nice-to-have tier
@@ -77,9 +77,9 @@ cp required/predictions/*.nc idownscale_output/prediction/
 cp nice_to_have/eobs_france/*.nc rawdata/eobs/
 cp nice_to_have/gcm_bc/*.nc rawdata/gcm/CNRM-CM6-1-BC/
 cp -r nice_to_have/checkpoint_bundles/* scratch/checkpoint_bundles/
-cp nice_to_have/metrics/*.csv idownscale_output/metrics/exp5/mean_metrics/
-cp nice_to_have/plots/*.png idownscale_output/graph/metrics/exp5/
-cp nice_to_have/predictions/*.nc idownscale_output/prediction/
+cp nice_to_have/metrics/*.csv output/metrics/exp5/mean_metrics/
+cp nice_to_have/plots/*.png graphs/metrics/exp5/
+cp nice_to_have/predictions/*.nc output/prediction/
 ```
 
 ## 6. Add raw upstream-style files

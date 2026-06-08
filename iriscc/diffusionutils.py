@@ -20,7 +20,7 @@ import tqdm
 from iriscc.dataloaders import get_dataloaders
 from iriscc.models.cddpm import CDDPM
 from iriscc.plotutils import plot_test
-from iriscc.settings import GRAPHS_DIR
+from iriscc.settings import DATASET_DIR, GRAPHS_DIR
 from iriscc.transforms import (FillMissingValue, LandSeaMask, MinMaxNormalisation,
                                Pad, UnPad)
 
@@ -153,10 +153,11 @@ if __name__ == '__main__':
     train_dataloader = get_dataloaders('train')
     show_forward(cddpm, train_dataloader, n_images=4, n_noise_steps=8)
 
-    data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
+    sample_dir = DATASET_DIR / 'dataset_exp3_30y'
+    data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
     conditioning_image, y = data['x'], data['y']
     transforms = v2.Compose([
-            MinMaxNormalisation(Path('/scratch/globc/garcia/datasets/dataset_exp3_30y')), 
+            MinMaxNormalisation(sample_dir),
             LandSeaMask('france', 0),
             FillMissingValue(0),
             Pad(0)

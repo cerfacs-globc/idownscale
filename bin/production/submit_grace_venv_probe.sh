@@ -3,7 +3,8 @@
 
 set -euo pipefail
 
-VENV_PATH="${VENV_PATH:-/scratch/globc/page/idownscale_envs/production_final_v22_312}"
+SCRATCH_ROOT_DEFAULT="${SCRATCH_ROOT:-/scratch/globc/${USER}}"
+VENV_PATH="${VENV_PATH:-${SCRATCH_ROOT_DEFAULT}/idownscale_envs/production_probe}"
 
 sbatch <<EOF
 #!/bin/bash

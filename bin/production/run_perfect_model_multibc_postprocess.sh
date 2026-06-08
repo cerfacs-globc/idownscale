@@ -5,10 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${REPO_ROOT}"
 
-PYTHON_BIN="${PYTHON_BIN:-/scratch/globc/page/idownscale_envs/kraken_gpu_py312_v1/bin/python}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 RUNTIME_ROOT_DEFAULT="/scratch/globc/${USER}/idownscale_runtime"
 export IDOWNSCALE_RUNTIME_ROOT="${IDOWNSCALE_RUNTIME_ROOT:-${RUNTIME_ROOT_DEFAULT}}"
-export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/output}"
 
 EXP="${EXP:-perfect_model_rcm}"
 SIMU_TEST="${SIMU_TEST:-rcm}"

@@ -24,7 +24,7 @@ Optional downstream steps extend the same runner to Phase 3 and Phase 4 style ta
 
 .. code-block:: bash
 
-   bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+   sbatch path/to/your_local_workflow_submitter.sh
 
 Production Certification & Parity
 ---------------------------------

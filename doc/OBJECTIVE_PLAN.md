@@ -369,7 +369,7 @@ directories, and `--skip-existing`.
 Perfect-model future sample validation:
 
 - report:
-  - `/scratch/globc/page/idownscale_output/metrics/exp5/validation/perfect_model_samples_exp5_rcm_20000101_21001231.md`
+  - `/scratch/globc/page/output/metrics/exp5/validation/perfect_model_samples_exp5_rcm_20000101_21001231.md`
 - inventory status: `ok`
 - structure status: `ok`
 - expected samples for `2000-01-01` through `2100-12-31`: `36890`
@@ -518,7 +518,7 @@ After each run, verify:
   - RCM alias smoke BC `267377`: completed after ALADIN geometry and file-selection fixes
   - RCM alias smoke raw PP `267393`: completed after ALADIN geometry standardization fixes
 - Grace validation outputs collected under:
-  - `/gpfs-calypso/scratch/globc/page/idownscale_output/validation_20260528`
+  - `/gpfs-calypso/scratch/globc/page/output/validation_20260528`
 - Technical output checks now confirmed on Grace:
   - GCM corrected smoke datasets produce `dataset_exp5_test_gcm_bc/sample_19800101.npz`, `sample_20000101.npz`, and `sample_20150101.npz`
   - RCM raw smoke datasets produce `dataset_exp5_test_rcm/sample_20000101.npz` and `sample_20150101.npz`
@@ -675,19 +675,19 @@ on Kraken with the scientifically valid pseudo-reality construction:
 Completed artifacts:
 
 - dataset:
-  - `/scratch/globc/page/idownscale_output/datasets/dataset_bc/dataset_perfect_model_rcm`
+  - `/scratch/globc/page/output/datasets/dataset_bc/dataset_perfect_model_rcm`
   - `44195 / 44195` samples
 - validation:
   - job `1884666`
   - inventory, structure, and cross-period repeat checks all `ok`
   - report:
-    - `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/validation/perfect_model_samples_perfect_model_rcm_rcm_19800101_21001231.md`
+    - `/scratch/globc/page/output/metrics/perfect_model_rcm/validation/perfect_model_samples_perfect_model_rcm_rcm_19800101_21001231.md`
 - statistics:
   - job `1884667`
   - report:
-    - `/scratch/globc/page/idownscale_output/datasets/dataset_bc/dataset_perfect_model_rcm/statistics.json`
+    - `/scratch/globc/page/output/datasets/dataset_bc/dataset_perfect_model_rcm/statistics.json`
 - combined ML-vs-RCM table:
-  - `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.md`
+  - `/scratch/globc/page/output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.md`
 
 Current interpretation:
 
@@ -730,7 +730,7 @@ Active follow-up:
   - comparisons `1884759`, `1884761`, `1884763`, `1884765`, `1884767`,
     `1884769`, `1884771`
 - The first MiniSwin launch `1884742` was canceled because it inherited a
-  repo-local output root; the relaunched chain sets `/scratch/globc/page/idownscale_output`
+  repo-local output root; the relaunched chain sets `/scratch/globc/page/output`
   explicitly.
 - The clean MiniSwin run `1884757` was canceled at the epoch-6 gate:
   - validation loss was still `234.2`
@@ -767,7 +767,7 @@ Completed follow-up:
   before writing NetCDF; without this, predictions stayed in normalized units.
 - The current combined perfect-model result is:
   - table:
-    `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.md`
+    `/scratch/globc/page/output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.md`
   - best candidate:
     `unet_outputnorm_perfect_model_rcm`
   - output-normalized UNet bias:
@@ -829,8 +829,8 @@ Current results:
 - GCM BC scientific validation on Grace completed in limited-overlap mode:
   - job `267483`
   - outputs:
-    - `/gpfs-calypso/scratch/globc/page/idownscale_output/metrics/exp5/bc_validation_summary_exp5_gcm.csv`
-    - `/gpfs-calypso/scratch/globc/page/idownscale_output/graph/metrics/exp5/bc_validation_pdf_exp5_gcm.png`
+    - `/gpfs-calypso/scratch/globc/page/output/metrics/exp5/bc_validation_summary_exp5_gcm.csv`
+    - `/gpfs-calypso/scratch/globc/page/graphs/metrics/exp5/bc_validation_pdf_exp5_gcm.png`
   - note:
     - current default GCM corrected NetCDFs only overlap one smoke day with the full BC bundles, so these numbers validate the method and not yet a full-period scientific GCM certification
 - ALADIN/RCM BC dataset performance fix validated on Grace:
@@ -871,7 +871,7 @@ Perfect-model BC follow-up lesson, 2026-06-04:
 - Full ALADIN/RCM BC rerun in isolated parity root:
   - current job `272669`
   - output root:
-    - `/gpfs-calypso/scratch/globc/page/idownscale_output/validation_20260528/rcm_parity_full`
+    - `/gpfs-calypso/scratch/globc/page/output/validation_20260528/rcm_parity_full`
   - current launch path:
     - `bin/production/submit_rcm_parity_grace.sh`
   - note:
@@ -962,10 +962,10 @@ Final technical checkpoint:
 - no active SLURM jobs remain for this bounded workflow
 - regenerated outputs:
   - combined table:
-    - `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.csv`
+    - `/scratch/globc/page/output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.csv`
   - score plot:
-    - `/scratch/globc/page/idownscale_output/graph/metrics/perfect_model_rcm/perfect_model_method_comparison_perfect_model_rcm_rcm.png`
+    - `/scratch/globc/page/graphs/metrics/perfect_model_rcm/perfect_model_method_comparison_perfect_model_rcm_rcm.png`
   - PDF plot:
-    - `/scratch/globc/page/idownscale_output/graph/metrics/perfect_model_rcm/perfect_model_distribution_pdf_perfect_model_rcm_rcm_tas.png`
+    - `/scratch/globc/page/graphs/metrics/perfect_model_rcm/perfect_model_distribution_pdf_perfect_model_rcm_rcm_tas.png`
   - climate-signal table:
-    - `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_climate_signal_perfect_model_rcm_rcm_20000101_20141231_vs_20900101_21001231.csv`
+    - `/scratch/globc/page/output/metrics/perfect_model_rcm/comparison_tables/perfect_model_climate_signal_perfect_model_rcm_rcm_20000101_20141231_vs_20900101_21001231.csv`

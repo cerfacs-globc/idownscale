@@ -16,13 +16,13 @@ for the repository itself, and:
 ```text
 /scratch/globc/<login>/idownscale_runtime/
 ├── rawdata/
-├── idownscale_output/
+├── output/
 │   ├── datasets/
 │   ├── runs/
 │   ├── prediction/
 │   ├── metrics/
-│   ├── graph/
-│   └── weights/
+│   └── regrid_weights/
+├── graphs/
 └── tmp/
 ```
 
@@ -44,13 +44,13 @@ The minimal setup is:
 ```bash
 export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
 export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
-export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 export IDOWNSCALE_DATASET_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets
 export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
 export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
 export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
-export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_OUTPUT_DIR/graph
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
 ```
 
 Optional:
@@ -71,10 +71,10 @@ The Python settings layer now behaves like this:
 and:
 
 1. `OUTPUT_DIR = IDOWNSCALE_OUTPUT_DIR` if set
-2. otherwise `OUTPUT_DIR = IDOWNSCALE_RUNTIME_ROOT/idownscale_output`
+2. otherwise `OUTPUT_DIR = IDOWNSCALE_RUNTIME_ROOT/output`
 
 This means a repository in `home` will not silently create a large
-`repo/idownscale_output` tree anymore unless you explicitly point it there.
+`repo/output` tree anymore unless you explicitly point it there.
 
 ## Shell wrappers
 

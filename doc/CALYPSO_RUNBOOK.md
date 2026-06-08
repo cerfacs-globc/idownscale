@@ -23,7 +23,7 @@ Current Calypso repo root:
 Current output root:
 
 ```bash
-/gpfs-calypso/scratch/globc/page/idownscale_output
+/gpfs-calypso/scratch/globc/page/output
 ```
 
 Work from the repo root:
@@ -509,8 +509,8 @@ The important write locations are:
 
 By default:
 
-- outputs go under `/gpfs-calypso/scratch/globc/page/idownscale_output`
-- regrid weights go under `.../idownscale_output/weights`
+- outputs go under `/gpfs-calypso/scratch/globc/page/output`
+- regrid weights go under `.../output/regrid_weights`
 - GCM bias-corrected NetCDFs default under `rawdata/gcm/CNRM-CM6-1-BC`
 - RCM bias-corrected NetCDFs default under `rawdata/rcm/ALADIN-BC`
 
@@ -518,14 +518,14 @@ If those locations are not writable for the engineer, they should override them
 explicitly before running:
 
 ```bash
-export IDOWNSCALE_OUTPUT_DIR=/gpfs-calypso/scratch/<user>/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=/gpfs-calypso/scratch/<user>/output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 export IDOWNSCALE_DATASET_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets
 export IDOWNSCALE_DATASET_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets/dataset_bc
 export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
 export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
 export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
-export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_OUTPUT_DIR/graph
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_GRAPHS_DIR
 export IDOWNSCALE_GCM_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/gcm_bc
 export IDOWNSCALE_RCM_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/rcm_bc
 ```

@@ -143,7 +143,7 @@ What is already proven:
 The smoke run produced outputs under:
 
 ```bash
-/gpfs-calypso/scratch/globc/page/idownscale_output/runs/exp5/unet_smoke/lightning_logs/version_best/
+/gpfs-calypso/scratch/globc/page/output/runs/exp5/unet_smoke/lightning_logs/version_best/
 ```
 
 Including:

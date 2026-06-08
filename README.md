@@ -1,13 +1,8 @@
 # idownscale
 
-<p float="left">
-    <img src="/doc/gcm_20700101.png" width="400"/>
-    <img src="/doc/unet_20700101.png" width="400"/>
-</p>
-
 ## Project context
 
-The **IRISCC** project is part of a consortium of European research infrastructures of which CERFACS is a member. Its aim is to study the impacts of risks linked to climate change, by offering services, data and opportunities to the various players involved. The CERFACS mission is to provide high-quality, fine-resolution (around 10 km) climate projection data based on daily data from global climate model (GCM) simulations (around 150 km resolution) for the needs of the project's demonstrators. The variables of interest are surface temperature (K), precipitation (mm) and humidity.
+The **IRISCC** project is part of a consortium of European research infrastructures of which CERFACS is a member. Its aim is to study the impacts of risks linked to climate change, by offering services, data and opportunities to the various players involved. CERFACS tasks in this repository focus on producing high-quality, fine-resolution climate projection products from coarser climate simulations, with daily GCM fields around 150 km as a typical input scale and kilometre-scale regional products as a target use case. The workflow is designed around near-surface temperature today, but should remain adaptable to other climate variables such as precipitation, humidity, wind, or radiation when suitable data and metrics are configured.
 
 This document provides an overview of the code structure, useful commands for manipulating the project, and the information you need to get started quickly
 
@@ -21,24 +16,25 @@ The most useful environment variables are:
 ```bash
 export IDOWNSCALE_RAW_DIR=/path/to/rawdata
 export IDOWNSCALE_OUTPUT_DIR=/path/to/output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=/path/to/output/weights
+export IDOWNSCALE_GRAPHS_DIR=/path/to/graphs
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=/path/to/output/regrid_weights
 export IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR=/path/to/archive/dataset_exp5_30y
 export IDOWNSCALE_RUNS_DIR=/path/to/runs
 export IDOWNSCALE_PREDICTION_DIR=/path/to/prediction
 export IDOWNSCALE_METRICS_DIR=/path/to/metrics
 ```
 
-Recommended layout on HPC:
+Recommended layout on shared filesystems:
 
 ```bash
-# keep the Git repository in backed-up home
-cd /home/$USER/src/idownscale
+# keep the Git repository separate from heavy runtime data
+cd /path/to/idownscale
 
-# keep heavy runtime paths on scratch
-export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
+export IDOWNSCALE_RUNTIME_ROOT=/path/to/idownscale_runtime
 export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
-export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/output
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 ```
 
 If you do not set them, the repo uses the defaults defined in
@@ -46,12 +42,14 @@ If you do not set them, the repo uses the defaults defined in
 
 - `RAW_DIR` uses `repo/rawdata` only if that directory exists
 - otherwise `RAW_DIR` falls back to `$IDOWNSCALE_RUNTIME_ROOT/rawdata`
-- `OUTPUT_DIR` falls back to `$IDOWNSCALE_RUNTIME_ROOT/idownscale_output`
+- `OUTPUT_DIR` falls back to `$IDOWNSCALE_RUNTIME_ROOT/output`
 
-For Calypso-specific environment and operator instructions, see:
+For platform-specific environment and operator instructions, keep a local
+untracked `iriscc/settings_local.py` or export the variables above. A template is
+available in `iriscc/settings_local.py.example`.
 
-- `doc/ENVIRONMENT_SETUP.md`
-- `doc/CALYPSO_RUNBOOK.md`
+Some historical platform notes are kept in `doc/` for project traceability, but
+they should not be treated as portable defaults.
 
 Operational note:
 
@@ -110,13 +108,6 @@ iriscc/
 │   │
 ├── requirements.txt 
 ├── README.md 
-
-scratch/globc/garcia/
-├── datasets/             
-├── graphs/              
-├── rawdata/             
-├── runs/               
-├── prediction/          
 
 ```
 
@@ -192,25 +183,6 @@ Checkpoint reuse note:
 - when the training world changes, the intended route is to rebuild the training
   data and retrain rather than only rerun inference
 
-Grace local shell wrapper:
-
-```bash
-bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
-```
-
-Calypso mixed-environment fallback:
-
-```bash
-bash bin/production/run_in_calypso_mixed_env.sh python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply
-```
-
-Calypso batch submitters:
-
-```bash
-sbatch --export=ALL bin/production/submit_exp5_workflow_grace.sh
-sbatch --export=ALL bin/production/submit_exp5_workflow_globc.sh
-```
-
 Prediction note: `predict_loop` expects a `best-checkpoint*.ckpt` under
 `$IDOWNSCALE_RUNS_DIR/<exp>/<test-name>/lightning_logs/version_best/checkpoints/`.
 The archival `runs/` tree currently preserves logs and hyperparameters but not the checkpoint file itself.
@@ -245,41 +217,6 @@ the progress of metrics can be viewed with:
 
 ```bash
 tensorboard --logdir='path-to-runs'
-```
-
-Grace GPU note:
-
-- known-good module stack:
-  - `python/gloenv3.12_arm`
-  - `nvidia/cuda/12.4`
-- known-good venv:
-  - `/scratch/globc/page/idownscale_envs/production_final_v22_312`
-- recommended Grace flags:
-  - `IDOWNSCALE_FORCE_CSV_LOGGER=1`
-  - `IDOWNSCALE_SKIP_TEST_FIGURES=1`
-
-Example Grace training launch:
-
-```bash
-sbatch --export=ALL,\
-TEST_NAME=unet_smoke,\
-STEPS=train,\
-IF_EXISTS=overwrite,\
-MAX_EPOCH=1,\
-IDOWNSCALE_VENV_PATH=/scratch/globc/page/idownscale_envs/production_final_v22_312,\
-IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES=tqdm,\
-IDOWNSCALE_FORCE_CSV_LOGGER=1,\
-IDOWNSCALE_SKIP_TEST_FIGURES=1 \
-bin/production/submit_exp5_train_grace.sh
-```
-
-For the full engineering note, see `doc/GRACE_TRAINING_ENGINEER_NOTE.md`.
-
-Two small Grace environment probes are versioned as helpers:
-
-```bash
-bash bin/production/submit_grace_venv_probe.sh
-TORCH_VERSION=2.5.1 bash bin/production/submit_grace_torch_version_probe.sh
 ```
 
 ---

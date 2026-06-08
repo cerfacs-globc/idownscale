@@ -20,14 +20,14 @@ The main diagnostic scripts are `validate_perfect_model_samples.py`, `compare_pe
 
 The comparison now includes raw coarse-resolution input, the default CDFt BC baseline, an SBCK CDFt baseline, and five ML runs: `unet_outputnorm_perfect_model_rcm`, `unet_perfect_model_rcm`, `unet_rep3_perfect_model_rcm`, `miniunet_perfect_model_rcm`, and `unet_seed2_perfect_model_rcm`.
 
-On Kraken, the interpreter used for this work is `/scratch/globc/page/idownscale_envs/kraken_gpu_py312_v1/bin/python`. The output root used for the validated artifacts is `/scratch/globc/page/idownscale_output`.
+On Kraken, the interpreter used for this work was the local GPU environment installed under the project scratch area. The validated artifacts are written under the runtime split layout: `$IDOWNSCALE_OUTPUT_DIR` for datasets, predictions and tables, and `$IDOWNSCALE_GRAPHS_DIR` for figures.
 
 ## 3. How To Run
 
 A typical direct run is:
 
 ```bash
-/scratch/globc/page/idownscale_envs/kraken_gpu_py312_v1/bin/python \
+python \
   bin/production/run_exp5_perfect_model.py \
   --exp perfect_model_rcm \
   --var tas \
@@ -47,23 +47,25 @@ The Kraken submitter is:
 sbatch bin/production/submit_exp5_perfect_model_kraken.sh
 ```
 
-For reproducible runs, set the output root explicitly:
+For reproducible runs, set the runtime roots explicitly:
 
 ```bash
-export IDOWNSCALE_OUTPUT_DIR=/scratch/globc/page/idownscale_output
+export IDOWNSCALE_RUNTIME_ROOT=/path/to/idownscale_runtime
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/output
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
 ```
 
 ## 4. Validated Outputs
 
-The main comparison table is `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.csv`.
+The main comparison table is `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.csv`.
 
-The score plot is `/scratch/globc/page/idownscale_output/graph/metrics/perfect_model_rcm/perfect_model_method_comparison_perfect_model_rcm_rcm.png`.
+The score plot is `$IDOWNSCALE_GRAPHS_DIR/metrics/perfect_model_rcm/perfect_model_method_comparison_perfect_model_rcm_rcm.png`.
 
-The PDF/distribution plot is `/scratch/globc/page/idownscale_output/graph/metrics/perfect_model_rcm/perfect_model_distribution_pdf_perfect_model_rcm_rcm_tas.png`.
+The PDF/distribution plot is `$IDOWNSCALE_GRAPHS_DIR/metrics/perfect_model_rcm/perfect_model_distribution_pdf_perfect_model_rcm_rcm_tas.png`.
 
-The climate-signal diagnostic is `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_climate_signal_perfect_model_rcm_rcm_19810101_20101231_vs_20800101_21001231.csv`.
+The climate-signal diagnostic is `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/perfect_model_climate_signal_perfect_model_rcm_rcm_19810101_20101231_vs_20800101_21001231.csv`.
 
-The all-window variability diagnostic is `/scratch/globc/page/idownscale_output/metrics/perfect_model_rcm/comparison_tables/perfect_model_window_statistics_perfect_model_rcm_rcm.csv`.
+The all-window variability diagnostic is `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/perfect_model_window_statistics_perfect_model_rcm_rcm.csv`.
 
 The combined prediction-vs-truth table currently covers `20000101_20141231` and `20900101_21001231`. The climate-signal diagnostic uses `19810101_20101231` as the reference and `20800101_21001231` as the future period. The window-statistics diagnostic covers all eight windows from `19810101_20101231` to `20900101_21001231`.
 
