@@ -28,13 +28,11 @@ from iriscc.settings import (
     DATES,
     DATES_BC_TEST_FUTURE,
     DATES_BC_TEST_HIST,
-    DATES_TRAIN,
-    GCM_BC_DIR,
     GRAPHS_DIR,
     METRICS_DIR,
-    PREDICTION_DIR,
-    RCM_BC_DIR,
     RUNS_DIR,
+    get_bias_corrected_netcdf_path,
+    get_prediction_output_path,
 )
 
 
@@ -93,9 +91,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--phase1-start-date", default=None, help="Optional YYYYMMDD start date for phase1 dataset generation.")
     parser.add_argument("--phase1-end-date", default=None, help="Optional YYYYMMDD end date for phase1 dataset generation.")
-    parser.add_argument("--simu", default="gcm", help="Simulation family for phase2 steps.")
+    parser.add_argument(
+        "--simu",
+        default="gcm",
+        help="Simulation alias or model source key for phase2 steps, e.g. gcm, rcm, cordex, gcm_cnrm_cm6_1.",
+    )
     parser.add_argument("--var", default="tas", help="Variable for phase2 steps.")
     parser.add_argument("--ssp", default=None, help="Override SSP scenario. Defaults to experiment config.")
+    parser.add_argument(
+        "--bc-method",
+        default=None,
+        help="Bias-correction method override. Supported production methods: ibicus_cdft, sbck_cdft.",
+    )
     parser.add_argument("--test-name", default=None, help="Model run name for inference/evaluation steps.")
     parser.add_argument("--checkpoint-bundle", default=None, help="Optional portable checkpoint bundle directory for inference/evaluation.")
     parser.add_argument("--train-max-epoch", type=int, default=30, help="Max epochs for the optional train step.")
@@ -110,7 +117,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--metrics-end-date", default=None, help="Metrics evaluation end date. Defaults to the settings.py historical-test end.")
     parser.add_argument("--value-start-date", default=None, help="VALUE validation start date. Defaults to the settings.py historical-test start.")
     parser.add_argument("--value-end-date", default=None, help="VALUE validation end date. Defaults to the settings.py historical-test end.")
-    parser.add_argument("--simu-test", default="gcm_bc", help="Inference sample variant, e.g. gcm or gcm_bc.")
+    parser.add_argument(
+        "--simu-test",
+        default="gcm_bc",
+        help="Inference sample variant, e.g. gcm, gcm_bc, cordex, or cordex_bc.",
+    )
     parser.add_argument("--python-bin", default=sys.executable, help="Python executable to use for subprocess steps.")
     parser.add_argument("--dry-run", action="store_true", help="Print decisions without executing commands.")
     return parser.parse_args()
@@ -127,9 +138,10 @@ def resolve_steps(raw_steps: str) -> list[str]:
 
 
 def list_phase1_outputs(dataset_dir: Path, start: str | None, end: str | None) -> list[Path]:
-    if not start or not end:
-        start, end = default_phase1_window()
-    dates = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="D")
+    if start and end:
+        dates = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="D")
+    else:
+        dates = pd.date_range("1980-01-01", "2014-12-31", freq="D")
     return [dataset_dir / f"sample_{date.strftime('%Y%m%d')}.npz" for date in dates]
 
 
@@ -178,6 +190,11 @@ def main() -> int:
     exp = args.exp
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
+    bc_method = args.bc_method or exp_cfg.get("bias_correction_method", "ibicus_cdft")
+    bc_apply_script = {
+        "ibicus_cdft": "bin/preprocessing/bias_correction_ibicus.py",
+        "sbck_cdft": "bin/preprocessing/bias_correction_sbck.py",
+    }.get(bc_method)
     phase1_start_date, phase1_end_date = (
         (args.phase1_start_date, args.phase1_end_date)
         if args.phase1_start_date and args.phase1_end_date
@@ -202,35 +219,37 @@ def main() -> int:
         Path(exp_cfg["target_file"]),
         Path(exp_cfg["orog_file"]),
     ]
-    phase1_start = yyyymmdd(DATES[0])
-    hist_start = yyyymmdd(DATES_BC_TEST_HIST[0])
-    future_start = yyyymmdd(DATES_BC_TEST_FUTURE[0])
     bc_outputs = [
         DATASET_BC_DIR / f"bc_train_hist_{args.simu}.npz",
         DATASET_BC_DIR / f"bc_test_hist_{args.simu}.npz",
         DATASET_BC_DIR / f"bc_test_future_{args.simu}.npz",
     ]
-    raw_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_gcm"
+    raw_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{args.simu}"
     bc_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{args.simu}_bc"
-    bc_netcdf_dir = GCM_BC_DIR if args.simu == "gcm" else RCM_BC_DIR
-    bc_hist_suffix = "gr" if args.simu == "gcm" else "gr_150km"
     bc_apply_outputs = [
-        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_historical_r1i1p1f2_{bc_hist_suffix}_{DATES_TRAIN[0]}0101-{(pd.Timestamp(DATES_BC_TEST_HIST[0]) - pd.Timedelta(days=1)).strftime('%Y%m%d')}_bc.nc",
-        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_historical_r1i1p1f2_{bc_hist_suffix}_{hist_start}-{yyyymmdd(DATES_BC_TEST_HIST[-1])}_bc.nc",
-        bc_netcdf_dir / f"{args.var}_day_{'CNRM-CM6-1' if args.simu == 'gcm' else 'ALADIN'}_{ssp}_r1i1p1f2_{bc_hist_suffix}_{future_start}-{yyyymmdd(DATES_BC_TEST_FUTURE[-1])}_bc.nc",
-        bc_dataset_dir / f"sample_{phase1_start}.npz",
+        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
+        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),
+        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
+        bc_dataset_dir / "sample_19800101.npz",
     ]
-    pp_outputs = [bc_dataset_dir / f"sample_{phase1_start}.npz"]
+    pp_outputs = [bc_dataset_dir / "sample_19800101.npz"]
     raw_outputs = [
-        raw_dataset_dir / f"sample_{hist_start}.npz",
-        raw_dataset_dir / f"sample_{future_start}.npz",
+        raw_dataset_dir / "sample_20000101.npz",
+        raw_dataset_dir / "sample_20150101.npz",
     ]
     prediction_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
-    prediction_period = "historical" if pd.Timestamp(predict_end_date) <= DATES_BC_TEST_HIST[-1] else ssp
     prediction_outputs = []
     if prediction_test_name:
         prediction_outputs = [
-            PREDICTION_DIR / f"{args.var}_day_CNRM-CM6-1_{prediction_period}_r1i1p1f2_gr_{predict_start_date}_{predict_end_date}_{exp}_{prediction_test_name}.nc"
+            get_prediction_output_path(
+                exp,
+                args.simu_test,
+                args.var,
+                predict_start_date,
+                predict_end_date,
+                prediction_test_name,
+                ssp=ssp,
+            )
         ]
     value_outputs = []
     if args.test_name:
@@ -287,20 +306,7 @@ def main() -> int:
             "cleanup": phase1_outputs,
         },
         "stats": {
-            "command": [
-                args.python_bin,
-                "bin/preprocessing/compute_statistics.py",
-                "--exp",
-                exp,
-                "--dataset_dir",
-                str(dataset_dir),
-                "--train-start-year",
-                DATES_TRAIN[0],
-                "--val-start-year",
-                DATES_TRAIN[1],
-                "--test-start-year",
-                DATES_TRAIN[2],
-            ],
+            "command": [args.python_bin, "bin/preprocessing/compute_statistics.py", "--exp", exp],
             "expected": stats_outputs,
             "cleanup": stats_outputs,
         },
@@ -323,7 +329,7 @@ def main() -> int:
         "bc_apply": {
             "command": [
                 args.python_bin,
-                "bin/preprocessing/bias_correction_ibicus.py",
+                bc_apply_script or "",
                 "--exp",
                 exp,
                 "--ssp",
@@ -343,9 +349,11 @@ def main() -> int:
                 "--exp",
                 exp,
                 "--simu",
-                "gcm",
+                args.simu,
                 "--var",
                 args.var,
+                "--ssp",
+                ssp,
             ],
             "expected": raw_outputs,
             "cleanup": [raw_dataset_dir],
@@ -379,9 +387,11 @@ def main() -> int:
                 "--exp",
                 exp,
                 "--simu",
-                "gcm",
+                args.simu,
                 "--var",
                 args.var,
+                "--ssp",
+                ssp,
                 "--corrected",
             ],
             "expected": pp_outputs,
@@ -492,13 +502,22 @@ def main() -> int:
     }
 
     step_table["phase1"]["command"].extend(["--start_date", phase1_start_date, "--end_date", phase1_end_date])
-    if "pp_dataset" in steps and args.simu != "gcm":
-        raise ValueError("pp_dataset currently supports only --simu gcm")
-    if "raw_dataset" in steps and args.simu != "gcm":
-        raise ValueError("raw_dataset currently supports only --simu gcm")
+    if bc_apply_script is None and "bc_apply" in steps:
+        raise NotImplementedError(
+            f"Bias-correction method '{bc_method}' is not wired into the production workflow yet. "
+            "Supported production methods are 'ibicus_cdft' and 'sbck_cdft'."
+        )
     if "train" in steps and not args.test_name:
         raise ValueError("--test-name is required for the train step")
-    if any(step in steps for step in ["predict_loop", "metrics_day", "metrics_month", "value_metrics", "plot_metrics_day", "plot_metrics_month"]) and not args.test_name:
+    evaluation_steps = [
+        "predict_loop",
+        "metrics_day",
+        "metrics_month",
+        "value_metrics",
+        "plot_metrics_day",
+        "plot_metrics_month",
+    ]
+    if any(step in steps for step in evaluation_steps) and not args.test_name:
         raise ValueError("--test-name is required for predict_loop, metrics_day, metrics_month, value_metrics, plot_metrics_day, and plot_metrics_month steps")
 
     for step in steps:

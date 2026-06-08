@@ -8,21 +8,46 @@ author : Zoé GARCIA
 import os
 from pathlib import Path
 
-import cartopy.crs as ccrs
 import pandas as pd
-import pyproj
+try:
+    import cartopy.crs as ccrs
+except ModuleNotFoundError:  # pragma: no cover - optional runtime dependency
+    ccrs = None
+
+try:
+    import pyproj
+except ModuleNotFoundError:  # pragma: no cover - optional runtime dependency
+    pyproj = None
 
 
 def env_path(name: str, default: Path | str) -> Path:
     return Path(os.getenv(name, str(default))).expanduser()
 
 
+def _user_scratch_root() -> Path:
+    user = os.getenv("USER") or os.getenv("LOGNAME") or "user"
+    return Path("/scratch/globc") / user
+
+
+def default_runtime_root() -> Path:
+    if "IDOWNSCALE_RUNTIME_ROOT" in os.environ:
+        return env_path("IDOWNSCALE_RUNTIME_ROOT", _user_scratch_root() / "idownscale_runtime")
+    return _user_scratch_root() / "idownscale_runtime"
+
+
+def default_raw_dir() -> Path:
+    if "IDOWNSCALE_RAW_DIR" in os.environ:
+        return env_path("IDOWNSCALE_RAW_DIR", PROJECT_ROOT / "rawdata")
+    repo_raw = PROJECT_ROOT / "rawdata"
+    if repo_raw.exists():
+        return repo_raw
+    return RUNTIME_ROOT / "rawdata"
+
+
 def default_output_dir() -> Path:
     if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
-        return env_path("IDOWNSCALE_OUTPUT_DIR", PROJECT_ROOT / "idownscale_output")
-    if os.getenv("GITHUB_ACTIONS") == "true":
-        return PROJECT_ROOT / "idownscale_output"
-    return Path("/gpfs-calypso/scratch/globc/page/idownscale_output/").expanduser()
+        return env_path("IDOWNSCALE_OUTPUT_DIR", RUNTIME_ROOT / "idownscale_output")
+    return RUNTIME_ROOT / "idownscale_output"
 
 
 def safe_mkdir(directory: Path) -> None:
@@ -33,10 +58,27 @@ def safe_mkdir(directory: Path) -> None:
         # research/HPC default paths at import time.
         pass
 
+
+def env_str(name: str, default: str) -> str:
+    return os.getenv(name, default)
+
+
+def plate_carree():
+    return ccrs.PlateCarree() if ccrs is not None else None
+
+
+def lambert_conformal(**kwargs):
+    return ccrs.LambertConformal(**kwargs) if ccrs is not None else None
+
+
+def pyproj_proj(spec: str, **kwargs):
+    return pyproj.Proj(spec, **kwargs) if pyproj is not None else None
+
 # Base directories
 PROJECT_ROOT = Path(__file__).parents[1].resolve()
 REPO_DIR = PROJECT_ROOT
-RAW_DIR = env_path('IDOWNSCALE_RAW_DIR', PROJECT_ROOT / 'rawdata')
+RUNTIME_ROOT = default_runtime_root()
+RAW_DIR = default_raw_dir()
 OUTPUT_DIR = default_output_dir()
 
 SAFRAN_DIR = RAW_DIR / 'safran'
@@ -68,7 +110,282 @@ EXP5_ARCHIVE_DATASET_DIR = env_path(
     'IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR',
     '/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y',
 )
+LEGACY_DATASET_ROOTS = [
+    Path(path).expanduser()
+    for path in os.getenv('IDOWNSCALE_LEGACY_DATASET_ROOTS', '').split(os.pathsep)
+    if path
+]
 REGRID_WEIGHTS_DIR = env_path('IDOWNSCALE_REGRID_WEIGHTS_DIR', OUTPUT_DIR / 'weights')
+
+def build_custom_obs_source() -> dict:
+    spec = {
+        'kind': 'observation',
+        'root': env_path('IDOWNSCALE_CUSTOM_OBS_DIR', RAW_DIR / 'custom_obs'),
+        'geometry': env_str('IDOWNSCALE_CUSTOM_OBS_GEOMETRY', 'eobs'),
+        'data_type': env_str('IDOWNSCALE_CUSTOM_OBS_DATA_TYPE', 'eobs'),
+        'mask_type': os.getenv('IDOWNSCALE_CUSTOM_OBS_MASK_TYPE'),
+    }
+    yearly_pattern = os.getenv('IDOWNSCALE_CUSTOM_OBS_YEARLY_PATTERN')
+    yearly_patterns = os.getenv('IDOWNSCALE_CUSTOM_OBS_YEARLY_PATTERNS')
+    glob_pattern = os.getenv('IDOWNSCALE_CUSTOM_OBS_GLOB_PATTERN', '{var}*')
+    if yearly_patterns:
+        spec['yearly_patterns'] = [pattern.strip() for pattern in yearly_patterns.split(';') if pattern.strip()]
+    elif yearly_pattern:
+        spec['yearly_pattern'] = yearly_pattern
+    else:
+        spec['glob_pattern'] = glob_pattern
+    return spec
+
+
+# Source catalog
+# Keep data-source wiring in one place so swapping reanalysis/model/target does
+# not require edits spread across loaders and workflows.
+SOURCE_CATALOG = {
+    'era5': {
+        'kind': 'reanalysis',
+        'root': ERA5_DIR,
+        'geometry': 'era5',
+        'data_type': 'era5',
+        'output_label': 'ERA5',
+        'yearly_patterns': [
+            "{var}_1d/{var}_1d_{year}_ERA5.nc",
+            "{var}/{var}_1d_{year}_ERA5.nc",
+        ],
+        'orography_file': ERA5_OROG_FILE,
+    },
+    'era6': {
+        'kind': 'reanalysis',
+        'root': env_path('IDOWNSCALE_ERA6_DIR', RAW_DIR / 'era6'),
+        'geometry': 'era5',
+        'data_type': 'era6',
+        'output_label': 'ERA6',
+        'yearly_patterns': [
+            "{var}_1d/{var}_1d_{year}_ERA6.nc",
+            "{var}/{var}_1d_{year}_ERA6.nc",
+            "{var}*{year}*ERA6*.nc",
+        ],
+        'orography_file': env_path('IDOWNSCALE_ERA6_OROG_FILE', RAW_DIR / 'era6/orography_ERA6.nc'),
+    },
+    'gcm_cnrm_cm6_1': {
+        'kind': 'model',
+        'root': GCM_RAW_DIR / 'CNRM-CM6-1',
+        'geometry': 'gcm',
+        'data_type': 'gcm',
+        'output_label': 'CNRM-CM6-1',
+        'member_id': 'r1i1p1f2',
+        'grid_label': 'gr',
+        'historical_pattern': "{var}*historical*r1i1p1f2*",
+        'scenario_pattern': "{var}*{ssp}*",
+        'orography_file': GCM_OROG_FILE,
+        'bias_corrected_root': GCM_BC_DIR,
+    },
+    'cordex': {
+        'kind': 'model',
+        'root': env_path('IDOWNSCALE_CORDEX_DIR', RCM_RAW_DIR / 'CORDEX'),
+        'geometry': 'rcm',
+        'data_type': 'rcm',
+        'output_label': 'CORDEX',
+        'member_id': 'r1i1p1f2',
+        'grid_label': 'gr',
+        'historical_pattern': "{var}*historical*",
+        'scenario_pattern': "{var}*{ssp}*",
+        'orography_file': env_path('IDOWNSCALE_CORDEX_OROG_FILE', RCM_RAW_DIR / 'CORDEX/orography_CORDEX.nc'),
+        'bias_corrected_root': env_path('IDOWNSCALE_CORDEX_BC_DIR', RCM_RAW_DIR / 'CORDEX-BC'),
+    },
+    'rcm_aladin': {
+        'kind': 'model',
+        'root': RCM_RAW_DIR / 'ALADIN',
+        'geometry': 'rcm',
+        'data_type': 'rcm',
+        'output_label': 'ALADIN',
+        'member_id': 'r1i1p1f2',
+        'grid_label': 'gr_150km',
+        'historical_pattern': "{var}*historical*r1i1p1f2*",
+        'scenario_pattern': "{var}*{ssp}*r1i1p1f2*",
+        'bias_corrected_root': RCM_BC_DIR,
+    },
+    'eobs': {
+        'kind': 'observation',
+        'root': EOBS_RAW_DIR,
+        'geometry': 'eobs',
+        'data_type': 'eobs',
+        'glob_pattern': "{var}*",
+        'mask_type': 'eobs',
+    },
+    'cerra': {
+        'kind': 'observation',
+        'root': env_path('IDOWNSCALE_CERRA_DIR', RAW_DIR / 'cerra'),
+        'geometry': 'era5',
+        'data_type': 'cerra',
+        'glob_pattern': "{var}*",
+        'mask_type': None,
+    },
+    'safran': {
+        'kind': 'observation',
+        'root': SAFRAN_REFORMAT_DIR,
+        'geometry': 'safran',
+        'data_type': 'safran',
+        'yearly_pattern': "{var}*{year}_reformat.nc",
+    },
+    'custom_obs': build_custom_obs_source(),
+}
+
+
+def get_source_spec(source_name: str) -> dict:
+    if source_name not in SOURCE_CATALOG:
+        raise KeyError(f"Unknown source '{source_name}'. Add it to SOURCE_CATALOG in iriscc/settings.py.")
+    return SOURCE_CATALOG[source_name]
+
+
+def get_source_output_label(source_name: str) -> str:
+    return get_source_spec(source_name).get('output_label', source_name.upper())
+
+
+def get_source_member_id(source_name: str) -> str:
+    return get_source_spec(source_name).get('member_id', 'r1i1p1f2')
+
+
+def get_source_grid_label(source_name: str) -> str:
+    return get_source_spec(source_name).get('grid_label', 'gr')
+
+
+def get_source_scenario_start(source_name: str) -> pd.Timestamp:
+    env_override = {
+        'gcm_cnrm_cm6_1': 'IDOWNSCALE_GCM_SCENARIO_START',
+        'cordex': 'IDOWNSCALE_CORDEX_SCENARIO_START',
+        'rcm_aladin': 'IDOWNSCALE_RCM_SCENARIO_START',
+    }.get(source_name)
+    raw_value = os.getenv(env_override) if env_override is not None else None
+    if raw_value is None:
+        raw_value = get_source_spec(source_name).get('scenario_start')
+    if raw_value is None:
+        return pd.Timestamp(DATES_BC_TEST_FUTURE[0])
+    return pd.Timestamp(raw_value)
+
+
+def get_simu_source(exp: str, simu: str) -> str:
+    if simu == 'gcm':
+        return CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    if simu == 'rcm':
+        return CONFIG[exp].get('rcm_source', 'rcm_aladin')
+    if simu in SOURCE_CATALOG:
+        spec = get_source_spec(simu)
+        if spec.get('kind') != 'model':
+            raise ValueError(
+                f"Simulation source '{simu}' is not a model source. "
+                "Use a model key from SOURCE_CATALOG or the 'gcm'/'rcm' aliases."
+            )
+        return simu
+    raise ValueError(
+        f"Unsupported simulation source '{simu}'. "
+        "Use a model key from SOURCE_CATALOG or the 'gcm'/'rcm' aliases."
+    )
+
+
+def get_simu_family(exp: str, simu: str) -> str:
+    resolved = get_simu_source(exp, simu)
+    geometry = get_source_spec(resolved).get('geometry')
+    if geometry == 'gcm':
+        return 'gcm'
+    if geometry == 'rcm':
+        return 'rcm'
+    raise ValueError(f"Model source '{resolved}' does not advertise a supported simulation geometry.")
+
+
+def get_variant_source(exp: str, simu_variant: str) -> str:
+    return get_simu_source(exp, simu_variant[:-3] if simu_variant.endswith('_bc') else simu_variant)
+
+
+def get_bias_corrected_root(exp: str, simu: str) -> Path:
+    root = get_source_spec(get_simu_source(exp, simu)).get('bias_corrected_root')
+    if root is None:
+        raise ValueError(f"No bias-corrected output directory configured for simulation family '{simu}'.")
+    return Path(root)
+
+
+def normalize_bc_tag(bc_tag: str | None) -> str:
+    if not bc_tag:
+        return ""
+    return str(bc_tag).strip().replace(" ", "_")
+
+
+def get_bias_corrected_netcdf_path(
+    exp: str,
+    simu: str,
+    var: str,
+    period: str,
+    ssp: str | None = None,
+    bc_tag: str | None = None,
+) -> Path:
+    source_name = get_simu_source(exp, simu)
+    scenario = 'historical'
+    if period == 'train_hist':
+        date_range = f"{DATES_BC_TRAIN_HIST[0].strftime('%Y%m%d')}-{DATES_BC_TRAIN_HIST[-1].strftime('%Y%m%d')}"
+    elif period == 'test_hist':
+        date_range = f"{DATES_BC_TEST_HIST[0].strftime('%Y%m%d')}-{DATES_BC_TEST_HIST[-1].strftime('%Y%m%d')}"
+    elif period == 'test_future':
+        scenario = ssp or CONFIG[exp].get('ssp', 'ssp585')
+        date_range = f"{DATES_BC_TEST_FUTURE[0].strftime('%Y%m%d')}-{DATES_BC_TEST_FUTURE[-1].strftime('%Y%m%d')}"
+    else:
+        raise ValueError(f"Unsupported BC period '{period}'.")
+    tag_suffix = f"_{normalize_bc_tag(bc_tag)}" if normalize_bc_tag(bc_tag) else ""
+    return get_bias_corrected_root(exp, simu) / (
+        f"{var}_day_{get_source_output_label(source_name)}_{scenario}_"
+        f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_{date_range}_bc{tag_suffix}.nc"
+    )
+
+
+def get_bias_corrected_sample_dir(exp: str, simu: str, bc_tag: str | None = None) -> Path:
+    tag_suffix = f"_{normalize_bc_tag(bc_tag)}" if normalize_bc_tag(bc_tag) else ""
+    return DATASET_BC_DIR / f"dataset_{exp}_test_{simu}_bc{tag_suffix}"
+
+
+def get_prediction_output_path(
+    exp: str,
+    simu_variant: str,
+    var: str,
+    startdate: str,
+    enddate: str,
+    test_name: str,
+    ssp: str | None = None,
+) -> Path:
+    source_name = get_variant_source(exp, simu_variant)
+    scenario_start = get_source_scenario_start(source_name)
+    period = 'historical' if pd.Timestamp(enddate) < scenario_start else (ssp or CONFIG[exp].get('ssp', 'ssp585'))
+    return PREDICTION_DIR / (
+        f"{var}_day_{get_source_output_label(source_name)}_{period}_"
+        f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_"
+        f"{startdate}_{enddate}_{exp}_{test_name}.nc"
+    )
+
+
+def get_metrics_test_name(test_name: str, simu_test: str | None = None) -> str:
+    if simu_test:
+        return f"{test_name}_{simu_test}"
+    return test_name
+
+
+def get_value_metrics_output_path(exp: str, test_name: str, simu_test: str | None = None) -> Path:
+    metrics_test_name = get_metrics_test_name(test_name, simu_test)
+    return METRICS_DIR / exp / f"value_metrics_{exp}_{metrics_test_name}.csv"
+
+
+def get_dataset_variant_dir(exp: str, variant: str) -> Path:
+    return DATASET_BC_DIR / f"dataset_{exp}_test_{variant}"
+
+
+def get_evaluation_sample_dir(exp: str, test_name: str, simu_test: str | None = None) -> Path | None:
+    if CONFIG.get(exp, {}).get('target') == 'perfect_model':
+        return Path(CONFIG[exp]['dataset'])
+    if test_name.startswith('baseline'):
+        return DATASET_DIR / f'dataset_{exp}_baseline'
+    if test_name == 'era5_raw':
+        return DATASET_DIR / f'dataset_{exp}_30y'
+    if test_name.endswith('_raw'):
+        return get_dataset_variant_dir(exp, test_name[:-4])
+    if simu_test:
+        return get_dataset_variant_dir(exp, simu_test)
+    return None
 
 # Results redirected to OUTPUT_DIR
 DATASET_DIR = env_path('IDOWNSCALE_DATASET_DIR', OUTPUT_DIR / 'datasets')
@@ -108,21 +425,25 @@ for directory in [
     PREDICTION_DIR,
     GCM_BC_DIR,
     RCM_BC_DIR,
+] + [
+    Path(spec['bias_corrected_root'])
+    for spec in SOURCE_CATALOG.values()
+    if spec.get('bias_corrected_root') is not None
 ]:
-    safe_mkdir(directory)
+    safe_mkdir(Path(directory))
 
 CONFIG = {
     'exp3':
         {'target':'safran',
             'domain': [-6., 12., 40., 52.],
             'domain_xy' : [60000, 1196000, 1617000, 2681000],
-            'data_projection' : ccrs.LambertConformal(central_longitude=2.337229,
+            'data_projection' : lambert_conformal(central_longitude=2.337229,
                                     central_latitude=46.8,
                                     false_easting=600000,
                                     false_northing=2200000,
                                     standard_parallels=(45.89892, 47.69601)),
-            'fig_projection' :ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
-            'pyproj_projection' : pyproj.Proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000"),
+            'fig_projection' : lambert_conformal(central_latitude=46., central_longitude=2.),
+            'pyproj_projection' : pyproj_proj("+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000"),
             'shape' : (134,143),
             'target_file' : OROG_SAFRAN_FILE,
             'orog_file' : OROG_SAFRAN_FILE, 
@@ -138,11 +459,11 @@ CONFIG = {
                 {'france': [-6., 10., 38, 54],
                 'europe' : [-12.5, 27.5, 31., 71.],
                 'tchequie' : [11.5, 19.5, 45.75, 53.75]},
-            'data_projection' : ccrs.PlateCarree(),
+            'data_projection' : plate_carree(),
             'fig_projection' : 
-                {'france' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
-                'europe' : ccrs.LambertConformal(central_latitude=51., central_longitude=7.5),
-                'tchequie' : ccrs.LambertConformal(central_latitude=45.75, central_longitude=11.5)},
+                {'france' : lambert_conformal(central_latitude=46., central_longitude=2.),
+                'europe' : lambert_conformal(central_latitude=51., central_longitude=7.5),
+                'tchequie' : lambert_conformal(central_latitude=45.75, central_longitude=11.5)},
             'shape': 
                     {'france': (64,64),
                     'europe' : (160,160),
@@ -158,8 +479,14 @@ CONFIG = {
         {'target':'eobs',
             'domain': [-6.0, 10.0, 38.0, 54.0],
             'bc_domain': [-12.5, 27.5, 31.0, 71.0],
-            'data_projection' : ccrs.PlateCarree(),
-            'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+            'bias_correction_method': 'ibicus_cdft',
+            'phase1_reanalysis_source': 'era5',
+            'bc_reanalysis_source': 'era5',
+            'gcm_source': 'gcm_cnrm_cm6_1',
+            'rcm_source': 'rcm_aladin',
+            'target_source': 'eobs',
+            'data_projection' : plate_carree(),
+            'fig_projection' : lambert_conformal(central_latitude=46., central_longitude=2.),
             'pyproj_projection' : None,
             'shape': (64,64),
             'target_file' : TARGET_EOBS_FRANCE_FILE,
@@ -176,8 +503,14 @@ CONFIG = {
     'exp6':
         {'target':'eobs',
             'domain': [-6., 10., 38, 54],
-            'data_projection' : ccrs.PlateCarree(),
-            'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+            'bias_correction_method': 'ibicus_cdft',
+            'phase1_reanalysis_source': 'era5',
+            'bc_reanalysis_source': 'era5',
+            'gcm_source': 'gcm_cnrm_cm6_1',
+            'rcm_source': 'rcm_aladin',
+            'target_source': 'eobs',
+            'data_projection' : plate_carree(),
+            'fig_projection' : lambert_conformal(central_latitude=46., central_longitude=2.),
             'pyproj_projection' : None, # for curvilign grids conservative interpolation
             'shape': (64,64),
             'target_file' : TARGET_EOBS_FRANCE_FILE, # target grid coordinates
@@ -191,8 +524,14 @@ CONFIG = {
     'exp7':
         {'target':'eobs',
             'domain': [-6., 10., 38, 54],
-            'data_projection' : ccrs.PlateCarree(),
-            'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+            'bias_correction_method': 'ibicus_cdft',
+            'phase1_reanalysis_source': 'era5',
+            'bc_reanalysis_source': 'era5',
+            'gcm_source': 'gcm_cnrm_cm6_1',
+            'rcm_source': 'rcm_aladin',
+            'target_source': 'eobs',
+            'data_projection' : plate_carree(),
+            'fig_projection' : lambert_conformal(central_latitude=46., central_longitude=2.),
             'pyproj_projection' : None, # for curvilign grids conservative interpolation
             'shape': (64,64),
             'target_file' : TARGET_EOBS_FRANCE_FILE, # target grid coordinates
@@ -206,8 +545,14 @@ CONFIG = {
     'exp8':
         {'target':'eobs',
             'domain': [-6., 10., 38, 54],
-            'data_projection' : ccrs.PlateCarree(),
-            'fig_projection' : ccrs.LambertConformal(central_latitude=46., central_longitude=2.),
+            'bias_correction_method': 'ibicus_cdft',
+            'phase1_reanalysis_source': 'era5',
+            'bc_reanalysis_source': 'era5',
+            'gcm_source': 'gcm_cnrm_cm6_1',
+            'rcm_source': 'rcm_aladin',
+            'target_source': 'eobs',
+            'data_projection' : plate_carree(),
+            'fig_projection' : lambert_conformal(central_latitude=46., central_longitude=2.),
             'pyproj_projection' : None, # for curvilign grids conservative interpolation
             'shape': (64,64),
             'target_file' : TARGET_EOBS_FRANCE_FILE, # target grid coordinates
@@ -254,10 +599,13 @@ COLORS = {'SAFRAN 8km': 'purple',
           'UNet' : 'orangered',
           'SwinUNETR' : 'hotpink'}
 
-ALADIN_PROJ_PYPROJ = pyproj.Proj(
-    "+proj=lcc +lat_1=49.500000 +lat_0=49.500000 +lon_0=10.500000 +k_0=1.0 +x_0=2925000.000000 +y_0=2925000.000000 +R=6371229.000000", preserve_units=True)
-SAFRAN_PROJ_PYPROJ = pyproj.Proj(
-    "+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000")
+ALADIN_PROJ_PYPROJ = pyproj_proj(
+    "+proj=lcc +lat_1=49.500000 +lat_0=49.500000 +lon_0=10.500000 +k_0=1.0 +x_0=2925000.000000 +y_0=2925000.000000 +R=6371229.000000",
+    preserve_units=True,
+)
+SAFRAN_PROJ_PYPROJ = pyproj_proj(
+    "+proj=lcc +lon_0=2.337229 +lat_0=46.8 +lat_1=45.89892 +lat_2=47.69601 +x_0=600000 +y_0=2200000"
+)
 
 
 # Phase 1 settings
@@ -277,8 +625,14 @@ DATES_BC_TEST_FUTURE = pd.date_range(start='2015-01-01', end='2100-12-31', freq=
 CONFIG['exp5_audit'] = {
     'target':'eobs',
     'domain': [-12.5, 27.5, 31.0, 71.0],
-    'data_projection' : ccrs.PlateCarree(),
-    'fig_projection' : ccrs.LambertConformal(central_latitude=51., central_longitude=7.5),
+    'bias_correction_method': 'ibicus_cdft',
+    'phase1_reanalysis_source': 'era5',
+    'bc_reanalysis_source': 'era5',
+    'gcm_source': 'gcm_cnrm_cm6_1',
+    'rcm_source': 'rcm_aladin',
+    'target_source': 'eobs',
+    'data_projection' : plate_carree(),
+    'fig_projection' : lambert_conformal(central_latitude=51., central_longitude=7.5),
     'pyproj_projection' : None,
     'shape': (29, 28),
     'target_file' : EOBS_RAW_DIR / 'tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc',
@@ -289,4 +643,21 @@ CONFIG['exp5_audit'] = {
     'channels': ['elevation', 'tas input', 'tas target'],
     'ssp': 'ssp585',
     'lapse_rate_correction': False
+}
+
+CONFIG['perfect_model_rcm'] = {
+    **CONFIG['exp5'],
+    'target': 'perfect_model',
+    'bc_reanalysis_source': 'rcm_aladin',
+    'target_source': 'rcm_aladin',
+    'dataset': DATASET_BC_DIR / 'dataset_perfect_model_rcm',
+    'perfect_model_input_source': 'rcm_aladin',
+    'perfect_model_input_resolution': '150km',
+    'perfect_model_input_grid_source': 'gcm_cnrm_cm6_1',
+    'perfect_model_input_coarse_method': 'conservative_normed',
+    'perfect_model_input_target_method': 'bilinear',
+    'perfect_model_target_source': 'rcm_aladin',
+    'perfect_model_target_resolution': 'native',
+    'perfect_model_target_method': 'conservative_normed',
+    'channels': ['elevation', 'degraded model input', 'native model target'],
 }

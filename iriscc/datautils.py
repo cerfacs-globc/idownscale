@@ -14,6 +14,7 @@ from datetime import datetime
 import pandas as pd
 
 from iriscc.settings import (TARGET_SAFRAN_FILE,
+                             ALADIN_PROJ_PYPROJ,
                              SAFRAN_REFORMAT_DIR,
                              EOBS_RAW_DIR,
                              GCM_RAW_DIR,
@@ -28,7 +29,7 @@ from iriscc.settings import (TARGET_SAFRAN_FILE,
                              ERA5_DIR,
                              ERA5_OROG_FILE,
                              REGRID_WEIGHTS_DIR,
-                             DATES_BC_TEST_FUTURE)
+                             SOURCE_CATALOG)
 
 
 def _grid_signature(ds: xr.Dataset) -> str:
@@ -84,12 +85,13 @@ def ARCHIVAL_standardize_dims_and_coords(ds) :
 def standardize_longitudes(ds) :
     # v65faa6 Archival Sync: Mandatory -180..180 Shift and Monotonic Sort
     if 'lon' in ds.coords:
-        lon = ds.coords['lon']
-        ds.coords['lon'] = ((lon+180)%360)-180
+        lon = np.asarray(ds.coords['lon'].values)
+        ds = ds.assign_coords(lon=("lon", np.array(((lon + 180) % 360) - 180, copy=True)))
         if len(ds.lon.shape) == 1:
             ds = ds.sortby('lon')
     elif 'x' in ds.coords :
-        ds = ds.assign_coords(x=(((ds.x + 180) % 360) - 180))
+        x = np.asarray(ds.x.values)
+        ds = ds.assign_coords(x=("x", np.array((((x + 180) % 360) - 180), copy=True)))
         ds = ds.sortby('x')
       
     return ds
@@ -115,9 +117,17 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
    if 'y_b' in ds.dims: ds = ds.drop_dims('y_b')
 
    if bounds_method == "1":
-      # v48 Unambiguous Access: Use the unique lon/lat coordinates
-      x = ds.lon.values
-      y = ds.lat.values
+      if ds.lon.ndim == 1 and ds.lat.ndim == 1:
+         x = ds.lon.values
+         y = ds.lat.values
+      elif projection is not None and 'x' in ds.coords and 'y' in ds.coords and ds.x.ndim == 1 and ds.y.ndim == 1:
+         x = ds.x.values
+         y = ds.y.values
+      else:
+         raise ValueError(
+            "Cannot generate conservative bounds for this grid: expected 1D lon/lat "
+            "or 1D x/y with a projection."
+         )
 
       x_b = generate_bounds(x)
       y_b = generate_bounds(y)
@@ -142,6 +152,34 @@ def add_lon_lat_bounds(ds:xr.Dataset, projection=None, bounds_method="1") -> xr.
    return ds
 
 
+def attach_native_cf_bounds(ds: xr.Dataset) -> xr.Dataset:
+   """Expose native curvilinear bounds through CF metadata when available."""
+   if 'bounds_lon' not in ds.variables or 'bounds_lat' not in ds.variables:
+      return ds
+   if 'lon' not in ds.coords or 'lat' not in ds.coords:
+      return ds
+
+   lon_bounds = ds['bounds_lon']
+   lat_bounds = ds['bounds_lat']
+   if 'time' in lon_bounds.dims:
+      lon_bounds = lon_bounds.isel(time=0, drop=True)
+   if 'time' in lat_bounds.dims:
+      lat_bounds = lat_bounds.isel(time=0, drop=True)
+   if 'nvertex' not in lon_bounds.dims or 'nvertex' not in lat_bounds.dims:
+      return ds
+
+   spatial_dims = tuple(dim for dim in lon_bounds.dims if dim != 'nvertex')
+   if len(spatial_dims) != 2:
+      return ds
+
+   ds = ds.copy()
+   ds['lon_bounds'] = (('nvertex',) + spatial_dims, np.moveaxis(lon_bounds.values, -1, 0))
+   ds['lat_bounds'] = (('nvertex',) + spatial_dims, np.moveaxis(lat_bounds.values, -1, 0))
+   ds['lon'].attrs['bounds'] = 'lon_bounds'
+   ds['lat'].attrs['bounds'] = 'lat_bounds'
+   return ds
+
+
 def interpolation_target_grid(ds:xr.Dataset, 
                               ds_target:xr.Dataset, 
                               method:str, 
@@ -162,10 +200,12 @@ def interpolation_target_grid(ds:xr.Dataset,
    if method == 'bilinear':
       regridder = xe.Regridder(ds, ds_target, method, extrap_method="nearest_s2d", reuse_weights=reuse, filename=str(w_file))
    else:
+      ds = attach_native_cf_bounds(ds)
+      ds_target = attach_native_cf_bounds(ds_target)
       # v49 Cornerstone Resolution: Force regeneration of bounds to ensure ESMF alignment.
-      if 'lon' in ds.coords:
+      if 'lon' in ds.coords and 'lon_b' not in ds and 'lon_bounds' not in ds.variables:
          ds = add_lon_lat_bounds(ds, input_projection, bounds_method)
-      if 'lon' in ds_target.coords:
+      if 'lon' in ds_target.coords and 'lon_b' not in ds_target and 'lon_bounds' not in ds_target.variables:
          ds_target = add_lon_lat_bounds(ds_target, target_projection, bounds_method)
 
       regridder = xe.Regridder(ds, ds_target, method, reuse_weights=reuse, filename=str(w_file))
@@ -286,6 +326,79 @@ class Data(object):
    def __init__(self, domain=None):
       self.domain = domain
 
+   def get_source_spec(self, source_name: str) -> dict:
+      if source_name not in SOURCE_CATALOG:
+         raise KeyError(f"Unknown source '{source_name}'. Add it to SOURCE_CATALOG in iriscc/settings.py.")
+      return SOURCE_CATALOG[source_name]
+
+   def _standardize_source_geometry(self, ds: xr.Dataset, geometry: str) -> xr.Dataset:
+      if geometry == 'era5':
+         ds = standardize_era5_geometry(ds)
+         ds = standardize_longitudes(ds)
+         if 'lat' in ds.coords:
+            ds = ds.reindex(lat=ds.lat[::-1])
+         return ds
+      if geometry == 'gcm':
+         ds = standardize_gcm_geometry(ds)
+         ds = standardize_longitudes(ds)
+         return ds
+      if geometry == 'eobs':
+         ds = standardize_eobs_geometry(ds)
+         return ds
+      if geometry == 'safran':
+         return ds
+      if geometry == 'rcm':
+         if 'x' in ds.dims and 'x' not in ds.coords:
+            ds = ds.assign_coords(x=('x', np.arange(ds.sizes['x'], dtype=np.float64) * 1000.0))
+         if 'y' in ds.dims and 'y' not in ds.coords:
+            ds = ds.assign_coords(y=('y', np.arange(ds.sizes['y'], dtype=np.float64) * 1000.0))
+         return ds
+      return ds
+
+   def _resolve_source_file(self, source_name: str, var: str, date=None, ssp: str | None = None) -> str:
+      spec = self.get_source_spec(source_name)
+      root = Path(spec['root'])
+      candidates: list[str] = []
+
+      if 'yearly_patterns' in spec:
+         if date is None:
+            raise ValueError(f"Source '{source_name}' requires a date for yearly file lookup.")
+         for pattern in spec['yearly_patterns']:
+            candidates.extend(glob.glob(str(root / pattern.format(var=var, year=date.year, ssp=ssp or ""))))
+      elif 'yearly_pattern' in spec:
+         if date is None:
+            raise ValueError(f"Source '{source_name}' requires a date for yearly file lookup.")
+         candidates.extend(glob.glob(str(root / spec['yearly_pattern'].format(var=var, year=date.year, ssp=ssp or ""))))
+      else:
+         if date is None or date < pd.Timestamp('2015-01-01'):
+            pattern = spec.get('historical_pattern') or spec.get('scenario_pattern') or spec.get('glob_pattern')
+            if pattern is not None:
+               candidates.extend(glob.glob(str(root / pattern.format(var=var, ssp=ssp or ""))))
+         else:
+            pattern = spec.get('scenario_pattern') or spec.get('historical_pattern') or spec.get('glob_pattern')
+            if pattern is not None:
+               candidates.extend(glob.glob(str(root / pattern.format(var=var, ssp=ssp or ""))))
+
+      if not candidates:
+         raise FileNotFoundError(f"Missing source file for source='{source_name}', var='{var}', date='{date}', ssp='{ssp}'")
+      candidates = list(np.sort(np.array(candidates)))
+      if date is not None and spec.get('geometry') == 'rcm':
+         for candidate in candidates:
+            tail = Path(candidate).name.split('_')[-1]
+            if len(tail) >= 17 and tail[:8].isdigit() and tail[9:17].isdigit():
+               start_year = int(tail[:4])
+               end_year = int(tail[9:13])
+               if start_year <= date.year <= end_year:
+                  return candidate
+      return candidates[0]
+
+   def _open_source_dataset(self, source_name: str, var: str, date=None, ssp: str | None = None) -> xr.Dataset:
+      spec = self.get_source_spec(source_name)
+      file = self._resolve_source_file(source_name, var, date=date, ssp=ssp)
+      ds = xr.open_dataset(file, engine='netcdf4')
+      ds = self._standardize_source_geometry(ds, spec.get('geometry', 'none'))
+      return ds
+
    def clean_data(self, data, var, data_type=None):
       if var == 'pr':
          data[data < 0] = 0.
@@ -297,24 +410,32 @@ class Data(object):
       return data
    
    def get_era5_dataset(self, var:str, date, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
+      return self.get_reanalysis_dataset(
+         'era5',
+         var,
+         date,
+         lapse_rate_correction=lapse_rate_correction,
+         orog_target_file=orog_target_file,
+         reuse_weights=reuse_weights,
+      )
+
+   def get_reanalysis_dataset(
+      self,
+      source_name: str,
+      var: str,
+      date,
+      lapse_rate_correction: bool = False,
+      orog_target_file: str = None,
+      reuse_weights: bool = False,
+   ):
       import xesmf as xe
-      pattern = str(ERA5_DIR / f"{var}_1d" / f"{var}_1d_{date.year}_ERA5.nc")
-      files = glob.glob(pattern)
-      if not files:
-          # Fallback for alternative naming
-          pattern = str(ERA5_DIR / f"{var}" / f"{var}_1d_{date.year}_ERA5.nc")
-          files = glob.glob(pattern)
-      if not files: raise FileNotFoundError(f"Missing ERA5: {pattern}")
-      file = files[0]
-      ds = xr.open_dataset(file, engine='netcdf4')
-      ds = standardize_era5_geometry(ds)
-      ds = standardize_longitudes(ds)
-      if 'lat' in ds.coords:
-         ds = ds.reindex(lat=ds.lat[::-1])
+      spec = self.get_source_spec(source_name)
+      ds = self._open_source_dataset(source_name, var, date=date)
 
       if lapse_rate_correction and var == 'tas' and orog_target_file:
           # Native-First Induction: Regrid Raw Orog to Target before Standardizing
-          ds_z = xr.open_dataset(ERA5_OROG_FILE, engine='netcdf4').isel(time=0)
+          source_orog_file = spec.get('orography_file', ERA5_OROG_FILE)
+          ds_z = xr.open_dataset(source_orog_file, engine='netcdf4').isel(time=0)
           # Minimal Input Sync
           if 'longitude' in ds_z.coords: ds_z = ds_z.rename({'longitude':'lon', 'latitude':'lat'})
           ds_z = standardize_longitudes(ds_z)
@@ -345,22 +466,46 @@ class Data(object):
       # v48 Reference: Crop AFTER correction
       ds = self.crop_time_dim(ds, date)
       ds = crop_domain_from_ds(ds, self.domain)
-      ds[var].values = self.clean_data(ds[var].values, var, data_type='era5')
+      ds[var].values = self.clean_data(ds[var].values, var, data_type=spec.get('data_type', 'era5'))
       return ds
 
    def get_gcm_dataset(self, var:str, date, ssp:str=None, lapse_rate_correction:bool=False, orog_target_file:str=None, reuse_weights:bool=False):
+      return self.get_model_dataset(
+         'gcm_cnrm_cm6_1',
+         var,
+         date,
+         ssp=ssp,
+         lapse_rate_correction=lapse_rate_correction,
+         orog_target_file=orog_target_file,
+         reuse_weights=reuse_weights,
+      )
+
+   def get_model_dataset(
+      self,
+      source_name: str,
+      var: str,
+      date,
+      ssp: str = None,
+      lapse_rate_correction: bool = False,
+      orog_target_file: str = None,
+      reuse_weights: bool = False,
+   ):
       import xesmf as xe
-      if date is None or date < DATES_BC_TEST_FUTURE[0]:
-         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*historical*r1i1p1f2*'))[0]
-      else:
-         file = glob.glob(str(GCM_RAW_DIR/f'CNRM-CM6-1/{var}*{ssp}*'))[0]
-      ds = xr.open_dataset(file, engine='netcdf4')
-      # Minimal Input Sync
-      if 'longitude' in ds.coords: ds = ds.rename({'longitude':'lon', 'latitude':'lat'})
-      ds = standardize_longitudes(ds)
+      spec = self.get_source_spec(source_name)
+      if spec.get('geometry') == 'rcm':
+         return self.get_rcm_dataset_from_source(
+            source_name,
+            var,
+            date,
+            ssp=ssp,
+            lapse_rate_correction=lapse_rate_correction,
+            orog_target_file=orog_target_file,
+         )
+      ds = self._open_source_dataset(source_name, var, date=date, ssp=ssp)
 
       if lapse_rate_correction and var == 'tas' and orog_target_file:
-          ds_z = xr.open_dataset(GCM_OROG_FILE, engine='netcdf4')
+          source_orog_file = spec.get('orography_file', GCM_OROG_FILE)
+          ds_z = xr.open_dataset(source_orog_file, engine='netcdf4')
           if 'time' in ds_z.dims: ds_z = ds_z.isel(time=0)
           # Minimal Input Sync
           if 'longitude' in ds_z.coords: ds_z = ds_z.rename({'longitude':'lon', 'latitude':'lat'})
@@ -393,54 +538,98 @@ class Data(object):
       # v48 Reference: Crop AFTER correction
       ds = self.crop_time_dim(ds, date)
       ds = crop_domain_from_ds(ds, self.domain)
-      ds[var].values = self.clean_data(ds[var].values, var, data_type='gcm')
+      ds[var].values = self.clean_data(ds[var].values, var, data_type=spec.get('data_type', 'gcm'))
       return ds
 
    
    def get_rcm_dataset(self, var:str, date, ssp:str=None, lapse_rate_correction:bool=False, orog_target_file:str=None):
+      return self.get_rcm_dataset_from_source('rcm_aladin', var, date, ssp=ssp, lapse_rate_correction=lapse_rate_correction, orog_target_file=orog_target_file)
+
+   def get_rcm_dataset_from_source(self, source_name: str, var: str, date, ssp: str = None, lapse_rate_correction: bool = False, orog_target_file: str = None):
+      spec = self.get_source_spec(source_name)
       import xesmf as xe
+      root = Path(spec['root'])
+      if not root.exists():
+         raise FileNotFoundError(
+            f"Missing root directory for model source '{source_name}': {root}. "
+            f"Set the corresponding source override env var or populate the raw-data layout."
+         )
+
+      def resolve_matches(*pattern_keys: str) -> list[str]:
+         matches: list[str] = []
+         for key in pattern_keys:
+            pattern = spec.get(key)
+            if pattern is None:
+               continue
+            matches.extend(glob.glob(str(root / pattern.format(var=var, ssp=ssp or "ssp585"))))
+         return list(np.sort(np.array(matches))) if matches else []
+
+      def require_matches(context: str, *pattern_keys: str) -> list[str]:
+         matches = resolve_matches(*pattern_keys)
+         if not matches:
+            requested = [key for key in pattern_keys if spec.get(key) is not None]
+            raise FileNotFoundError(
+               f"Missing RCM source files for source='{source_name}', var='{var}', date='{date}', "
+               f"ssp='{ssp}', root='{root}', searched_patterns={requested}"
+            )
+         return matches
+
       if date is None:
-         file = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
+         file = require_matches("date=None", 'scenario_pattern', 'historical_pattern')[0]
          ds = xr.open_dataset(file).isel(time=0)
       else :
-         if date < DATES_BC_TEST_FUTURE[0]:
-            file_for_xy = glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*ssp585*r1i1p1f2*'))[0]
+         if date < pd.Timestamp('2015-01-01'):
+            # Some RCM layouts do not ship scenario files next to historical ones,
+            # so bootstrap coordinates from whichever native file exists first.
+            file_for_xy = require_matches("coordinate bootstrap", 'scenario_pattern', 'historical_pattern')[0]
             ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
-            xref = ds_for_xy['x'].values
-            yref = ds_for_xy['y'].values
+            xref = ds_for_xy['x'].values if 'x' in ds_for_xy.coords else ds_for_xy['x'].values
+            yref = ds_for_xy['y'].values if 'y' in ds_for_xy.coords else ds_for_xy['y'].values
             ds_for_xy.close()
-            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*historical*r1i1p1f2*')))
+            files = require_matches("historical lookup", 'historical_pattern')
          else :
-            files = np.sort(glob.glob(str(RCM_RAW_DIR / f'ALADIN/{var}*{ssp}*r1i1p1f2*')))
+            files = require_matches("scenario lookup", 'scenario_pattern')
+         ds = None
          for file in files:
             if int(file.split('_')[-1][:4]) <= date.year <= int(file.split('_')[-1][9:13]):
                ds = xr.open_dataset(file, engine='netcdf4')
                ds = self.crop_time_dim(ds, date)
+               break
+         if ds is None:
+            raise FileNotFoundError(
+               f"No RCM file span matched source='{source_name}', var='{var}', date='{date}', "
+               f"ssp='{ssp}' under root='{root}'."
+            )
       if 'x' not in ds.dims:
          ds = ds.assign_coords(x = (['x'], xref))
          ds = ds.assign_coords(y = (['y'], yref))
       ds['x'] = ds['x'].values * 1000
       ds['y'] = ds['y'].values * 1000
-      ds[var].values = self.clean_data(ds[var].values, var, data_type='rcm')
+      ds[var].values = self.clean_data(ds[var].values, var, data_type=spec.get('data_type', 'rcm'))
       return ds
    
    def get_safran_dataset(self, var:str, date):
-      ds = xr.open_dataset(glob.glob(str(SAFRAN_REFORMAT_DIR/f"{var}*{date.year}_reformat.nc"))[0])
+      ds = self._open_source_dataset('safran', var, date=date)
       ds = self.crop_time_dim(ds, date)
       ds[var].values = self.clean_data(ds[var].values, var, data_type='safran')
       ds[var].values = remove_countries(ds[var].values)
       return ds
 
    def get_eobs_dataset(self, var:str, date):
-      file = glob.glob(str(EOBS_RAW_DIR/f'{var}*'))[0]
-      ds = xr.open_dataset(file, engine='netcdf4')
+      return self.get_observation_dataset('eobs', var, date)
+
+   def get_observation_dataset(self, source_name: str, var: str, date):
+      spec = self.get_source_spec(source_name)
+      ds = self._open_source_dataset(source_name, var, date=date)
       ds = self.crop_time_dim(ds, date)
-      ds = standardize_eobs_geometry(ds)
-      # v48 Unambiguous Sync
-      ds = ds.reindex(y=ds.lat.values[::-1])
-      ds = apply_landseamask(ds, 'eobs', variables=[var])
+      if spec.get('geometry') == 'eobs':
+         ds = standardize_eobs_geometry(ds)
+         ds = ds.reindex(y=ds.lat.values[::-1])
+      mask_type = spec.get('mask_type')
+      if mask_type:
+         ds = apply_landseamask(ds, mask_type, variables=[var])
       ds = crop_domain_from_ds(ds, self.domain)
-      ds[var].values = self.clean_data(ds[var].values, var, data_type='eobs')
+      ds[var].values = self.clean_data(ds[var].values, var, data_type=spec.get('data_type', source_name))
       return ds
    
    def crop_time_dim(self, ds, date=None):
@@ -462,8 +651,10 @@ class Data(object):
               if 'time' in ds.dims and ds.time.size > 1: ds = ds.mean('time')
        return ds
    
-   def get_target_dataset(self, target:str, var:str='tas', date=None) -> xr.Dataset:
-      if target == 'safran':
+   def get_target_dataset(self, target:str, var:str='tas', date=None, source_name: str | None = None) -> xr.Dataset:
+      if source_name is not None:
+         ds = self.get_observation_dataset(source_name, var, date)
+      elif target == 'safran':
          ds = self.get_safran_dataset(var, date)
       elif target == 'eobs':
          ds = self.get_eobs_dataset(var, date)

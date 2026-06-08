@@ -28,7 +28,25 @@ export IDOWNSCALE_PREDICTION_DIR=/path/to/prediction
 export IDOWNSCALE_METRICS_DIR=/path/to/metrics
 ```
 
-If you do not set them, the repo uses the defaults defined in `iriscc/settings.py`.
+Recommended layout on HPC:
+
+```bash
+# keep the Git repository in backed-up home
+cd /home/$USER/src/idownscale
+
+# keep heavy runtime paths on scratch
+export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
+export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+```
+
+If you do not set them, the repo uses the defaults defined in
+`iriscc/settings.py`. In particular:
+
+- `RAW_DIR` uses `repo/rawdata` only if that directory exists
+- otherwise `RAW_DIR` falls back to `$IDOWNSCALE_RUNTIME_ROOT/rawdata`
+- `OUTPUT_DIR` falls back to `$IDOWNSCALE_RUNTIME_ROOT/idownscale_output`
 
 For Calypso-specific environment and operator instructions, see:
 
@@ -141,8 +159,8 @@ By default it runs:
 
 Optional workflow steps:
 - `train`: train a model checkpoint under `runs/<exp>/<test-name>/lightning_logs/version_best`
-- `raw_dataset`: build raw GCM test samples in `dataset_bc/dataset_<exp>_test_gcm`
-- `pp_dataset`: rebuild corrected GCM test samples in `dataset_bc/dataset_<exp>_test_gcm_bc`
+- `raw_dataset`: build raw test samples for the selected `--simu` source in `dataset_bc/dataset_<exp>_test_<simu>`
+- `pp_dataset`: rebuild corrected test samples for the selected `--simu` source in `dataset_bc/dataset_<exp>_test_<simu>_bc`
 - `predict_loop`: run long-period inference from an existing trained checkpoint
 - `metrics_day`: compute daily evaluation metrics for a prediction product
 - `metrics_month`: compute monthly evaluation metrics for a prediction product
@@ -158,7 +176,10 @@ python3 bin/production/run_exp5_workflow.py --exp exp5 --if-exists overwrite
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850131
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
+python3 bin/production/run_exp5_workflow.py --exp exp5 --simu rcm --steps bc_dataset,bc_apply,pp_dataset
 python3 bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
+
+Date defaults are resolved from `iriscc/settings.py`, but for reproducible reruns it is safer to pass explicit windows whenever you run only part of the workflow.
 ```
 
 The workflow runner skips fully completed steps by default. With `--if-exists overwrite`,
@@ -175,6 +196,12 @@ Grace local shell wrapper:
 
 ```bash
 bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+```
+
+Calypso mixed-environment fallback:
+
+```bash
+bash bin/production/run_in_calypso_mixed_env.sh python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply
 ```
 
 Calypso batch submitters:

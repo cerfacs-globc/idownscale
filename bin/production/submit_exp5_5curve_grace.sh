@@ -1,7 +1,5 @@
 #!/bin/bash
-# Refresh exp5 metric plots plus the historical 5-curve diagnostic on Grace.
-
-#SBATCH --job-name=exp5_plot_refresh
+#SBATCH --job-name=exp5_5curve
 #SBATCH --partition=grace
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -28,25 +26,11 @@ else
   export IDOWNSCALE_RAW_DIR="${IDOWNSCALE_RAW_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/rawdata}"
 fi
 export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT}/idownscale_output}"
+export IDOWNSCALE_EXTRA_PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH:-/scratch/globc/page/lib_idownscale_phase2:/scratch/globc/page/lib_idownscale_phase2/lib/python3.12/site-packages}"
 
 if [[ -n "${IDOWNSCALE_EXTRA_PYTHONPATH:-}" ]]; then
   export PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH}:${PYTHONPATH:-}"
 fi
 
 cd "${REPO_ROOT}"
-
-echo "--- Refresh exp5 metric plots: $(date) ---"
-bash bin/production/run_exp5_workflow_grace.sh \
-  --exp exp5 \
-  --steps plot_metrics_day,plot_metrics_month \
-  --test-name unet_all \
-  --simu-test gcm_bc \
-  --if-exists overwrite
-
-echo "--- Build exp5 historical 5-curve PDF: $(date) ---"
 python3 bin/evaluation/plot_exp5_historical_5curve.py
-
-echo "--- Build exp5 pairwise distribution summary: $(date) ---"
-python3 bin/evaluation/plot_exp5_pairwise_distribution_quantiles.py
-
-echo "--- Plot refresh complete: $(date) ---"

@@ -42,7 +42,7 @@ Main references:
 - [LOCAL_WORKFLOW_RUNBOOK.md](./LOCAL_WORKFLOW_RUNBOOK.md)
 - [EXPECTED_PHASE_OUTPUTS.md](./EXPECTED_PHASE_OUTPUTS.md)
 - [PHASE_VALIDATION.md](./PHASE_VALIDATION.md)
-- [README.md](/Users/page/src/idownscale/README.md)
+- [README.md](../../README.md)
 
 ## 2. Pre-Phase-1 France preparation
 
@@ -59,7 +59,7 @@ Notebook role:
 
 Main script:
 
-- [bin/preprocessing/crop_domain.py](/Users/page/src/idownscale/bin/preprocessing/crop_domain.py)
+- [bin/preprocessing/crop_domain.py](../../bin/preprocessing/crop_domain.py)
 
 Typical inputs:
 
@@ -91,11 +91,11 @@ Notebook role:
 
 Main script:
 
-- [bin/production/run_exp5_workflow.py](/Users/page/src/idownscale/bin/production/run_exp5_workflow.py) with `--steps phase1`
+- [bin/production/run_exp5_workflow.py](../../bin/production/run_exp5_workflow.py) with `--steps phase1`
 
 Direct lower-level script:
 
-- [bin/preprocessing/build_dataset.py](/Users/page/src/idownscale/bin/preprocessing/build_dataset.py)
+- [bin/preprocessing/build_dataset.py](../../bin/preprocessing/build_dataset.py)
 
 Laptop-friendly reduced example:
 
@@ -126,11 +126,11 @@ Notebook role:
 
 Main script:
 
-- [bin/production/run_exp5_workflow.py](/Users/page/src/idownscale/bin/production/run_exp5_workflow.py) with `--steps stats`
+- [bin/production/run_exp5_workflow.py](../../bin/production/run_exp5_workflow.py) with `--steps stats`
 
 Direct lower-level script:
 
-- [bin/preprocessing/compute_statistics.py](/Users/page/src/idownscale/bin/preprocessing/compute_statistics.py)
+- [bin/preprocessing/compute_statistics.py](../../bin/preprocessing/compute_statistics.py)
 
 What to show in the notebook:
 
@@ -161,8 +161,8 @@ Main workflow steps:
 
 Direct lower-level scripts:
 
-- [bin/preprocessing/build_dataset_bc.py](/Users/page/src/idownscale/bin/preprocessing/build_dataset_bc.py)
-- [bin/preprocessing/bias_correction_ibicus.py](/Users/page/src/idownscale/bin/preprocessing/bias_correction_ibicus.py)
+- [bin/preprocessing/build_dataset_bc.py](../../bin/preprocessing/build_dataset_bc.py)
+- [bin/preprocessing/bias_correction_ibicus.py](../../bin/preprocessing/bias_correction_ibicus.py)
 
 What to show in the notebook:
 
@@ -188,7 +188,7 @@ Main workflow step:
 
 Direct lower-level script:
 
-- [bin/training/train.py](/Users/page/src/idownscale/bin/training/train.py)
+- [bin/training/train.py](../../bin/training/train.py)
 
 If users change the domain, variables, preprocessing, normalization, or model
 setup, they should generally retrain instead of relying on the published checkpoint.
@@ -223,8 +223,8 @@ Main workflow steps:
 
 Direct lower-level scripts:
 
-- [bin/training/predict_loop.py](/Users/page/src/idownscale/bin/training/predict_loop.py)
-- scripts under [bin/evaluation](/Users/page/src/idownscale/bin/evaluation)
+- [bin/training/predict_loop.py](../../bin/training/predict_loop.py)
+- scripts under [bin/evaluation](../../bin/evaluation/)
 
 What to show in the notebook:
 

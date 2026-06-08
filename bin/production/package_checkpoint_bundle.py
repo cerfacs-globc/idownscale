@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +20,13 @@ import yaml
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "scratch" / "checkpoint_bundles"
-DEFAULT_RUNS_ROOT = PROJECT_ROOT / "runs"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from iriscc.settings import DATASET_DIR, EXP5_ARCHIVE_DATASET_DIR, LEGACY_DATASET_ROOTS, RAW_DIR, RUNS_DIR, OUTPUT_DIR
+
+DEFAULT_OUTPUT_ROOT = OUTPUT_DIR / "checkpoint_bundles"
+DEFAULT_RUNS_ROOT = RUNS_DIR
 
 
 class HParamsLoader(yaml.SafeLoader):
@@ -73,12 +79,12 @@ def relink_candidate_paths(sample_dir: Path) -> list[Path]:
     basename = sample_dir.name
     candidates = [
         sample_dir,
-        PROJECT_ROOT / "rawdata" / basename,
-        PROJECT_ROOT / "scratch" / basename,
-        Path("/gpfs-calypso/scratch/globc/page/idownscale_output/datasets") / basename,
-        Path("/scratch/globc/page/idownscale_exp5/datasets") / basename,
+        RAW_DIR / basename,
+        DATASET_DIR / basename,
         PROJECT_ROOT / "datasets" / basename,
+        EXP5_ARCHIVE_DATASET_DIR,
     ]
+    candidates.extend(root / basename for root in LEGACY_DATASET_ROOTS)
     deduped: list[Path] = []
     seen = set()
     for path in candidates:

@@ -1,7 +1,7 @@
 #!/bin/bash
-# Generic Calypso Grace submitter for exp5 workflow phases.
+# Standalone Grace submitter for the RCM perfect-model workflow.
 
-#SBATCH --job-name=exp5_workflow
+#SBATCH --job-name=perfect_model_rcm
 #SBATCH --partition=grace
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -35,12 +35,15 @@ export IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES="${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES:
 export IDOWNSCALE_EXTRA_PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH:-}"
 export IDOWNSCALE_FORCE_VENV_SITEPACKAGES="${IDOWNSCALE_FORCE_VENV_SITEPACKAGES:-}"
 export ESMFMKFILE="${ESMFMKFILE:-/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk}"
+export PYTHON_BIN="${PYTHON_BIN:-${IDOWNSCALE_VENV_PATH}/bin/python}"
 
 if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
-  # shellcheck disable=SC1090
-  source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+  if [[ ! -x "${PYTHON_BIN}" ]]; then
+    echo "Python interpreter not found: ${PYTHON_BIN}" >&2
+    exit 1
+  fi
   if [[ -n "${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}" ]]; then
-    python -m pip install ${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}
+    "${PYTHON_BIN}" -m pip install ${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}
   fi
 fi
 
@@ -54,87 +57,73 @@ fi
 
 cd "${REPO_ROOT}"
 
-STEPS="${STEPS:-phase1,stats,bc_dataset,bc_apply}"
-IF_EXISTS="${IF_EXISTS:-skip}"
-PHASE1_START_DATE="${PHASE1_START_DATE:-}"
-PHASE1_END_DATE="${PHASE1_END_DATE:-}"
-SIMU="${SIMU:-gcm}"
+EXP="${EXP:-perfect_model_rcm}"
 VAR="${VAR:-tas}"
 SSP="${SSP:-ssp585}"
-TEST_NAME="${TEST_NAME:-}"
-SIMU_TEST="${SIMU_TEST:-gcm_bc}"
-PREDICT_START_DATE="${PREDICT_START_DATE:-}"
-PREDICT_END_DATE="${PREDICT_END_DATE:-}"
-METRICS_START_DATE="${METRICS_START_DATE:-}"
-METRICS_END_DATE="${METRICS_END_DATE:-}"
-VALUE_START_DATE="${VALUE_START_DATE:-}"
-VALUE_END_DATE="${VALUE_END_DATE:-}"
-CHECKPOINT_BUNDLE="${CHECKPOINT_BUNDLE:-}"
+SIMU="${SIMU:-rcm}"
+TEST_NAME="${TEST_NAME:-unet_perfect_model_rcm}"
+STEPS="${STEPS:-all}"
+IF_EXISTS="${IF_EXISTS:-skip}"
 TRAIN_MAX_EPOCH="${TRAIN_MAX_EPOCH:-30}"
 TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-32}"
 TRAIN_LEARNING_RATE="${TRAIN_LEARNING_RATE:-0.0008}"
 TRAIN_MODEL="${TRAIN_MODEL:-unet}"
 TRAIN_LOSS="${TRAIN_LOSS:-}"
-BC_METHOD="${BC_METHOD:-}"
+TRAIN_OUTPUT_NORM="${TRAIN_OUTPUT_NORM:-0}"
+PERFECT_MODEL_TARGET_SOURCE="${PERFECT_MODEL_TARGET_SOURCE:-}"
+VALIDATION_STARTDATE="${VALIDATION_STARTDATE:-}"
+VALIDATION_ENDDATE="${VALIDATION_ENDDATE:-}"
+VALIDATION_HISTORICAL_ENDDATE="${VALIDATION_HISTORICAL_ENDDATE:-}"
+VALIDATION_UNIT="${VALIDATION_UNIT:-}"
 
 CMD=(
-  bash
-  bin/production/run_exp5_workflow_grace.sh
-  --exp exp5
-  --steps "${STEPS}"
-  --if-exists "${IF_EXISTS}"
-  --simu "${SIMU}"
+  "${PYTHON_BIN}"
+  bin/production/run_exp5_perfect_model.py
+  --exp "${EXP}"
   --var "${VAR}"
   --ssp "${SSP}"
-  --simu-test "${SIMU_TEST}"
+  --simu "${SIMU}"
+  --test-name "${TEST_NAME}"
+  --steps "${STEPS}"
+  --if-exists "${IF_EXISTS}"
   --train-max-epoch "${TRAIN_MAX_EPOCH}"
   --train-batch-size "${TRAIN_BATCH_SIZE}"
   --train-learning-rate "${TRAIN_LEARNING_RATE}"
   --train-model "${TRAIN_MODEL}"
 )
 
-if [[ -n "${PHASE1_START_DATE}" ]]; then
-  CMD+=(--phase1-start-date "${PHASE1_START_DATE}")
-fi
-if [[ -n "${PHASE1_END_DATE}" ]]; then
-  CMD+=(--phase1-end-date "${PHASE1_END_DATE}")
-fi
-if [[ -n "${TEST_NAME}" ]]; then
-  CMD+=(--test-name "${TEST_NAME}")
-fi
-if [[ -n "${CHECKPOINT_BUNDLE}" ]]; then
-  CMD+=(--checkpoint-bundle "${CHECKPOINT_BUNDLE}")
-fi
-if [[ -n "${PREDICT_START_DATE}" ]]; then
-  CMD+=(--predict-start-date "${PREDICT_START_DATE}")
-fi
-if [[ -n "${PREDICT_END_DATE}" ]]; then
-  CMD+=(--predict-end-date "${PREDICT_END_DATE}")
-fi
-if [[ -n "${METRICS_START_DATE}" ]]; then
-  CMD+=(--metrics-start-date "${METRICS_START_DATE}")
-fi
-if [[ -n "${METRICS_END_DATE}" ]]; then
-  CMD+=(--metrics-end-date "${METRICS_END_DATE}")
-fi
-if [[ -n "${VALUE_START_DATE}" ]]; then
-  CMD+=(--value-start-date "${VALUE_START_DATE}")
-fi
-if [[ -n "${VALUE_END_DATE}" ]]; then
-  CMD+=(--value-end-date "${VALUE_END_DATE}")
-fi
 if [[ -n "${TRAIN_LOSS}" ]]; then
   CMD+=(--train-loss "${TRAIN_LOSS}")
 fi
-if [[ -n "${BC_METHOD}" ]]; then
-  CMD+=(--bc-method "${BC_METHOD}")
+
+if [[ "${TRAIN_OUTPUT_NORM}" == "1" ]]; then
+  CMD+=(--train-output-norm)
 fi
 
-echo "--- exp5 Grace workflow start: $(date) ---"
+if [[ -n "${PERFECT_MODEL_TARGET_SOURCE}" ]]; then
+  CMD+=(--perfect-model-target-source "${PERFECT_MODEL_TARGET_SOURCE}")
+fi
+
+if [[ -n "${VALIDATION_STARTDATE}" ]]; then
+  CMD+=(--validation-startdate "${VALIDATION_STARTDATE}")
+fi
+
+if [[ -n "${VALIDATION_ENDDATE}" ]]; then
+  CMD+=(--validation-enddate "${VALIDATION_ENDDATE}")
+fi
+
+if [[ -n "${VALIDATION_HISTORICAL_ENDDATE}" ]]; then
+  CMD+=(--validation-historical-enddate "${VALIDATION_HISTORICAL_ENDDATE}")
+fi
+
+if [[ -n "${VALIDATION_UNIT}" ]]; then
+  CMD+=(--validation-unit "${VALIDATION_UNIT}")
+fi
+
+echo "--- RCM perfect-model Grace workflow start: $(date) ---"
 echo "repo_root=${REPO_ROOT}"
-echo "steps=${STEPS}"
-echo "python=$(command -v python || true)"
+echo "python=${PYTHON_BIN}"
 echo "venv=${IDOWNSCALE_VENV_PATH:-<none>}"
 echo "command: ${CMD[*]}"
 "${CMD[@]}"
-echo "--- exp5 Grace workflow end: $(date) ---"
+echo "--- RCM perfect-model Grace workflow end: $(date) ---"
