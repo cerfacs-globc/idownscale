@@ -12,7 +12,7 @@ import torch.nn as nn
 import numpy as np 
 from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
 from iriscc.plotutils import plot_test
-from iriscc.settings import GRAPHS_DIR
+from iriscc.settings import DATASET_DIR, GRAPHS_DIR
 from torchvision.transforms import v2
 
 class MiniUNet(nn.Module):
@@ -107,10 +107,11 @@ if __name__=='__main__':
     model = MiniUNet(in_channels=2, out_channels=1, init_features=32)
     model = model.float()
 
-    data = dict(np.load('/scratch/globc/garcia/datasets/dataset_exp3_30y/sample_20040101.npz', allow_pickle=True))
+    sample_dir = DATASET_DIR / 'dataset_exp3_30y'
+    data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
     x, y = data['x'], data['y']
     transforms = v2.Compose([
-            MinMaxNormalisation(Path('/scratch/globc/garcia/datasets/dataset_exp3_30y')), 
+            MinMaxNormalisation(sample_dir),
             LandSeaMask('france', 0),
             FillMissingValue(0),
             Pad(0)
@@ -123,4 +124,3 @@ if __name__=='__main__':
     print(y_hat)
     plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', GRAPHS_DIR / 'test4.png')
     
-

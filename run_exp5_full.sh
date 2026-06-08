@@ -2,9 +2,18 @@
 #SBATCH -p grace
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=exp5_full
-#SBATCH --output=/scratch/globc/page/idownscale_active/logs/exp5_full_%j.out
-#SBATCH --error=/scratch/globc/page/idownscale_active/logs/exp5_full_%j.err
+#SBATCH --output=slurm_logs/%x_%j.out
+#SBATCH --error=slurm_logs/%x_%j.err
 #SBATCH --time=12:00:00
+
+set -euo pipefail
+REPO_ROOT="${SLURM_SUBMIT_DIR:-$(pwd)}"
+RUNTIME_ROOT="${IDOWNSCALE_RUNTIME_ROOT:-/scratch/globc/${USER}/idownscale_runtime}"
+export IDOWNSCALE_RUNTIME_ROOT="$RUNTIME_ROOT"
+export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${RUNTIME_ROOT}/output}"
+export IDOWNSCALE_GRAPHS_DIR="${IDOWNSCALE_GRAPHS_DIR:-${RUNTIME_ROOT}/graphs}"
+export IDOWNSCALE_METRICS_DIR="${IDOWNSCALE_METRICS_DIR:-${IDOWNSCALE_OUTPUT_DIR}/metrics}"
+export IDOWNSCALE_REGRID_WEIGHTS_DIR="${IDOWNSCALE_REGRID_WEIGHTS_DIR:-${IDOWNSCALE_OUTPUT_DIR}/regrid_weights}"
 
 # ---------------------
 RUN_ID=$(date +%Y%m%d_%H%M%S)
@@ -12,16 +21,15 @@ LOG_DIR="logs/$EXP/$RUN_ID"
 export LOG_DIR
 mkdir -p "$LOG_DIR"
 # Ensure essential output and data directories exist for first-time runs
-mkdir -p output/"$EXP"/validation output/"$EXP"/predictions
-mkdir -p metrics/"$EXP" graph/metrics/"$EXP"
-mkdir -p datasets/dataset_bc
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/$EXP/validation" "$IDOWNSCALE_OUTPUT_DIR/$EXP/predictions"
+mkdir -p "$IDOWNSCALE_METRICS_DIR/$EXP" "$IDOWNSCALE_GRAPHS_DIR/metrics/$EXP"
+mkdir -p "$IDOWNSCALE_OUTPUT_DIR/datasets/dataset_bc"
 
-set -e
-cd /scratch/globc/page/idownscale_active || exit 1
+cd "$REPO_ROOT" || exit 1
 
 module load python/anaconda3.11_arm
 
-CONDA_PREFIX="/scratch/globc/page/conda/envs/idownscale_env"
+CONDA_PREFIX="${IDOWNSCALE_CONDA_PREFIX:-/scratch/globc/${USER}/conda/envs/idownscale_env}"
 PYTHON="$CONDA_PREFIX/bin/python"
 
 # Isolate from system Anaconda (PYTHONHOME) and stale ~/.local packages
@@ -142,7 +150,7 @@ if run_phase 6; then
     
     # 6.0 Original Master Evaluation (Legacy - Optimized)
     log_progress "--- Phase 6.0: Original Master Evaluation (Legacy) ---"
-    mkdir -p "graph/metrics/$EXP/$TEST_NAME_$SIMU_TEST"
+    mkdir -p "$IDOWNSCALE_GRAPHS_DIR/metrics/$EXP/$TEST_NAME_$SIMU_TEST"
     srun $PYTHON bin/evaluation/compute_test_metrics_day_fast.py --exp "$EXP" --test-name "$TEST_NAME" --simu-test "$SIMU_TEST" --startdate "$START_DATE_METRICS" --enddate "$END_DATE_METRICS" >> "$LOG_DIR/phase6_metrics.log" 2>&1
     srun $PYTHON bin/evaluation/plot_test_metrics.py --exp "$EXP" --test-name "${TEST_NAME}_${SIMU_TEST}" --scale daily >> "$LOG_DIR/phase6_plots.log" 2>&1
     
@@ -160,19 +168,19 @@ if run_phase 6; then
     
     # 6.4 Consolidate plots in output directory
     log_progress "--- Phase 6.4: Consolidating plots in output directory ---"
-    VALIDATION_DIR="/scratch/globc/page/idownscale_active/output/$EXP/validation"
+    VALIDATION_DIR="$IDOWNSCALE_OUTPUT_DIR/$EXP/validation"
     mkdir -p "$VALIDATION_DIR"
     
     # Copy new SOTA plots
-    cp graph/metrics/"$EXP"/*.png "$VALIDATION_DIR/" 2>/dev/null || true
+    cp "$IDOWNSCALE_GRAPHS_DIR/metrics/$EXP"/*.png "$VALIDATION_DIR/" 2>/dev/null || true
     # Copy VALUE CSV
-    cp metrics/"$EXP"/*.csv "$VALIDATION_DIR/" 2>/dev/null || true
+    cp "$IDOWNSCALE_METRICS_DIR/$EXP"/*.csv "$VALIDATION_DIR/" 2>/dev/null || true
     # Copy Legacy plots
-    find graph/metrics/"$EXP" -name "*.png" -exec cp {} "$VALIDATION_DIR/" \; 2>/dev/null || true
+    find "$IDOWNSCALE_GRAPHS_DIR/metrics/$EXP" -name "*.png" -exec cp {} "$VALIDATION_DIR/" \; 2>/dev/null || true
     # Copy Legacy CSVs
-    find metrics/"$EXP" -name "*.csv" -exec cp {} "$VALIDATION_DIR/" \; 2>/dev/null || true
+    find "$IDOWNSCALE_METRICS_DIR/$EXP" -name "*.csv" -exec cp {} "$VALIDATION_DIR/" \; 2>/dev/null || true
     # Copy PDF report
-    cp /scratch/globc/page/idownscale_active/output/"$EXP"/*.pdf "$VALIDATION_DIR/" 2>/dev/null || true
+    cp "$IDOWNSCALE_OUTPUT_DIR/$EXP"/*.pdf "$VALIDATION_DIR/" 2>/dev/null || true
     
     INTEGRITY_LOG="$VALIDATION_DIR/pipeline_integrity.log"
     echo "--- Phase 6: Integrity Check ---" >> "$INTEGRITY_LOG"

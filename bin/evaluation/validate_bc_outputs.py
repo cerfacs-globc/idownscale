@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import sys
 
@@ -84,8 +85,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ssp", default="ssp585")
     parser.add_argument(
         "--archive-root",
-        default="/scratch/globc/garcia/idownscale",
-        help="Archive root containing datasets/dataset_bc for parity checks.",
+        default=os.getenv("IDOWNSCALE_ARCHIVE_ROOT"),
+        help=(
+            "Archive root containing datasets/dataset_bc for parity checks. "
+            "Can also be set with IDOWNSCALE_ARCHIVE_ROOT."
+        ),
     )
     parser.add_argument(
         "--skip-archive-parity",
@@ -363,6 +367,12 @@ def main() -> int:
 
     if args.skip_archive_parity:
         return 0
+
+    if not args.archive_root:
+        raise SystemExit(
+            "Archive parity requested but no archive root was provided. "
+            "Pass --archive-root, set IDOWNSCALE_ARCHIVE_ROOT, or use --skip-archive-parity."
+        )
 
     archive_dataset_bc_dir = Path(args.archive_root) / "datasets" / "dataset_bc"
     parity_rows: list[dict[str, object]] = []

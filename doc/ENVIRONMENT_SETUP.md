@@ -17,19 +17,20 @@ The short operational summary is:
 
 ## Validated Grace GPU environment
 
-The currently validated Grace GPU path is:
+The validated Grace GPU recipe used during the recovery work was:
 
 ```bash
 module load python/gloenv3.12_arm
 module load nvidia/cuda/12.4
-source /scratch/globc/page/idownscale_envs/production_final_v22_312/bin/activate
+source /path/to/idownscale_envs/production_final_v22_312/bin/activate
 unset PYTHONHOME
 export PYTHONNOUSERSITE=1
 export ESMFMKFILE=/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk
 ```
 
-This is the environment that was proven to work for the Calypso Grace parity
-recovery and for GPU training on the `grace` partition.
+This is a site-specific example, not a portable default. For new users or new
+machines, set `IDOWNSCALE_VENV_PATH` or activate the local environment explicitly
+before launching Slurm jobs.
 
 ## Runtime paths
 
@@ -41,7 +42,8 @@ The most important ones are:
 ```bash
 export IDOWNSCALE_RAW_DIR=/path/to/rawdata
 export IDOWNSCALE_OUTPUT_DIR=/path/to/output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=/path/to/output/weights
+export IDOWNSCALE_GRAPHS_DIR=/path/to/graphs
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=/path/to/output/regrid_weights
 export IDOWNSCALE_RUNS_DIR=/path/to/output/runs
 export IDOWNSCALE_PREDICTION_DIR=/path/to/output/prediction
 export IDOWNSCALE_METRICS_DIR=/path/to/output/metrics
@@ -55,34 +57,37 @@ Recommended split layout when the repository lives in backed-up `home`:
 ```bash
 export IDOWNSCALE_RUNTIME_ROOT=/scratch/globc/$USER/idownscale_runtime
 export IDOWNSCALE_RAW_DIR=$IDOWNSCALE_RUNTIME_ROOT/rawdata
-export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 export IDOWNSCALE_DATASET_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets
 export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
 export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
 export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
-export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_OUTPUT_DIR/graph
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
 ```
 
-On Calypso, the intended defaults are usually:
+On a specific platform, keep the same split but adjust the roots to the local
+filesystem. For example:
 
 ```bash
-export IDOWNSCALE_RAW_DIR=/scratch/globc/page/idownscale_rerun/rawdata
-export IDOWNSCALE_OUTPUT_DIR=/gpfs-calypso/scratch/globc/page/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=/gpfs-calypso/scratch/globc/page/idownscale_output/weights
+export IDOWNSCALE_RUNTIME_ROOT=/path/to/scratch/$USER/idownscale_runtime
+export IDOWNSCALE_RAW_DIR=/path/to/shared/rawdata
+export IDOWNSCALE_OUTPUT_DIR=$IDOWNSCALE_RUNTIME_ROOT/output
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 ```
 
 If writes must not go into your project-owned output tree, override at least:
 
 ```bash
-export IDOWNSCALE_OUTPUT_DIR=/gpfs-calypso/scratch/<their-user>/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=/path/to/writable/output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 export IDOWNSCALE_DATASET_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets
 export IDOWNSCALE_DATASET_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/datasets/dataset_bc
 export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
 export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
 export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
-export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_OUTPUT_DIR/graph
+export IDOWNSCALE_GRAPHS_DIR=$IDOWNSCALE_RUNTIME_ROOT/graphs
 export IDOWNSCALE_GCM_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/gcm_bc
 export IDOWNSCALE_RCM_BC_DIR=$IDOWNSCALE_OUTPUT_DIR/rcm_bc
 ```
@@ -104,7 +109,7 @@ This comes directly from `iriscc/settings.py`:
 - otherwise `repo/rawdata` if that directory exists
 - otherwise `IDOWNSCALE_RUNTIME_ROOT/rawdata`
 - `OUTPUT_DIR = IDOWNSCALE_OUTPUT_DIR if set`
-- otherwise `IDOWNSCALE_RUNTIME_ROOT/idownscale_output`
+- otherwise `IDOWNSCALE_RUNTIME_ROOT/output`
 
 So the discovery rule is simple:
 
@@ -170,10 +175,11 @@ The full upstream-data story is documented in:
 
 ## Reusing the known-good venv
 
-For Grace GPU runs, reuse:
+For Grace GPU runs on the historical Calypso setup, reuse the locally validated
+environment if it is available:
 
 ```bash
-/scratch/globc/page/idownscale_envs/production_final_v22_312
+/path/to/idownscale_envs/production_final_v22_312
 ```
 
 Repair note from 2026-06-01:
@@ -196,8 +202,12 @@ Repair note from 2026-06-01:
   - `bin/production/submit_exp5_workflow_grace.sh`
 - verified on-arm via default wrapper probe job `272675`
 
-The generic Grace submitters in `bin/production/` default to that path unless
-you override `IDOWNSCALE_VENV_PATH`.
+The generic submitters in `bin/production/` no longer default to a personal
+environment path. Pass the environment explicitly:
+
+```bash
+export IDOWNSCALE_VENV_PATH=/path/to/idownscale_envs/production_final_v22_312
+```
 
 If that venv is inconsistent on a given node, use the mixed Calypso fallback
 that keeps the Grace module stack and switches to the documented site-packages
@@ -214,7 +224,7 @@ usable on that partition.
 Validated `globc` CPU fallback:
 
 ```bash
-/scratch/globc/page/idownscale_envs/globc_cpu_py312_v2
+/path/to/idownscale_envs/globc_cpu_py312_v2
 ```
 
 Important shell hygiene on Calypso login nodes:

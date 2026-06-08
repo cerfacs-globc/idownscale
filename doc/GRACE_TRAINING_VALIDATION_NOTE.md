@@ -23,13 +23,13 @@ current `idownscale` branch.
 Smoke run:
 
 ```bash
-/gpfs-calypso/scratch/globc/page/idownscale_output/runs/exp5/unet_smoke/lightning_logs/version_best/
+/gpfs-calypso/scratch/globc/page/output/runs/exp5/unet_smoke/lightning_logs/version_best/
 ```
 
 30-epoch run:
 
 ```bash
-/gpfs-calypso/scratch/globc/page/idownscale_output/runs/exp5/unet_grace30/lightning_logs/version_best/
+/gpfs-calypso/scratch/globc/page/output/runs/exp5/unet_grace30/lightning_logs/version_best/
 ```
 
 Important files:

@@ -70,11 +70,11 @@ def default_raw_dir() -> Path:
 
 def default_output_dir() -> Path:
     if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
-        return env_path("IDOWNSCALE_OUTPUT_DIR", RUNTIME_ROOT / "idownscale_output")
+        return env_path("IDOWNSCALE_OUTPUT_DIR", RUNTIME_ROOT / "output")
     local_output = local_setting("IDOWNSCALE_OUTPUT_DIR")
     if local_output is not None:
         return Path(str(local_output)).expanduser()
-    return RUNTIME_ROOT / "idownscale_output"
+    return RUNTIME_ROOT / "output"
 
 
 def safe_mkdir(directory: Path) -> None:
@@ -135,14 +135,14 @@ GCM_BC_DIR = env_path('IDOWNSCALE_GCM_BC_DIR', GCM_RAW_DIR / 'CNRM-CM6-1-BC')
 RCM_BC_DIR = env_path('IDOWNSCALE_RCM_BC_DIR', RCM_RAW_DIR / 'ALADIN-BC')
 EXP5_ARCHIVE_DATASET_DIR = env_path(
     'IDOWNSCALE_EXP5_ARCHIVE_DATASET_DIR',
-    '/scratch/globc/page/idownscale_exp5/datasets/dataset_exp5_30y',
+    OUTPUT_DIR / 'datasets' / 'dataset_exp5_30y',
 )
 LEGACY_DATASET_ROOTS = [
     Path(path).expanduser()
     for path in os.getenv('IDOWNSCALE_LEGACY_DATASET_ROOTS', '').split(os.pathsep)
     if path
 ]
-REGRID_WEIGHTS_DIR = env_path('IDOWNSCALE_REGRID_WEIGHTS_DIR', OUTPUT_DIR / 'weights')
+REGRID_WEIGHTS_DIR = env_path('IDOWNSCALE_REGRID_WEIGHTS_DIR', OUTPUT_DIR / 'regrid_weights')
 
 def build_custom_obs_source() -> dict:
     spec = {
@@ -437,7 +437,7 @@ DATASET_TEST_ERA5_DIR = DATASET_DIR / 'dataset_test_era5'
 DATASET_BC_DIR = env_path('IDOWNSCALE_DATASET_BC_DIR', DATASET_DIR / 'dataset_bc')
 
 RUNS_DIR = env_path('IDOWNSCALE_RUNS_DIR', OUTPUT_DIR / 'runs')
-GRAPHS_DIR = env_path('IDOWNSCALE_GRAPHS_DIR', OUTPUT_DIR / 'graph')
+GRAPHS_DIR = env_path('IDOWNSCALE_GRAPHS_DIR', RUNTIME_ROOT / 'graphs')
 METRICS_DIR = env_path('IDOWNSCALE_METRICS_DIR', OUTPUT_DIR / 'metrics')
 PREDICTION_DIR = env_path('IDOWNSCALE_PREDICTION_DIR', OUTPUT_DIR / 'prediction')
 

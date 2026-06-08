@@ -37,8 +37,8 @@ Typical local setup:
 
 ```bash
 export IDOWNSCALE_RAW_DIR=$PWD/rawdata
-export IDOWNSCALE_OUTPUT_DIR=$PWD/idownscale_output
-export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/weights
+export IDOWNSCALE_OUTPUT_DIR=$PWD/output
+export IDOWNSCALE_REGRID_WEIGHTS_DIR=$IDOWNSCALE_OUTPUT_DIR/regrid_weights
 export IDOWNSCALE_RUNS_DIR=$IDOWNSCALE_OUTPUT_DIR/runs
 export IDOWNSCALE_PREDICTION_DIR=$IDOWNSCALE_OUTPUT_DIR/prediction
 export IDOWNSCALE_METRICS_DIR=$IDOWNSCALE_OUTPUT_DIR/metrics
@@ -118,9 +118,10 @@ keeps phase ordering and output locations consistent.
 
 ## 5. HPC wrapper
 
-For Grace-style batch usage, the existing wrapper is:
+For Slurm batch usage, the existing site-specific wrapper can be used as an
+example to adapt for the target cluster:
 
 - [bin/production/run_exp5_workflow_grace.sh](../../bin/production/run_exp5_workflow_grace.sh)
 
-That wrapper is useful when attendees move the same workflow from a local machine
-to a supercomputer environment.
+That wrapper is useful as a template when attendees move the same workflow from
+a local machine to a supercomputer environment.

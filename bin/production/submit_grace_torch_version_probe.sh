@@ -4,7 +4,8 @@
 set -euo pipefail
 
 TORCH_VERSION="${TORCH_VERSION:-2.4.1}"
-ENV_PATH="${ENV_PATH:-/scratch/globc/page/idownscale_rerun/scratch/grace_envs/torch_probe_${TORCH_VERSION//./_}}"
+SCRATCH_ROOT_DEFAULT="${SCRATCH_ROOT:-/scratch/globc/${USER}}"
+ENV_PATH="${ENV_PATH:-${SCRATCH_ROOT_DEFAULT}/idownscale_runtime/tmp/grace_envs/torch_probe_${TORCH_VERSION//./_}}"
 
 sbatch <<EOF
 #!/bin/bash

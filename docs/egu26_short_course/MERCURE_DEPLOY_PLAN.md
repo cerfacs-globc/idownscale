@@ -10,12 +10,18 @@ Current target:
 
 Recommended local roots when running the copy commands:
 
-- repo root: `/scratch/globc/page/idownscale_rerun`
-- output root: `/scratch/globc/page/idownscale_output`
+```bash
+export REPO_ROOT=/path/to/idownscale
+export RUNTIME_ROOT=/path/to/idownscale_runtime
+export RAWDATA_ROOT=$RUNTIME_ROOT/rawdata
+export OUTPUT_ROOT=$RUNTIME_ROOT/output
+export GRAPHS_ROOT=$RUNTIME_ROOT/graphs
+export WORK_MATERIALS_ROOT=/path/to/idownscale_work_materials
+```
 
-If you are not already in the repo root, either `cd /scratch/globc/page/idownscale_rerun`
-first, or replace relative paths like `docs/...`, `rawdata/...`, and `scratch/...` with
-their absolute form under `/scratch/globc/page/idownscale_rerun/`.
+The checkpoint bundles used for the course may live outside the runtime tree. If
+they were preserved from a previous working checkout, point `WORK_MATERIALS_ROOT`
+to that preserved material before copying.
 
 The plan is intentionally split into four levels:
 
@@ -24,7 +30,7 @@ The plan is intentionally split into four levels:
 3. `raw_data`
 4. `phase_outputs`
 
-## 1. Recommended remote structure
+## 1. Recommended Remote Structure
 
 ```text
 /data/projects/egu26scml/
@@ -51,7 +57,7 @@ The plan is intentionally split into four levels:
     └── dataset_exp5_30y/
 ```
 
-## 2. Create the Mercure folders
+## 2. Create The Mercure Folders
 
 ```bash
 ssh mercure '
@@ -75,212 +81,211 @@ mkdir -p /data/projects/egu26scml/phase_outputs/dataset_exp5_30y
 '
 ```
 
-## 3. Required tier
+## 3. Required Tier
 
 This is the smallest tier that makes the notebook and the story useful.
 
-### Source files
+### Source Files
 
 Docs:
 
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/SESSION_MATERIALS.md`
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/SESSION_SUMMARY.md`
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/DATASETS_TO_PROVIDE.md`
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/HOW_TO_FETCH_UPSTREAM_DATA.md`
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/EXPECTED_PHASE_OUTPUTS.md`
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/LOCAL_WORKFLOW_RUNBOOK.md`
+- `$REPO_ROOT/docs/egu26_short_course/SESSION_MATERIALS.md`
+- `$REPO_ROOT/docs/egu26_short_course/SESSION_SUMMARY.md`
+- `$REPO_ROOT/docs/egu26_short_course/DATASETS_TO_PROVIDE.md`
+- `$REPO_ROOT/docs/egu26_short_course/HOW_TO_FETCH_UPSTREAM_DATA.md`
+- `$REPO_ROOT/docs/egu26_short_course/EXPECTED_PHASE_OUTPUTS.md`
+- `$REPO_ROOT/docs/egu26_short_course/LOCAL_WORKFLOW_RUNBOOK.md`
 
 Notebook:
 
-- `/scratch/globc/page/idownscale_rerun/docs/egu26_short_course/egu26_short_course_notebook.ipynb`
+- `$REPO_ROOT/docs/egu26_short_course/egu26_short_course_notebook.ipynb`
 
 Checkpoint bundle:
 
-- `/scratch/globc/page/idownscale_rerun/scratch/checkpoint_bundles/exp5_unet_all_bundle/`
+- `$WORK_MATERIALS_ROOT/checkpoint_bundles/exp5_unet_all_bundle/`
 
 Statistics:
 
-- `/scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/statistics.json`
+- `$OUTPUT_ROOT/datasets/dataset_exp5_30y/statistics.json`
 
 Core metrics:
 
-- `/scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_all_gcm_bc.csv`
-- `/scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_all_gcm_bc.csv`
-- `/scratch/globc/page/idownscale_output/metrics/exp5/value_metrics_exp5_unet_all.csv`
+- `$OUTPUT_ROOT/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_all_gcm_bc.csv`
+- `$OUTPUT_ROOT/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_all_gcm_bc.csv`
+- `$OUTPUT_ROOT/metrics/exp5/value_metrics_exp5_unet_all.csv`
 
 Core plots:
 
-- `/scratch/globc/page/idownscale_output/graph/metrics/exp5/exp5_pairwise_distribution_quantiles.png`
-- `/scratch/globc/page/idownscale_output/graph/metrics/exp5/exp5_historical_5curve_pdf.png`
-- `/scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/daily_rmse_seasonal_unet_all_gcm_bc.png`
-- `/scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/monthly_rmse_seasonal_unet_all_gcm_bc.png`
-- `/scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/monthly_spatial_bias_distribution_unet_all_gcm_bc.png`
-- `/scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/monthly_spatial_rmse_distribution_unet_all_gcm_bc.png`
+- `$GRAPHS_ROOT/metrics/exp5/exp5_pairwise_distribution_quantiles.png`
+- `$GRAPHS_ROOT/metrics/exp5/exp5_historical_5curve_pdf.png`
+- `$GRAPHS_ROOT/metrics/exp5/unet_all_gcm_bc/daily_rmse_seasonal_unet_all_gcm_bc.png`
+- `$GRAPHS_ROOT/metrics/exp5/unet_all_gcm_bc/monthly_rmse_seasonal_unet_all_gcm_bc.png`
+- `$GRAPHS_ROOT/metrics/exp5/unet_all_gcm_bc/monthly_spatial_bias_distribution_unet_all_gcm_bc.png`
+- `$GRAPHS_ROOT/metrics/exp5/unet_all_gcm_bc/monthly_spatial_rmse_distribution_unet_all_gcm_bc.png`
 
 Optional but useful example prediction:
 
-- `/scratch/globc/page/idownscale_output/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_all_gcm_bc.nc`
+- `$OUTPUT_ROOT/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_all_gcm_bc.nc`
 
 Presentation:
 
 - add the final PDF here when ready
 
-### Copy commands
+### Copy Commands
 
 ```bash
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/SESSION_MATERIALS.md mercure:/data/projects/egu26scml/required/docs/
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/SESSION_SUMMARY.md mercure:/data/projects/egu26scml/required/docs/
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/DATASETS_TO_PROVIDE.md mercure:/data/projects/egu26scml/required/docs/
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/HOW_TO_FETCH_UPSTREAM_DATA.md mercure:/data/projects/egu26scml/required/docs/
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/EXPECTED_PHASE_OUTPUTS.md mercure:/data/projects/egu26scml/required/docs/
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/LOCAL_WORKFLOW_RUNBOOK.md mercure:/data/projects/egu26scml/required/docs/
-scp /scratch/globc/page/idownscale_rerun/docs/egu26_short_course/egu26_short_course_notebook.ipynb mercure:/data/projects/egu26scml/required/notebook/
+scp "$REPO_ROOT"/docs/egu26_short_course/SESSION_MATERIALS.md mercure:/data/projects/egu26scml/required/docs/
+scp "$REPO_ROOT"/docs/egu26_short_course/SESSION_SUMMARY.md mercure:/data/projects/egu26scml/required/docs/
+scp "$REPO_ROOT"/docs/egu26_short_course/DATASETS_TO_PROVIDE.md mercure:/data/projects/egu26scml/required/docs/
+scp "$REPO_ROOT"/docs/egu26_short_course/HOW_TO_FETCH_UPSTREAM_DATA.md mercure:/data/projects/egu26scml/required/docs/
+scp "$REPO_ROOT"/docs/egu26_short_course/EXPECTED_PHASE_OUTPUTS.md mercure:/data/projects/egu26scml/required/docs/
+scp "$REPO_ROOT"/docs/egu26_short_course/LOCAL_WORKFLOW_RUNBOOK.md mercure:/data/projects/egu26scml/required/docs/
+scp "$REPO_ROOT"/docs/egu26_short_course/egu26_short_course_notebook.ipynb mercure:/data/projects/egu26scml/required/notebook/
 
-scp /scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/statistics.json mercure:/data/projects/egu26scml/required/metrics/
+scp "$OUTPUT_ROOT"/datasets/dataset_exp5_30y/statistics.json mercure:/data/projects/egu26scml/required/metrics/
 
-scp /scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_all_gcm_bc.csv mercure:/data/projects/egu26scml/required/metrics/
-scp /scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_all_gcm_bc.csv mercure:/data/projects/egu26scml/required/metrics/
-scp /scratch/globc/page/idownscale_output/metrics/exp5/value_metrics_exp5_unet_all.csv mercure:/data/projects/egu26scml/required/metrics/
+scp "$OUTPUT_ROOT"/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_all_gcm_bc.csv mercure:/data/projects/egu26scml/required/metrics/
+scp "$OUTPUT_ROOT"/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_all_gcm_bc.csv mercure:/data/projects/egu26scml/required/metrics/
+scp "$OUTPUT_ROOT"/metrics/exp5/value_metrics_exp5_unet_all.csv mercure:/data/projects/egu26scml/required/metrics/
 
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/exp5_pairwise_distribution_quantiles.png mercure:/data/projects/egu26scml/required/plots/
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/exp5_historical_5curve_pdf.png mercure:/data/projects/egu26scml/required/plots/
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/daily_rmse_seasonal_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/monthly_rmse_seasonal_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/monthly_spatial_bias_distribution_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_all_gcm_bc/monthly_spatial_rmse_distribution_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/exp5_pairwise_distribution_quantiles.png mercure:/data/projects/egu26scml/required/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/exp5_historical_5curve_pdf.png mercure:/data/projects/egu26scml/required/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/unet_all_gcm_bc/daily_rmse_seasonal_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/unet_all_gcm_bc/monthly_rmse_seasonal_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/unet_all_gcm_bc/monthly_spatial_bias_distribution_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/unet_all_gcm_bc/monthly_spatial_rmse_distribution_unet_all_gcm_bc.png mercure:/data/projects/egu26scml/required/plots/
 
-scp /scratch/globc/page/idownscale_output/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_all_gcm_bc.nc mercure:/data/projects/egu26scml/required/predictions/
+scp "$OUTPUT_ROOT"/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_all_gcm_bc.nc mercure:/data/projects/egu26scml/required/predictions/
 
-scp -r /scratch/globc/page/idownscale_rerun/scratch/checkpoint_bundles/exp5_unet_all_bundle mercure:/data/projects/egu26scml/required/checkpoint_bundles/
+scp -r "$WORK_MATERIALS_ROOT"/checkpoint_bundles/exp5_unet_all_bundle mercure:/data/projects/egu26scml/required/checkpoint_bundles/
 ```
 
-## 4. Nice-to-have tier
+## 4. Nice-To-Have Tier
 
 This tier makes offline follow-up easier without mirroring the whole climate archive.
 
-### Source files
+### Source Files
 
 Prepared France-side files:
 
-- `/scratch/globc/page/idownscale_rerun/rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc`
+- `$RAWDATA_ROOT/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc`
+- `$RAWDATA_ROOT/eobs/elevation_ens_025deg_reg_v29_0e_france.nc`
 
 Optional convenience-only file, not required by the main workflow:
 
-- `/scratch/globc/page/idownscale_rerun/rawdata/eobs/eobs_landseamask_france.nc`
+- `$RAWDATA_ROOT/eobs/eobs_landseamask_france.nc`
 
 Bias-corrected GCM files:
 
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231_bc.nc`
+- `$RAWDATA_ROOT/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc`
+- `$RAWDATA_ROOT/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc`
+- `$RAWDATA_ROOT/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231_bc.nc`
 
 Second checkpoint bundle:
 
-- `/scratch/globc/page/idownscale_rerun/scratch/checkpoint_bundles/exp5_swinunet_all_bundle/`
+- `$WORK_MATERIALS_ROOT/checkpoint_bundles/exp5_swinunet_all_bundle/`
 
 Second example prediction:
 
-- `/scratch/globc/page/idownscale_output/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_grace30_gcm_bc.nc`
+- `$OUTPUT_ROOT/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_grace30_gcm_bc.nc`
 
 Additional metrics:
 
-- `/scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_grace30_gcm_bc.csv`
-- `/scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_grace30_gcm_bc.csv`
-- `/scratch/globc/page/idownscale_output/metrics/exp5/value_metrics_exp5_unet_grace30.csv`
+- `$OUTPUT_ROOT/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_grace30_gcm_bc.csv`
+- `$OUTPUT_ROOT/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_grace30_gcm_bc.csv`
+- `$OUTPUT_ROOT/metrics/exp5/value_metrics_exp5_unet_grace30.csv`
 
 Additional plots:
 
-- all files from:
-  - `/scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_grace30_gcm_bc/`
+- all files from `$GRAPHS_ROOT/metrics/exp5/unet_grace30_gcm_bc/`
 
-### Copy commands
+### Copy Commands
 
 ```bash
-scp /scratch/globc/page/idownscale_rerun/rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc mercure:/data/projects/egu26scml/nice_to_have/eobs_france/
-scp /scratch/globc/page/idownscale_rerun/rawdata/eobs/elevation_ens_025deg_reg_v29_0e_france.nc mercure:/data/projects/egu26scml/nice_to_have/eobs_france/
-scp /scratch/globc/page/idownscale_rerun/rawdata/eobs/eobs_landseamask_france.nc mercure:/data/projects/egu26scml/nice_to_have/eobs_france/
+scp "$RAWDATA_ROOT"/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc mercure:/data/projects/egu26scml/nice_to_have/eobs_france/
+scp "$RAWDATA_ROOT"/eobs/elevation_ens_025deg_reg_v29_0e_france.nc mercure:/data/projects/egu26scml/nice_to_have/eobs_france/
+scp "$RAWDATA_ROOT"/eobs/eobs_landseamask_france.nc mercure:/data/projects/egu26scml/nice_to_have/eobs_france/
 
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc mercure:/data/projects/egu26scml/nice_to_have/gcm_bc/
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc mercure:/data/projects/egu26scml/nice_to_have/gcm_bc/
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231_bc.nc mercure:/data/projects/egu26scml/nice_to_have/gcm_bc/
+scp "$RAWDATA_ROOT"/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_19800101-19991231_bc.nc mercure:/data/projects/egu26scml/nice_to_have/gcm_bc/
+scp "$RAWDATA_ROOT"/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101-20141231_bc.nc mercure:/data/projects/egu26scml/nice_to_have/gcm_bc/
+scp "$RAWDATA_ROOT"/gcm/CNRM-CM6-1-BC/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231_bc.nc mercure:/data/projects/egu26scml/nice_to_have/gcm_bc/
 
-scp -r /scratch/globc/page/idownscale_rerun/scratch/checkpoint_bundles/exp5_swinunet_all_bundle mercure:/data/projects/egu26scml/nice_to_have/checkpoint_bundles/
+scp -r "$WORK_MATERIALS_ROOT"/checkpoint_bundles/exp5_swinunet_all_bundle mercure:/data/projects/egu26scml/nice_to_have/checkpoint_bundles/
 
-scp /scratch/globc/page/idownscale_output/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_grace30_gcm_bc.nc mercure:/data/projects/egu26scml/nice_to_have/predictions/
+scp "$OUTPUT_ROOT"/prediction/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_20000101_20141231_exp5_unet_grace30_gcm_bc.nc mercure:/data/projects/egu26scml/nice_to_have/predictions/
 
-scp /scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_grace30_gcm_bc.csv mercure:/data/projects/egu26scml/nice_to_have/metrics/
-scp /scratch/globc/page/idownscale_output/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_grace30_gcm_bc.csv mercure:/data/projects/egu26scml/nice_to_have/metrics/
-scp /scratch/globc/page/idownscale_output/metrics/exp5/value_metrics_exp5_unet_grace30.csv mercure:/data/projects/egu26scml/nice_to_have/metrics/
+scp "$OUTPUT_ROOT"/metrics/exp5/mean_metrics/metrics_test_mean_daily_exp5_unet_grace30_gcm_bc.csv mercure:/data/projects/egu26scml/nice_to_have/metrics/
+scp "$OUTPUT_ROOT"/metrics/exp5/mean_metrics/metrics_test_mean_monthly_exp5_unet_grace30_gcm_bc.csv mercure:/data/projects/egu26scml/nice_to_have/metrics/
+scp "$OUTPUT_ROOT"/metrics/exp5/value_metrics_exp5_unet_grace30.csv mercure:/data/projects/egu26scml/nice_to_have/metrics/
 
-scp /scratch/globc/page/idownscale_output/graph/metrics/exp5/unet_grace30_gcm_bc/* mercure:/data/projects/egu26scml/nice_to_have/plots/
+scp "$GRAPHS_ROOT"/metrics/exp5/unet_grace30_gcm_bc/* mercure:/data/projects/egu26scml/nice_to_have/plots/
 ```
 
-## 5. Raw-data tier
+## 5. Raw-Data Tier
 
 This is only needed if you want Mercure to act as a local mirror of the climate inputs.
 
-### Source directories and files
+### Source Directories And Files
 
 ERA5:
 
-- `/scratch/globc/page/idownscale_rerun/rawdata/era5/tas_1d/`
-- `/scratch/globc/page/idownscale_rerun/rawdata/era5/orography_ERA5.nc`
+- `$RAWDATA_ROOT/era5/tas_1d/`
+- `$RAWDATA_ROOT/era5/orography_ERA5.nc`
 
 E-OBS:
 
-- `/scratch/globc/page/idownscale_rerun/rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/eobs/elevation_ens_025deg_reg_v29_0e.nc`
+- `$RAWDATA_ROOT/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc`
+- `$RAWDATA_ROOT/eobs/elevation_ens_025deg_reg_v29_0e.nc`
 
 GCM:
 
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc`
-- `/scratch/globc/page/idownscale_rerun/rawdata/gcm/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc`
+- `$RAWDATA_ROOT/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc`
+- `$RAWDATA_ROOT/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231.nc`
+- `$RAWDATA_ROOT/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc`
+- `$RAWDATA_ROOT/gcm/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc`
 
-### Copy commands
+### Copy Commands
 
 For the large raw tier, `rsync` is preferable to `scp`.
 
 ```bash
-rsync -av /scratch/globc/page/idownscale_rerun/rawdata/era5/tas_1d/ mercure:/data/projects/egu26scml/raw_data/era5/tas_1d/
-scp /scratch/globc/page/idownscale_rerun/rawdata/era5/orography_ERA5.nc mercure:/data/projects/egu26scml/raw_data/era5/
+rsync -av "$RAWDATA_ROOT"/era5/tas_1d/ mercure:/data/projects/egu26scml/raw_data/era5/tas_1d/
+scp "$RAWDATA_ROOT"/era5/orography_ERA5.nc mercure:/data/projects/egu26scml/raw_data/era5/
 
-scp /scratch/globc/page/idownscale_rerun/rawdata/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc mercure:/data/projects/egu26scml/raw_data/eobs/
-scp /scratch/globc/page/idownscale_rerun/rawdata/eobs/elevation_ens_025deg_reg_v29_0e.nc mercure:/data/projects/egu26scml/raw_data/eobs/
+scp "$RAWDATA_ROOT"/eobs/tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc mercure:/data/projects/egu26scml/raw_data/eobs/
+scp "$RAWDATA_ROOT"/eobs/elevation_ens_025deg_reg_v29_0e.nc mercure:/data/projects/egu26scml/raw_data/eobs/
 
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc mercure:/data/projects/egu26scml/raw_data/gcm/
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231.nc mercure:/data/projects/egu26scml/raw_data/gcm/
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc mercure:/data/projects/egu26scml/raw_data/gcm/
-scp /scratch/globc/page/idownscale_rerun/rawdata/gcm/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc mercure:/data/projects/egu26scml/raw_data/gcm/
+scp "$RAWDATA_ROOT"/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc mercure:/data/projects/egu26scml/raw_data/gcm/
+scp "$RAWDATA_ROOT"/gcm/CNRM-CM6-1/tas_day_CNRM-CM6-1_ssp585_r1i1p1f2_gr_20150101-21001231.nc mercure:/data/projects/egu26scml/raw_data/gcm/
+scp "$RAWDATA_ROOT"/gcm/orog_Emon_CNRM-CM6-1_historical_r10i1p1f2_gr_185001-201412.nc mercure:/data/projects/egu26scml/raw_data/gcm/
+scp "$RAWDATA_ROOT"/gcm/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc mercure:/data/projects/egu26scml/raw_data/gcm/
 ```
 
-## 6. Phase-output tier
+## 6. Phase-Output Tier
 
 This is for deeper offline reproducibility.
 
-### Source directory
+### Source Directory
 
-- `/scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/`
+- `$OUTPUT_ROOT/datasets/dataset_exp5_30y/`
 
-### Copy commands
+### Copy Commands
 
 If you want the full archive:
 
 ```bash
-rsync -av /scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/ mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
+rsync -av "$OUTPUT_ROOT"/datasets/dataset_exp5_30y/ mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
 ```
 
 If you want only `statistics.json` and a few samples:
 
 ```bash
-scp /scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/statistics.json mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
-scp /scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/sample_19800101.npz mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
-scp /scratch/globc/page/idownscale_output/datasets/dataset_exp5_30y/sample_20000101.npz mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
+scp "$OUTPUT_ROOT"/datasets/dataset_exp5_30y/statistics.json mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
+scp "$OUTPUT_ROOT"/datasets/dataset_exp5_30y/sample_19800101.npz mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
+scp "$OUTPUT_ROOT"/datasets/dataset_exp5_30y/sample_20000101.npz mercure:/data/projects/egu26scml/phase_outputs/dataset_exp5_30y/
 ```
 
-## 7. Optional archive creation
+## 7. Optional Archive Creation
 
 If later you decide to provide compact downloadable bundles for the small tiers, create
 the folders first on Mercure, then optionally add tarballs locally and upload them.
