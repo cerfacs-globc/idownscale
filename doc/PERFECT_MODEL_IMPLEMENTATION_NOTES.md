@@ -1,266 +1,45 @@
-# Perfect-Model Implementation Notes
+# Perfect-model implementation notes
 
-Date: 2026-06-06
+Date: 2026-06-08
 
-This note keeps the implementation and recovery history separate from the
-science-facing perfect-model report.
+This note keeps the implementation history separate from the science-facing perfect-model report. It is meant to help us remember why the workflow is shaped the way it is, without putting debugging history in the main result note.
 
-## 1. Main bugs discovered
+## 1. Main Corrections
 
-### Wrong BC reference in perfect-model mode
+The first important correction was the BC reference used in perfect-model mode. The degraded ALADIN predictor was initially being bias-corrected against ERA5 while the evaluation was done against native ALADIN. That was not a valid perfect-model baseline. The configuration now uses `rcm_aladin` as the BC reference for `perfect_model_rcm`.
 
-- degraded ALADIN was being bias-corrected against `ERA5`
-- BC and ML outputs were then being evaluated against native ALADIN
-- this created a false scientific diagnosis that the BC baseline was broken
+The corrected perfect-model sample writer also needed to rebuild `y` through the native-model path. The generic observation target loader was not appropriate for this case and could fail on the curvilinear-grid masking path. The corrected sample writers in `bias_correction_ibicus.py` and `bias_correction_sbck.py` now follow the same pseudo-truth logic as `build_dataset_pp.py`.
 
-Fix:
+Corrected sample packaging was made lighter after an out-of-memory failure. The packaging code now avoids repeated orography loading and closes temporary one-day regridded datasets promptly.
 
-- `CONFIG['perfect_model_rcm']['bc_reanalysis_source'] = 'rcm_aladin'`
+The corrected eval dataset had also been contaminated by `1980-1999` samples because `--corrected` implicitly added `train_hist`. That is no longer the case. The train historical block is only included when `--include-train-hist` is explicitly requested.
 
-### Corrected perfect-model sample writer rebuilt `y` through the wrong path
+Future prediction and diagnostics now resolve sample directories by date window. This fixed hidden assumptions in `predict_loop.py`, `plot_perfect_model_distribution_pdf.py`, and `compare_perfect_model_climate_signal.py`.
 
-- corrected sample packaging still used the generic observation target loader
-- this caused:
-  - `IndexError: 2-dimensional boolean indexing is not supported`
+## 2. Multi-BC Support
 
-Fix:
+The workflow rule is still simple: one production run uses one selected BC method. The evaluation layer is more flexible: it can compare multiple BC baselines generated from separate runs.
 
-- corrected sample writers in:
-  - `bin/preprocessing/bias_correction_ibicus.py`
-  - `bin/preprocessing/bias_correction_sbck.py`
-- now rebuild perfect-model pseudo-truth through the same native-model path as
-  `build_dataset_pp.py`
+Tagged BC outputs were added to the IBICUS and SBCK correction scripts. The comparison script can write tagged BC rows, and the aggregate script creates synthetic BC rows such as `bc_baseline` and `bc_baseline_sbck_cdft`.
 
-### Corrected sample packaging OOM
+One aggregation bug was found after SBCK was generated. The SBCK chunks were written correctly, but their filenames ended with suffixes such as `_bc_sbck_cdft.csv`, and the aggregator only looked for files ending exactly at the window token. The glob pattern was broadened so tagged BC chunks are included. The combined table now contains both BC baselines.
 
-- `1887337` failed with `OUT_OF_MEMORY` after corrected BC NetCDFs had already
-  been written
+## 3. Final Diagnostics
 
-Technical cause:
+The final diagnostic set now includes the combined prediction-vs-truth table, the climate-signal comparison, and the all-window statistics table. On 2026-06-08, the final files were verified with SBCK included in all three diagnostics.
 
-- repeated orography loading
-- temporary regridded day datasets not closed promptly
+The window-statistics table is especially useful because it adds day-to-day variability, spatial variability, and annual variability diagnostics to the usual RMSE and bias comparison.
 
-Fix:
+## 4. Runtime Notes From Kraken
 
-- load orography once
-- package corrected samples through a shared helper
-- close each one-day regridded dataset immediately
-- close corrected datasets after packaging
+Kraken showed intermittent filesystem symptoms during the last refreshes. Some Python processes entered `D` state while streaming many sample files from scratch, and several tiny Slurm reruns failed immediately with `RaisedSignal:53(Real-time_signal_19)`. The outputs eventually landed, but this is a reminder that the filesystem behavior was part of the runtime risk.
 
-### Corrected eval dataset contamination
+A separate Git metadata issue also appeared on the scratch-hosted checkout. The local `.git` directory had grown very large because stale `tmp_pack_*` files were left behind after an interrupted Git pack operation. The repository was repaired by pushing from a clean clone and replacing the damaged local `.git` metadata.
 
-- `build_dataset_pp.py` included `train_hist` whenever `--corrected` was set
+The safer long-term layout is now documented and partly implemented: keep the Git repository in backed-up `home`, and keep raw data, outputs, weights, runs, predictions, metrics, and temporary files on scratch.
 
-Effect:
+## 5. Remaining Engineering Work
 
-- eval dataset wrongly included `1980-1999`
+The current perfect-model result is complete for the present benchmark. The next engineering improvement would be to make the all-window future sample materialization a first-class workflow step instead of relying on recovery scripts and manually prepared validation windows.
 
-Fix:
-
-- corrected mode no longer implies `include_train_hist`
-- only explicit `--include-train-hist` adds the train historical block
-
-### Future sample-dir resolution bug
-
-- `predict_loop.py` resolved future perfect-model runs to the wrong sample
-  directory
-
-Fix:
-
-- date-aware sample-dir resolution was added to `bin/training/predict_loop.py`
-
-### Same hidden assumption in future diagnostics
-
-- future sample directory was also assumed implicitly in:
-  - `bin/evaluation/plot_perfect_model_distribution_pdf.py`
-  - `bin/evaluation/compare_perfect_model_climate_signal.py`
-
-Fix:
-
-- both scripts now resolve sample directories per requested window
-
-## 2. Recovery-wave lessons
-
-### Why the first future relaunches failed
-
-The corrected future helper dataset on disk was not a full all-window future
-diagnostic dataset.
-
-Observed sample coverage in:
-
-- `dataset_perfect_model_rcm_validation_windows_rcm_bc`
-
-was exactly:
-
-- `19800101-20141231`
-- `20900101-21001231`
-
-So the first recovery waves failed because they assumed that these windows were
-also present:
-
-- `20150101-20291231`
-- `20300101-20441231`
-- `20450101-20591231`
-- `20600101-20741231`
-- `20750101-20891231`
-
-They were not.
-
-### Important distinction
-
-This does **not** mean that the future corrected NetCDF does not exist.
-
-What it means is:
-
-- the special validation helper sample tree used for perfect-model diagnostics
-  was only materialized for historical plus late-century
-- therefore only the late-century future window could be used in the bounded
-  recovery
-
-## 3. Final successful recovery jobs
-
-- corrected BC rebuild / dataset rebuild:
-  - `1888048`
-- late-century future recovery:
-  - `1888548` `pm_bc8_uon`
-  - `1888549` `pm_bc8_unet`
-  - `1888550` `pm_bc8_rep3`
-  - `1888551` `pm_bc8_mini`
-  - `1888552` `pm_bc8_seed2`
-- dependent post-processing:
-  - `1888553`
-
-## 4. Files changed during the recovery
-
-Main files touched for the recovery itself:
-
-- `iriscc/settings.py`
-- `bin/preprocessing/build_dataset_pp.py`
-- `bin/preprocessing/bias_correction_ibicus.py`
-- `bin/preprocessing/bias_correction_sbck.py`
-- `bin/training/predict_loop.py`
-- `bin/evaluation/plot_perfect_model_distribution_pdf.py`
-- `bin/evaluation/compare_perfect_model_climate_signal.py`
-
-## 5. Operational note
-
-A stale repo-local fallback output tree appeared under:
-
-- `/scratch/globc/page/idownscale_rerun/idownscale_output`
-
-Cause:
-
-- some runs were executed without exporting
-  `IDOWNSCALE_OUTPUT_DIR=/scratch/globc/page/idownscale_output`
-
-Status:
-
-- this stale local tree was removed on 2026-06-05
-
-## 6. Remaining implementation need
-
-If we want complete future-period perfect-model diagnostics, we should define a
-canonical corrected future sample workflow that materializes all intended
-future windows with target-bearing sample packaging, not only the historical
-blocks plus the late-century helper window.
-
-## 7. Multi-BC comparison implementation
-
-The perfect-model comparison layer was extended so several BC baselines can be
-compared side by side without changing the production rule that one workflow run
-uses one selected BC method.
-
-Current implementation:
-
-- workflow level:
-  - one selected BC method per run
-- evaluation level:
-  - several BC baselines can coexist in the aggregated diagnostics
-
-This is handled through:
-
-- tagged BC outputs in:
-  - `bin/preprocessing/bias_correction_ibicus.py`
-  - `bin/preprocessing/bias_correction_sbck.py`
-- tagged BC-aware comparison rows in:
-  - `bin/evaluation/compare_perfect_model_predictions_vs_truth.py`
-- aggregated synthetic BC rows in:
-  - `bin/evaluation/aggregate_perfect_model_comparisons.py`
-
-## 8. Additional bug found in the multi-BC aggregation
-
-### SBCK chunk files were produced but not aggregated
-
-Problem:
-
-- SBCK chunk files were written with names such as:
-  - `..._20000101_20141231_bc_sbck_cdft.csv`
-- the aggregate helper only searched for chunk files ending exactly with:
-  - `..._{window}.csv`
-- result:
-  - SBCK rows existed on disk but were silently absent from the combined table
-
-Fix:
-
-- broadened the chunk-file pattern in:
-  - `bin/evaluation/aggregate_perfect_model_comparisons.py`
-- after that fix, the combined CSV now contains:
-  - `bc_baseline`
-  - `bc_baseline_sbck_cdft`
-
-## 9. Filesystem/runtime issue observed on Kraken
-
-Several final diagnostic reruns entered `D` state on Kraken while streaming many
-sample files from scratch.
-
-Observed symptoms:
-
-- direct Python processes stuck in `D`
-- small Slurm reruns failing immediately with:
-  - `RaisedSignal:53(Real-time_signal_19)`
-
-Interpretation:
-
-- this does not look like an ordinary user block/file quota problem
-- it is more consistent with scratch/GPFS runtime instability or metadata/I/O
-  pressure
-
-Operational consequence:
-
-- summary-table regeneration succeeded on 2026-06-06
-- the heavy file-streaming diagnostics eventually landed as well
-- on 2026-06-08, the final files were verified present with SBCK included in:
-  - combined prediction-vs-truth table
-  - climate-signal table
-  - all-window statistics table
-
-## 10. Git metadata failure on scratch
-
-The Kraken repository itself hit a separate Git metadata problem.
-
-Observed state:
-
-- `.git` had grown to about `100G`
-- `.git/objects/pack` contained several stale `tmp_pack_*` files
-- Git then failed with:
-  - `Disk quota exceeded`
-  - inability to create `.git/index.lock`
-
-Interpretation:
-
-- most likely an interrupted Git pack/repack/fetch operation left temporary
-  packfiles behind on scratch
-
-Recovery:
-
-- remove stale temporary packfiles
-- create a clean clone in `/tmp`
-- checkpoint and push work from the healthy clone
-- replace the damaged local `.git` with the clean `.git`
-
-Follow-up:
-
-- keep code in backed-up `home`
-- keep runtime data on `scratch`
-- avoid letting `.git` metadata live inside the most fragile runtime area
+The same workflow should then be tested on another variable. That will be the real proof that the validation and plotting layers are no longer temperature-specific.
