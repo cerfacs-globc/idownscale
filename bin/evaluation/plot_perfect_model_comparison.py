@@ -18,6 +18,7 @@ from iriscc.settings import GRAPHS_DIR, METRICS_DIR
 
 MODEL_LABELS = {
     "bc_baseline": "BC baseline",
+    "bc_baseline_sbck_cdft": "SBCK CDFt baseline",
     "unet_outputnorm_perfect_model_rcm": "UNet + output norm",
     "unet_perfect_model_rcm": "UNet",
     "unet_rep3_perfect_model_rcm": "UNet replicate",
@@ -27,6 +28,7 @@ MODEL_LABELS = {
 
 MODEL_COLORS = {
     "bc_baseline": "#2A9D8F",
+    "bc_baseline_sbck_cdft": "#5B8E7D",
     "unet_outputnorm_perfect_model_rcm": "#006D77",
     "unet_perfect_model_rcm": "#E76F51",
     "unet_rep3_perfect_model_rcm": "#457B9D",
@@ -65,6 +67,31 @@ def model_color(model: str) -> str:
     return MODEL_COLORS.get(model, "#4A4A4A")
 
 
+def grouped_window_bars(
+    ax: plt.Axes,
+    df: pd.DataFrame,
+    model_order: list[str],
+    window_order: list[str],
+    value_col: str,
+    title: str,
+    ylabel: str,
+    zero_line: bool = False,
+) -> None:
+    width = 0.8 / max(len(window_order), 1)
+    x = np.arange(len(model_order))
+    offsets = (np.arange(len(window_order)) - (len(window_order) - 1) / 2) * width
+    indexed = df.set_index(["model", "window_label"])
+    for idx, window in enumerate(window_order):
+        values = [indexed.loc[(model, window), value_col] for model in model_order]
+        ax.bar(x + offsets[idx], values, width=width, label=window, color=f"C{idx}", alpha=0.82)
+    if zero_line:
+        ax.axhline(0, color="#222222", lw=1.1)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x, [model_label(model) for model in model_order], rotation=35, ha="right")
+    ax.grid(axis="y", alpha=0.25)
+
+
 def main() -> int:
     args = parse_args()
     input_csv = (
@@ -96,47 +123,51 @@ def main() -> int:
     model_order = [model for model in MODEL_LABELS if model in set(df["model"])]
     model_order += [model for model in df["model"].unique() if model not in MODEL_LABELS]
     window_order = list(dict.fromkeys(df["window_label"]))
-    x = np.arange(len(window_order))
 
-    fig, axes = plt.subplots(2, 2, figsize=(18, 10), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(18, 11), constrained_layout=True)
     fig.suptitle(
         f"Perfect-model downscaling: {var_label} predictions vs native RCM pseudo-truth",
         fontsize=16,
         fontweight="bold",
     )
 
-    ax = axes[0, 0]
-    for model in model_order:
-        subset = df[df["model"] == model].set_index("window_label").loc[window_order]
-        ax.plot(x, subset[ml_rmse_col], marker="o", lw=2.2, color=model_color(model), label=model_label(model))
-    raw = df[df["model"] == model_order[0]].set_index("window_label").loc[window_order]
-    ax.plot(x, raw[raw_rmse_col], ls="--", lw=2.0, color="#222222", label="RCM coarse-resolution input")
-    ax.set_title("RMSE against pseudo-truth")
-    ax.set_ylabel(f"RMSE{unit_suffix}")
-    ax.set_xticks(x, window_order, rotation=30, ha="right")
-    ax.grid(alpha=0.25)
-
-    ax = axes[0, 1]
-    for model in model_order:
-        subset = df[df["model"] == model].set_index("window_label").loc[window_order]
-        ax.plot(x, subset[ml_bias_col], marker="o", lw=2.2, color=model_color(model), label=model_label(model))
-    ax.axhline(0, color="#222222", lw=1.2)
+    grouped_window_bars(
+        axes[0, 0],
+        df,
+        model_order,
+        window_order,
+        ml_rmse_col,
+        "RMSE against pseudo-truth",
+        f"RMSE{unit_suffix}",
+    )
+    grouped_window_bars(
+        axes[0, 1],
+        df,
+        model_order,
+        window_order,
+        ml_bias_col,
+        "Mean bias against pseudo-truth",
+        f"Bias{unit_suffix}",
+        zero_line=True,
+    )
     if args.bias_tolerance is not None:
-        ax.axhspan(-args.bias_tolerance, args.bias_tolerance, color="#2A9D8F", alpha=0.12, label=f"±{args.bias_tolerance:.2f}{unit_suffix} tolerance")
-    ax.set_title("Mean bias against pseudo-truth")
-    ax.set_ylabel(f"Bias{unit_suffix}")
-    ax.set_xticks(x, window_order, rotation=30, ha="right")
-    ax.grid(alpha=0.25)
-
-    ax = axes[1, 0]
-    for model in model_order:
-        subset = df[df["model"] == model].set_index("window_label").loc[window_order]
-        ax.plot(x, subset[rmse_reduction_col], marker="o", lw=2.2, color=model_color(model), label=model_label(model))
-    ax.axhline(0, color="#222222", lw=1.2)
-    ax.set_title("RMSE reduction vs coarse-resolution input")
-    ax.set_ylabel(f"Coarse input RMSE - ML RMSE{unit_suffix}")
-    ax.set_xticks(x, window_order, rotation=30, ha="right")
-    ax.grid(alpha=0.25)
+        axes[0, 1].axhspan(
+            -args.bias_tolerance,
+            args.bias_tolerance,
+            color="#2A9D8F",
+            alpha=0.12,
+            label=f"+/-{args.bias_tolerance:.2f}{unit_suffix} tolerance",
+        )
+    grouped_window_bars(
+        axes[1, 0],
+        df,
+        model_order,
+        window_order,
+        rmse_reduction_col,
+        "RMSE improvement over coarse-resolution input",
+        f"Coarse input RMSE - method RMSE{unit_suffix}",
+        zero_line=True,
+    )
 
     ax = axes[1, 1]
     summary = (

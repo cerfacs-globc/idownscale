@@ -32,6 +32,7 @@ from iriscc.settings import (
 MODEL_LABELS = {
     "raw_input": "RCM coarse-resolution input",
     "bc_baseline": "BC baseline",
+    "bc_baseline_sbck_cdft": "SBCK CDFt baseline",
     "unet_outputnorm_perfect_model_rcm": "UNet + output norm",
     "unet_perfect_model_rcm": "UNet",
     "unet_rep3_perfect_model_rcm": "UNet replicate",
@@ -42,6 +43,7 @@ MODEL_LABELS = {
 MODEL_COLORS = {
     "raw_input": "#7A7A7A",
     "bc_baseline": "#2A9D8F",
+    "bc_baseline_sbck_cdft": "#5B8E7D",
     "unet_outputnorm_perfect_model_rcm": "#006D77",
     "unet_perfect_model_rcm": "#E76F51",
     "unet_rep3_perfect_model_rcm": "#457B9D",
@@ -297,6 +299,11 @@ def summarize_signal(method: str, method_signal: np.ndarray, truth_signal: np.nd
     )
 
 
+def window_year_label(window: str) -> str:
+    start, end = window.split("_")
+    return f"{start[:4]}-{end[:4]}"
+
+
 def write_markdown(path: Path, rows: pd.DataFrame, exp: str, simu_test: str, var: str, unit: str, reference_window: str, future_window: str) -> None:
     cols = list(rows.columns)
     table_rows = [cols, ["---"] * len(cols)]
@@ -336,42 +343,44 @@ def plot_rows(rows: pd.DataFrame, output_png: Path, output_pdf: Path, unit: str,
     colors = [model_color(method) for method in order]
     y = np.arange(len(order))
     unit_suffix = f" [{unit}]" if unit else ""
+    rows = rows.copy()
+    rows["signal_std_bias"] = rows["method_signal_std"] - rows["truth_signal_std"]
+    rows["signal_corr_deficit"] = 1.0 - rows["signal_corr"]
+    truth_mean = float(rows["truth_signal_mean"].iloc[0])
 
-    fig, axes = plt.subplots(2, 2, figsize=(15, 9), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
     fig.suptitle(
-        f"Perfect-model climate-change signal: {reference_window[:4]}-{reference_window[-4:]} to {future_window[:4]}-{future_window[-4:]}",
+        f"Perfect-model climate-change signal: {window_year_label(reference_window)} to {window_year_label(future_window)}",
         fontsize=15,
         fontweight="bold",
     )
 
-    axes[0, 0].barh(y, rows["signal_mean"], color=colors)
-    axes[0, 0].axvline(rows["truth_signal_mean"].iloc[0], color="#111111", lw=1.5, ls="--", label="Pseudo-truth signal mean")
-    axes[0, 0].set_title("Mean climate-change signal")
-    axes[0, 0].set_xlabel(f"Future mean - reference mean{unit_suffix}")
+    axes[0, 0].barh(y, rows["signal_bias_mean"], color=colors)
+    axes[0, 0].axvline(0, color="#111111", lw=1.2)
+    axes[0, 0].set_title(f"Mean warming error vs pseudo-truth ({truth_mean:.2f}{unit_suffix})")
+    axes[0, 0].set_xlabel(f"Method signal - truth signal{unit_suffix}")
     axes[0, 0].set_yticks(y, labels)
     axes[0, 0].invert_yaxis()
     axes[0, 0].grid(axis="x", alpha=0.25)
-    axes[0, 0].legend(frameon=False)
 
-    axes[0, 1].barh(y, rows["signal_bias_mean"], color=colors)
-    axes[0, 1].axvline(0, color="#111111", lw=1.2)
-    axes[0, 1].set_title("Mean signal bias vs pseudo-truth")
-    axes[0, 1].set_xlabel(f"Method signal - truth signal{unit_suffix}")
+    axes[0, 1].barh(y, rows["signal_rmse"], color=colors)
+    axes[0, 1].set_title("Signal-field RMSE vs pseudo-truth")
+    axes[0, 1].set_xlabel(f"RMSE{unit_suffix}")
     axes[0, 1].set_yticks(y, labels)
     axes[0, 1].invert_yaxis()
     axes[0, 1].grid(axis="x", alpha=0.25)
 
-    axes[1, 0].barh(y, rows["signal_rmse"], color=colors)
-    axes[1, 0].set_title("Signal-field RMSE vs pseudo-truth")
-    axes[1, 0].set_xlabel(f"RMSE{unit_suffix}")
+    axes[1, 0].barh(y, rows["signal_corr_deficit"], color=colors)
+    axes[1, 0].set_title("Spatial-correlation deficit")
+    axes[1, 0].set_xlabel("1 - correlation")
     axes[1, 0].set_yticks(y, labels)
     axes[1, 0].invert_yaxis()
     axes[1, 0].grid(axis="x", alpha=0.25)
 
-    axes[1, 1].barh(y, rows["signal_corr"], color=colors)
-    axes[1, 1].set_title("Signal-field spatial correlation")
-    axes[1, 1].set_xlabel("Correlation")
-    axes[1, 1].set_xlim(min(-0.05, float(rows["signal_corr"].min()) - 0.05), 1.0)
+    axes[1, 1].barh(y, rows["signal_std_bias"], color=colors)
+    axes[1, 1].axvline(0, color="#111111", lw=1.2)
+    axes[1, 1].set_title("Spatial variability of the signal")
+    axes[1, 1].set_xlabel(f"Method signal std - truth signal std{unit_suffix}")
     axes[1, 1].set_yticks(y, labels)
     axes[1, 1].invert_yaxis()
     axes[1, 1].grid(axis="x", alpha=0.25)
