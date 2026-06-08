@@ -9,6 +9,12 @@ import os
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    from iriscc import settings_local as _settings_local
+except ImportError:  # pragma: no cover - optional local user configuration
+    _settings_local = None
+
 try:
     import cartopy.crs as ccrs
 except ModuleNotFoundError:  # pragma: no cover - optional runtime dependency
@@ -20,8 +26,20 @@ except ModuleNotFoundError:  # pragma: no cover - optional runtime dependency
     pyproj = None
 
 
+def local_setting(name: str, default=None):
+    if _settings_local is None:
+        return default
+    paths = getattr(_settings_local, "PATHS", {})
+    if name in paths:
+        return paths[name]
+    return getattr(_settings_local, name, default)
+
+
 def env_path(name: str, default: Path | str) -> Path:
-    return Path(os.getenv(name, str(default))).expanduser()
+    configured = os.getenv(name)
+    if configured is None:
+        configured = local_setting(name, default)
+    return Path(str(configured)).expanduser()
 
 
 def _user_scratch_root() -> Path:
@@ -32,12 +50,18 @@ def _user_scratch_root() -> Path:
 def default_runtime_root() -> Path:
     if "IDOWNSCALE_RUNTIME_ROOT" in os.environ:
         return env_path("IDOWNSCALE_RUNTIME_ROOT", _user_scratch_root() / "idownscale_runtime")
+    local_runtime = local_setting("IDOWNSCALE_RUNTIME_ROOT")
+    if local_runtime is not None:
+        return Path(str(local_runtime)).expanduser()
     return _user_scratch_root() / "idownscale_runtime"
 
 
 def default_raw_dir() -> Path:
     if "IDOWNSCALE_RAW_DIR" in os.environ:
         return env_path("IDOWNSCALE_RAW_DIR", PROJECT_ROOT / "rawdata")
+    local_raw = local_setting("IDOWNSCALE_RAW_DIR")
+    if local_raw is not None:
+        return Path(str(local_raw)).expanduser()
     repo_raw = PROJECT_ROOT / "rawdata"
     if repo_raw.exists():
         return repo_raw
@@ -47,6 +71,9 @@ def default_raw_dir() -> Path:
 def default_output_dir() -> Path:
     if "IDOWNSCALE_OUTPUT_DIR" in os.environ:
         return env_path("IDOWNSCALE_OUTPUT_DIR", RUNTIME_ROOT / "idownscale_output")
+    local_output = local_setting("IDOWNSCALE_OUTPUT_DIR")
+    if local_output is not None:
+        return Path(str(local_output)).expanduser()
     return RUNTIME_ROOT / "idownscale_output"
 
 
@@ -60,7 +87,7 @@ def safe_mkdir(directory: Path) -> None:
 
 
 def env_str(name: str, default: str) -> str:
-    return os.getenv(name, default)
+    return os.getenv(name, str(local_setting(name, default)))
 
 
 def plate_carree():
