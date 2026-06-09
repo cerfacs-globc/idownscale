@@ -32,18 +32,29 @@ def resolve_statistics_dir(sample_dir: Union[str, Path]) -> Path:
     statistics file, so fall back through a small set of compatible locations.
     """
     sample_dir = Path(sample_dir)
+    if (sample_dir / 'statistics.json').exists():
+        return sample_dir
+
+    allow_fallback = os.getenv('IDOWNSCALE_ALLOW_STATISTICS_FALLBACK', '').lower() in {'1', 'true', 'yes', 'on'}
+    if not allow_fallback:
+        raise FileNotFoundError(
+            f"Missing statistics.json in {sample_dir}. "
+            "Compute dataset/run statistics first, or set IDOWNSCALE_ALLOW_STATISTICS_FALLBACK=1 "
+            "only for explicit archival compatibility."
+        )
+
     candidates = [sample_dir]
+
+    # Optional explicit override from the environment.
+    env_override = os.getenv('IDOWNSCALE_SAMPLE_STATS_DIR')
+    if env_override:
+        candidates.append(Path(env_override))
 
     # Current local dataset root with the same dataset basename.
     candidates.append(DATASET_DIR / sample_dir.name)
 
     # Dedicated archival override for exp5 parity work.
     candidates.append(EXP5_ARCHIVE_DATASET_DIR)
-
-    # Optional explicit override from the environment.
-    env_override = os.getenv('IDOWNSCALE_SAMPLE_STATS_DIR')
-    if env_override:
-        candidates.append(Path(env_override))
 
     seen = set()
     for candidate in candidates:
@@ -52,9 +63,10 @@ def resolve_statistics_dir(sample_dir: Union[str, Path]) -> Path:
             continue
         seen.add(candidate)
         if (candidate / 'statistics.json').exists():
+            print(f"[warn] using fallback statistics directory {candidate} for {sample_dir}", flush=True)
             return candidate
 
-    return sample_dir
+    raise FileNotFoundError(f"No statistics.json found for {sample_dir} or fallback candidates.")
 
 class StandardNormalisation():
     """
@@ -87,13 +99,14 @@ class MinMaxNormalisation():
     """
     Applies the Min-Max Normalisation applied to the data.
     """
-    def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
+    def __init__(self, sample_dir: Union[str, Path], output_norm: bool, output_range: str = 'zero_one') -> None:
         statistics_file = resolve_statistics_dir(sample_dir) / 'statistics.json'
         with open(statistics_file) as f:
             stats = json.load(f)
         self.min = [stats[channel]['min'] for channel in stats.keys()]
         self.max = [stats[channel]['max'] for channel in stats.keys()]
         self.output_norm = output_norm
+        self.output_range = output_range
     
     def __call__(self, sample: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
@@ -105,6 +118,8 @@ class MinMaxNormalisation():
         x = torch.stack(x, dim=0)
         if self.output_norm:
             y[0, :, :] = (y[0, :, :] - self.min[-1]) / (self.max[-1] - self.min[-1])
+            if self.output_range == 'minus_one_one':
+                y[0, :, :] = 2 * y[0, :, :] - 1
         return x, y
 
     
@@ -112,23 +127,28 @@ class DeMinMaxNormalisation:
     """
     Reverts the Min-Max Normalisation applied to the data.
     """
-    def __init__(self, sample_dir: Union[str, Path], output_norm: bool) -> None:
+    def __init__(self, sample_dir: Union[str, Path], output_norm: bool, output_range: str = 'zero_one') -> None:
         statistics_file = resolve_statistics_dir(sample_dir) / 'statistics.json'
         with open(statistics_file) as f:
             stats = json.load(f)
         self.min = [stats[channel]['min'] for channel in stats.keys()]
         self.max = [stats[channel]['max'] for channel in stats.keys()]
         self.output_norm = output_norm
+        self.output_range = output_range
 
     def __call__(self, sample: Tuple[Union[bool, torch.Tensor], torch.Tensor]) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         x, y = sample
         if x is False:
+            if self.output_range == 'minus_one_one':
+                y[0, :, :] = (y[0, :, :] + 1) / 2
             y[0, :, :] = y[0, :, :] * (self.max[-1] - self.min[-1]) + self.min[-1]
             return torch.tensor(y)
         else:
             x = [x[C, :, :] * (self.max[C] - self.min[C]) + self.min[C] for C in range(len(x))]
             x = torch.stack(x, axis=0)
             if self.output_norm:
+                if self.output_range == 'minus_one_one':
+                    y[0, :, :] = (y[0, :, :] + 1) / 2
                 y[0, :, :] = y[0, :, :] * (self.max[-1] - self.min[-1]) + self.min[-1]
             return torch.tensor(x), torch.tensor(y)
             

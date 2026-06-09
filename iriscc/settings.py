@@ -403,6 +403,8 @@ def get_dataset_variant_dir(exp: str, variant: str) -> Path:
 
 def get_evaluation_sample_dir(exp: str, test_name: str, simu_test: str | None = None) -> Path | None:
     if CONFIG.get(exp, {}).get('target') == 'perfect_model':
+        if simu_test:
+            return get_dataset_variant_dir(exp, simu_test)
         return Path(CONFIG[exp]['dataset'])
     if test_name.startswith('baseline'):
         return DATASET_DIR / f'dataset_{exp}_baseline'

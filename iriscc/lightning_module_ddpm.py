@@ -48,20 +48,26 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
         self.output_norm = hparams['output_norm']
         os.makedirs(self.runs_dir, exist_ok=True)
 
-        self.loss = nn.MSELoss()  
+        self.loss = nn.MSELoss()
         #self.loss = MaskedMSELoss(ignore_value = hparams['fill_value'])
         self.metrics_dict = nn.ModuleDict({
                     "rmse": MaskedRMSE(ignore_value = self.fill_value),  
                     "mae": MaskedMAE(ignore_value = self.fill_value)
                 })
 
+        # The denoiser receives the noisy target plus all conditioning channels.
         self.model = CDDPM(n_steps=self.n_steps, 
                            min_beta=self.min_beta, 
                            max_beta=self.max_beta, 
                            encode_conditioning_image=False, 
-                           in_ch=hparams['in_channels'])
+                           in_ch=hparams['in_channels'] + 1)
         
-        self.denorm = DeMinMaxNormalisation(hparams['sample_dir'], self.output_norm)
+        self.output_range = hparams.get('output_range', 'zero_one')
+        self.denorm = DeMinMaxNormalisation(
+            hparams.get('statistics_dir', hparams['sample_dir']),
+            self.output_norm,
+            self.output_range,
+        )
 
         self.test_metrics = {}
         self.train_step_outputs = []
@@ -109,7 +115,8 @@ class IRISCCCDDPMLightningModule(pl.LightningModule):
 
     def common_step(self, x, y):
         eta, eta_theta = self(x, y)
-        loss = torch.sqrt(self.loss(eta_theta, eta))
+        valid = y != self.fill_value
+        loss = torch.sqrt(self.loss(eta_theta[valid], eta[valid]))
         return loss
 
     def training_step(self, batch, batch_idx):

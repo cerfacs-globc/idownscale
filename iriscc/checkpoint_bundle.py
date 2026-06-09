@@ -48,4 +48,5 @@ def activate_bundle_contract(bundle_dir: str | Path) -> dict[str, Any]:
         stats_dir = str(Path(resolved_stats).parent)
     if stats_dir:
         os.environ["IDOWNSCALE_SAMPLE_STATS_DIR"] = stats_dir
+        os.environ["IDOWNSCALE_ALLOW_STATISTICS_FALLBACK"] = "1"
     return manifest

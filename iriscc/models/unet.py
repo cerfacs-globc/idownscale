@@ -120,7 +120,7 @@ if __name__=='__main__':
     data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
     x, y = data['x'], data['y']
     transforms = v2.Compose([
-            MinMaxNormalisation(sample_dir),
+            MinMaxNormalisation(sample_dir, output_norm=False),
             LandSeaMask('france', 0),
             FillMissingValue(0),
             Pad(0)

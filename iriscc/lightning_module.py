@@ -89,7 +89,7 @@ class IRISCCLightningModule(pl.LightningModule):
         self.loss_name = hparams.get('loss', 'masked_mse')
         if self.loss_name == 'masked_gamma_mae':
             self.loss = MaskedGammaMAELoss(ignore_value=self.fill_value,
-                                           sample_dir=hparams['sample_dir'])
+                                           sample_dir=hparams.get('statistics_dir', hparams['sample_dir']))
         else :
             self.loss = MaskedMSELoss(ignore_value=self.fill_value)
         self.metrics_dict = nn.ModuleDict({

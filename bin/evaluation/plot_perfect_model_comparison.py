@@ -24,6 +24,13 @@ MODEL_LABELS = {
     "unet_rep3_perfect_model_rcm": "UNet replicate",
     "miniunet_perfect_model_rcm": "MiniUNet",
     "unet_seed2_perfect_model_rcm": "UNet cold replicate",
+    "cddpm_perfect_model_rcm": "CDDPM",
+    "unet_outputnorm_statsfix_perfect_model_rcm": "UNet + output norm",
+    "unet_statsfix_perfect_model_rcm": "UNet",
+    "unet_seed2_statsfix_perfect_model_rcm": "UNet seed 2",
+    "unet_seed3_statsfix_perfect_model_rcm": "UNet seed 3",
+    "miniunet_statsfix_perfect_model_rcm": "MiniUNet",
+    "cddpm_n1000_pm1_statsfix_perfect_model_rcm": "CDDPM",
 }
 
 MODEL_COLORS = {
@@ -34,6 +41,13 @@ MODEL_COLORS = {
     "unet_rep3_perfect_model_rcm": "#457B9D",
     "miniunet_perfect_model_rcm": "#8D6E63",
     "unet_seed2_perfect_model_rcm": "#B56576",
+    "cddpm_perfect_model_rcm": "#C77D00",
+    "unet_outputnorm_statsfix_perfect_model_rcm": "#006D77",
+    "unet_statsfix_perfect_model_rcm": "#E76F51",
+    "unet_seed2_statsfix_perfect_model_rcm": "#B56576",
+    "unet_seed3_statsfix_perfect_model_rcm": "#457B9D",
+    "miniunet_statsfix_perfect_model_rcm": "#8D6E63",
+    "cddpm_n1000_pm1_statsfix_perfect_model_rcm": "#C77D00",
 }
 
 
@@ -82,7 +96,10 @@ def grouped_window_bars(
     offsets = (np.arange(len(window_order)) - (len(window_order) - 1) / 2) * width
     indexed = df.set_index(["model", "window_label"])
     for idx, window in enumerate(window_order):
-        values = [indexed.loc[(model, window), value_col] for model in model_order]
+        values = [
+            indexed.loc[(model, window), value_col] if (model, window) in indexed.index else np.nan
+            for model in model_order
+        ]
         ax.bar(x + offsets[idx], values, width=width, label=window, color=f"C{idx}", alpha=0.82)
     if zero_line:
         ax.axhline(0, color="#222222", lw=1.1)

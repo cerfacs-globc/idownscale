@@ -51,11 +51,14 @@ TRAIN_LEARNING_RATE="${TRAIN_LEARNING_RATE:-0.0008}"
 TRAIN_MODEL="${TRAIN_MODEL:-unet}"
 TRAIN_LOSS="${TRAIN_LOSS:-}"
 TRAIN_OUTPUT_NORM="${TRAIN_OUTPUT_NORM:-0}"
+TRAIN_SEED="${TRAIN_SEED:-}"
+TRAIN_N_STEPS="${TRAIN_N_STEPS:-200}"
 PERFECT_MODEL_TARGET_SOURCE="${PERFECT_MODEL_TARGET_SOURCE:-}"
 VALIDATION_STARTDATE="${VALIDATION_STARTDATE:-}"
 VALIDATION_ENDDATE="${VALIDATION_ENDDATE:-}"
 VALIDATION_HISTORICAL_ENDDATE="${VALIDATION_HISTORICAL_ENDDATE:-}"
 VALIDATION_UNIT="${VALIDATION_UNIT:-}"
+SAMPLE_DIR="${SAMPLE_DIR:-}"
 
 CMD=(
   "${PYTHON_BIN}"
@@ -81,6 +84,14 @@ if [[ "${TRAIN_OUTPUT_NORM}" == "1" ]]; then
   CMD+=(--train-output-norm)
 fi
 
+if [[ -n "${TRAIN_SEED}" ]]; then
+  CMD+=(--train-seed "${TRAIN_SEED}")
+fi
+
+if [[ "${TRAIN_MODEL}" == "cddpm" ]]; then
+  CMD+=(--train-n-steps "${TRAIN_N_STEPS}")
+fi
+
 if [[ -n "${PERFECT_MODEL_TARGET_SOURCE}" ]]; then
   CMD+=(--perfect-model-target-source "${PERFECT_MODEL_TARGET_SOURCE}")
 fi
@@ -99,6 +110,10 @@ fi
 
 if [[ -n "${VALIDATION_UNIT}" ]]; then
   CMD+=(--validation-unit "${VALIDATION_UNIT}")
+fi
+
+if [[ -n "${SAMPLE_DIR}" ]]; then
+  CMD+=(--sample-dir "${SAMPLE_DIR}")
 fi
 
 echo "--- RCM perfect-model Kraken workflow start: $(date) ---"

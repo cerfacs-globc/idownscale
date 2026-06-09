@@ -23,20 +23,22 @@ from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
+from iriscc.inference import load_trained_module, predict_tensor
+from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
 from iriscc.settings import (CONFIG,
                              DATES_BC_TEST_HIST,
-                             RUNS_DIR, 
-                             METRICS_DIR, 
+                             RUNS_DIR,
+                             METRICS_DIR,
                              DATASET_BC_DIR,
-                             DATASET_DIR)
+                             DATASET_DIR,
+                             get_evaluation_sample_dir)
 
 
-def get_config(exp: str, 
-               test_name: str, 
+def get_config(exp: str,
+               test_name: str,
                simu_test: Optional[str],
-               checkpoint_bundle: Optional[str] = None) -> Tuple[Optional[IRISCCLightningModule], Optional[v2.Compose], str]:
+               checkpoint_bundle: Optional[str] = None,
+               device: str = 'cpu') -> Tuple[Optional[nn.Module], Optional[v2.Compose], str]:
     """
     Configure the model, transforms, and sample directory based on the experiment and test parameters.
     Args:
@@ -64,24 +66,19 @@ def get_config(exp: str,
         else:
             run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
             checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
-        model = IRISCCLightningModule.load_from_checkpoint(
-            checkpoint_dir,
-            map_location='cpu',
-            weights_only=False,
-        )
-        model.eval()
-        hparams = model.hparams['hparams']
-        
+        model, hparams = load_trained_module(checkpoint_dir, device=device)
+
+        statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
         transforms = v2.Compose([
             Log10Transform(hparams.get('channels', CONFIG[exp]['channels'])),
-            MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
+            MinMaxNormalisation(statistics_dir, hparams['output_norm']),
             LandSeaMask(hparams['mask'], hparams['fill_value']),
             FillMissingValue(hparams['fill_value']),
             Pad(hparams['fill_value'])
         ])
-        
+
         if simu_test:
-            sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'  # bc or not
+            sample_dir = get_evaluation_sample_dir(exp, test_name, simu_test) or DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'
         else:
             sample_dir = hparams['sample_dir']
     return model, transforms, sample_dir
@@ -100,7 +97,7 @@ def preprocess(date,
     Returns:
         Tuple[np.ndarray, np.ndarray]
     """
-    
+
     date_str = date.date().strftime('%Y%m%d')
     sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
     data = dict(np.load(sample, allow_pickle=True))
@@ -110,10 +107,16 @@ def preprocess(date,
     if model: # unet, unet_gcm, unet_gcm_bc
         x, y = transforms((x, y))
         x = torch.unsqueeze(x, dim=0).float()
-        y_hat = model(x.to(device)).to(device)
+        y_hat = predict_tensor(model, x, model.hparams['hparams'], device).to(device)
         y_hat = y_hat.detach().cpu()
         unpad_func = UnPad(list(CONFIG[exp]['shape']))
         y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
+        hparams = model.hparams['hparams']
+        if hparams.get('output_norm'):
+            statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+            denorm = DeMinMaxNormalisation(statistics_dir, hparams['output_norm'])
+            y = denorm((False, np.expand_dims(y, axis=0))).numpy()[0]
+            y_hat = denorm((False, np.expand_dims(y_hat, axis=0))).numpy()[0]
 
 
     else: # baseline, era5_raw, gcm_raw
@@ -131,7 +134,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
     parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'))
     parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'))
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
+    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='(e.g., gcm or gcm_bc)', default=None)
     parser.add_argument('--checkpoint-bundle', type=str, default=None, help='Optional portable checkpoint bundle directory.')
@@ -143,20 +146,20 @@ if __name__=='__main__':
     dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
 
     transforms = None
-    model, transforms, sample_dir = get_config(exp, test_name, simu_test, args.checkpoint_bundle)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model, transforms, sample_dir = get_config(exp, test_name, simu_test, args.checkpoint_bundle, device)
 
     if simu_test:
         test_name = f'{test_name}_{simu_test}'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
     os.makedirs(metric_dir, exist_ok=True)
 
-    
-    device = 'cpu'
+
     rmse = MeanSquaredError(squared=False).to(device)
     corr = PearsonCorrCoef().to(device)
 
-    rmse_temporal = []  
-    rmse_spatial = []  
+    rmse_temporal = []
+    rmse_spatial = []
     rmse_spatial_summer = []
     rmse_spatial_winter = []
     bias_spatial = []
@@ -177,10 +180,10 @@ if __name__=='__main__':
         if date.month in [1,2,12]:
             i_winter.append(i)
         date_str = date.date().strftime('%Y%m%d')
-        
-        y, y_hat = preprocess(date, 
-                              sample_dir, 
-                              model, 
+
+        y, y_hat = preprocess(date,
+                              sample_dir,
+                              model,
                               transforms)
 
         ## spatial metrics

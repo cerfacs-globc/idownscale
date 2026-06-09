@@ -34,6 +34,13 @@ MODEL_LABELS = {
     "unet_rep3_perfect_model_rcm": "UNet replicate",
     "miniunet_perfect_model_rcm": "MiniUNet",
     "unet_seed2_perfect_model_rcm": "UNet cold replicate",
+    "cddpm_perfect_model_rcm": "CDDPM",
+    "unet_outputnorm_statsfix_perfect_model_rcm": "UNet + output norm",
+    "unet_statsfix_perfect_model_rcm": "UNet",
+    "unet_seed2_statsfix_perfect_model_rcm": "UNet seed 2",
+    "unet_seed3_statsfix_perfect_model_rcm": "UNet seed 3",
+    "miniunet_statsfix_perfect_model_rcm": "MiniUNet",
+    "cddpm_n1000_pm1_statsfix_perfect_model_rcm": "CDDPM",
 }
 
 MODEL_COLORS = {
@@ -43,6 +50,13 @@ MODEL_COLORS = {
     "unet_rep3_perfect_model_rcm": "#457B9D",
     "miniunet_perfect_model_rcm": "#8D6E63",
     "unet_seed2_perfect_model_rcm": "#B56576",
+    "cddpm_perfect_model_rcm": "#C77D00",
+    "unet_outputnorm_statsfix_perfect_model_rcm": "#006D77",
+    "unet_statsfix_perfect_model_rcm": "#E76F51",
+    "unet_seed2_statsfix_perfect_model_rcm": "#B56576",
+    "unet_seed3_statsfix_perfect_model_rcm": "#457B9D",
+    "miniunet_statsfix_perfect_model_rcm": "#8D6E63",
+    "cddpm_n1000_pm1_statsfix_perfect_model_rcm": "#C77D00",
 }
 
 
@@ -268,7 +282,7 @@ def main() -> int:
     models = [model for model in MODEL_LABELS if model in set(discovered)]
     models += [model for model in discovered if model not in models]
     windows = args.window or ["20000101_20141231", "20900101_21001231"]
-    raw_sample_dir = Path(args.raw_sample_dir) if args.raw_sample_dir else Path(CONFIG[args.exp]["dataset"])
+    raw_sample_dir = Path(args.raw_sample_dir) if args.raw_sample_dir else sample_dir or Path(CONFIG[args.exp]["dataset"])
 
     first_model = next((model for model in models if not model.startswith("bc_baseline")), None)
     if first_model is None:

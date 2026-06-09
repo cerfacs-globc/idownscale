@@ -18,10 +18,10 @@ import numpy as np
 from torchvision.transforms import v2
 
 from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
-from iriscc.lightning_module import IRISCCLightningModule
+from iriscc.inference import load_trained_module, predict_tensor
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import (RUNS_DIR, 
-	                             DATASET_BC_DIR, 
+from iriscc.settings import (RUNS_DIR,
+	                             DATASET_BC_DIR,
 	                             CONFIG,
 	                             DATES_BC_TEST_FUTURE,
 	                             DATES_BC_TEST_HIST,
@@ -30,13 +30,21 @@ from iriscc.settings import (RUNS_DIR,
 from iriscc.datautils import (remove_countries,
                               Data)
 
+
+def batched(sequence, batch_size):
+    for start in range(0, len(sequence), batch_size):
+        yield start, sequence[start : start + batch_size]
+
 def get_target_metadata(exp: str, var: str, dates) -> dict:
     get_data = Data(CONFIG[exp]['domain'])
     if CONFIG[exp].get('target') == 'perfect_model':
         source_name = CONFIG[exp].get('perfect_model_target_source') or CONFIG[exp].get('rcm_source')
         if source_name:
-            with get_data._open_source_dataset(source_name, var, date=pd.Timestamp(dates[0]), ssp=CONFIG[exp].get('ssp')) as ds_source:
-                return dict(ds_source[var].attrs) if var in ds_source else {}
+            try:
+                with get_data._open_source_dataset(source_name, var, date=pd.Timestamp(dates[0]), ssp=CONFIG[exp].get('ssp')) as ds_source:
+                    return dict(ds_source[var].attrs) if var in ds_source else {}
+            except FileNotFoundError:
+                return {}
         return {}
     ds_target = get_data.get_target_dataset(
         target=CONFIG[exp]['target'],
@@ -94,7 +102,7 @@ def get_target_format(exp:str, dates, var='tas', sample_dir=None):
                                             date=reference_date,
                                             source_name=CONFIG[exp].get('target_source'))
     y = ds_target[var].values
-    
+
     if 'x' in ds_target.dims:
         ds = xr.Dataset(
             data_vars={var: (['time', 'y', 'x'], np.empty((len(dates), y.shape[0], y.shape[1])), attrs)},
@@ -122,6 +130,7 @@ if __name__=='__main__':
     parser.add_argument('--var', type=str, default=None, help='Variable to predict. Defaults to the experiment target variable.')
     parser.add_argument('--checkpoint-bundle', type=str, default=None, help='Optional portable checkpoint bundle directory.')
     parser.add_argument('--sample-dir', type=str, default=None, help='Optional explicit sample directory for prediction.')
+    parser.add_argument('--batch-size', type=int, default=None, help='Prediction batch size. Defaults to training batch size.')
     args = parser.parse_args()
 
 
@@ -133,22 +142,17 @@ if __name__=='__main__':
         checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = IRISCCLightningModule.load_from_checkpoint(
-        checkpoint_dir,
-        map_location=device,
-        weights_only=False,
-    )
-    model.to(device)
-    model.eval()
-    hparams = model.hparams['hparams']
+    model, hparams = load_trained_module(checkpoint_dir, device=device)
 
+    statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
     transforms = v2.Compose([
-                MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
+                MinMaxNormalisation(statistics_dir, hparams['output_norm'], hparams.get('output_range', 'zero_one')),
                 LandSeaMask(hparams['mask'], hparams['fill_value']),
                 FillMissingValue(hparams['fill_value']),
                 Pad(hparams['fill_value'])
                 ])
-    denorm = DeMinMaxNormalisation(hparams['sample_dir'], hparams['output_norm'])
+    output_range = hparams.get('output_range', 'zero_one')
+    denorm = DeMinMaxNormalisation(statistics_dir, hparams['output_norm'], output_range)
 
     sample_dir = hparams['sample_dir']
     if args.simu_test is not None:
@@ -159,7 +163,7 @@ if __name__=='__main__':
     if args.sample_dir:
         sample_dir = Path(args.sample_dir)
 
-    
+
     startdate = args.startdate
     enddate = args.enddate
     var = args.var or CONFIG[args.exp]['target_vars'][0]
@@ -167,29 +171,41 @@ if __name__=='__main__':
     ds, y = get_target_format(args.exp, dates=dates, var=var, sample_dir=Path(sample_dir))
     ds.attrs.update(prediction_provenance_attrs(args.exp, var, args.simu_test, test_name, Path(sample_dir)))
     target_template = np.expand_dims(y, axis=0)
-    
-    for i, date in enumerate(dates):
-        print(date)
-        date_str = date.date().strftime('%Y%m%d')
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
-        data = dict(np.load(sample, allow_pickle=True))
+    batch_size = args.batch_size or int(hparams.get("batch_size", 1)) or 1
+    batch_size = max(1, batch_size)
+    unpad_func = UnPad(list(target_template.shape[1:]))
 
-        x = data['x']
-        target_shape = list(data['y'].shape[1:]) if 'y' in data else list(target_template.shape[1:])
+    for batch_start, batch_dates in batched(list(dates), batch_size):
+        print(f"{batch_dates[0]} to {batch_dates[-1]}")
+        xs = []
+        masks = []
+        target_shapes = []
+        for date in batch_dates:
+            date_str = date.date().strftime('%Y%m%d')
+            sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+            data = dict(np.load(sample, allow_pickle=True))
 
-        x, y_mask = transforms((x, target_template.copy()))
-        condition = y_mask[0] == 0
-        x = torch.unsqueeze(x, dim=0).float()
-        with torch.no_grad():
-            y_hat = model(x.to(device))
-        y_hat = y_hat.detach().cpu()
+            x = data['x']
+            target_shape = list(data['y'].shape[1:]) if 'y' in data else list(target_template.shape[1:])
+            x, y_mask = transforms((x, target_template.copy()))
+            xs.append(x)
+            masks.append(y_mask[0] == 0)
+            target_shapes.append(target_shape)
 
-        unpad_func = UnPad(target_shape)
-        y_hat = unpad_func(y_hat[0])[0].numpy()
-        if hparams['output_norm']:
-            y_hat = denorm((False, np.expand_dims(y_hat, axis=0))).numpy()[0]
-        y_hat[condition] = np.nan
-        ds[var][i] = y_hat
+        if len({tuple(shape) for shape in target_shapes}) != 1:
+            raise ValueError(f"Cannot batch variable target shapes: {target_shapes}")
+
+        x_batch = torch.stack(xs, dim=0).float()
+        y_hat_batch = predict_tensor(model, x_batch, hparams, device).detach().cpu()
+
+        for offset, condition in enumerate(masks):
+            y_hat = unpad_func(y_hat_batch[offset])[0].numpy()
+            if hparams['output_norm']:
+                if output_range == 'minus_one_one':
+                    y_hat = np.clip(y_hat, -1, 1)
+                y_hat = denorm((False, np.expand_dims(y_hat, axis=0))).numpy()[0]
+            y_hat[condition] = np.nan
+            ds[var][batch_start + offset] = y_hat
 
     ds.to_netcdf(
         get_prediction_output_path(
@@ -202,4 +218,3 @@ if __name__=='__main__':
             ssp=CONFIG[args.exp].get('ssp'),
         )
     )
-    

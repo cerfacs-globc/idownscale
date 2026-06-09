@@ -117,7 +117,9 @@ class CUNet(nn.Module):
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = dec1 + self.time_fc_dec1(t).reshape(dec1.size(0), -1, 1, 1)
         dec1 = self.decoder1(dec1)
-        return torch.sigmoid(self.conv(dec1))
+        # DDPM training predicts Gaussian noise, so the denoising head must be
+        # an unconstrained regression output rather than a bounded image value.
+        return self.conv(dec1)
 
     def _make_sinusoidal_embedding(self, dim_in, dim_out):
         # Returns the standard positional embedding
@@ -174,7 +176,7 @@ if __name__=='__main__':
     data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
     conditionning_image, y = data['x'], data['y']
     transforms = v2.Compose([
-            MinMaxNormalisation(sample_dir),
+            MinMaxNormalisation(sample_dir, output_norm=False),
             LandSeaMask('france', 0),
             FillMissingValue(0),
             Pad(0)

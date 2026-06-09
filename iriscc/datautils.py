@@ -229,7 +229,7 @@ def reformat_as_target(ds:xr.Dataset,
        ds_target = target_file
     
     if 'time' in ds_target.dims:
-       ds_target = ds_target.isel(time=0)
+       ds_target = ds_target.isel(time=0, drop=True)
     
     # v48 Plugin Target: Standardized according to dataset type (EOBS/SAFRAN)
     if 'safran' in str(target_file).lower():

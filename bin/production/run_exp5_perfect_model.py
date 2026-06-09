@@ -68,10 +68,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--python-bin", default=sys.executable)
     parser.add_argument("--train-max-epoch", type=int, default=30)
     parser.add_argument("--train-batch-size", type=int, default=32)
+    parser.add_argument("--predict-batch-size", type=int, default=None)
     parser.add_argument("--train-learning-rate", type=float, default=8e-4)
     parser.add_argument("--train-model", default="unet")
     parser.add_argument("--train-loss", default=None)
     parser.add_argument("--train-output-norm", action="store_true")
+    parser.add_argument("--train-seed", type=int, default=None)
+    parser.add_argument("--train-n-steps", type=int, default=200)
     parser.add_argument("--sample-dir", default=None, help="Optional perfect-model sample directory override.")
     parser.add_argument("--perfect-model-target-source", default=None, help="Optional native target source override for perfect-model sample generation.")
     parser.add_argument("--validation-startdate", default=None, help="Optional start date for training-sample validation.")
@@ -133,6 +136,7 @@ def main() -> int:
     validation_end = args.validation_enddate or hist_end
     validation_historical_end = args.validation_historical_enddate or hist_end
     perfect_model_target_source = args.perfect_model_target_source or CONFIG[args.exp].get("perfect_model_target_source", "rcm_aladin")
+    train_output_norm = args.train_output_norm or args.train_model == "cddpm"
 
     perfect_dataset_dir = Path(args.sample_dir) if args.sample_dir else Path(CONFIG[args.exp]["dataset"])
     eval_dataset_dir = DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu}"
@@ -302,7 +306,9 @@ def main() -> int:
                 "--skip-test",
             ]
             + (["--loss", args.train_loss] if args.train_loss else [])
-            + (["--output-norm"] if args.train_output_norm else []),
+            + (["--output-norm"] if train_output_norm else [])
+            + (["--seed", str(args.train_seed)] if args.train_seed is not None else [])
+            + (["--n-steps", str(args.train_n_steps)] if args.train_model == "cddpm" else []),
             "expected": [runs_dir / "lightning_logs" / "version_best" / "metrics.csv"],
             "cleanup": [runs_dir],
         },
@@ -322,7 +328,8 @@ def main() -> int:
                 hist_start,
                 "--enddate",
                 hist_end,
-            ],
+            ]
+            + (["--batch-size", str(args.predict_batch_size)] if args.predict_batch_size is not None else []),
             "expected": [prediction_path],
             "cleanup": [prediction_path],
         },
@@ -345,6 +352,8 @@ def main() -> int:
                 "--enddate",
                 hist_end,
                 "--sample-dir",
+                str(eval_dataset_dir),
+                "--raw-sample-dir",
                 str(eval_dataset_dir),
                 "--output-dir",
                 str(comparison_output_dir / "chunks"),
@@ -427,6 +436,8 @@ def main() -> int:
                 args.validation_unit,
                 "--sample-dir",
                 str(eval_dataset_dir),
+                "--raw-sample-dir",
+                str(eval_dataset_dir),
                 "--input-csv",
                 str(comparison_output_dir / f"{combined_comparison_stem}.csv"),
                 "--window",
@@ -444,17 +455,25 @@ def main() -> int:
         "metrics_ml_day": {
             "command": [
                 args.python_bin,
-                "bin/evaluation/compute_test_metrics_day.py",
+                "bin/evaluation/compute_prediction_file_metrics.py",
                 "--exp",
                 args.exp,
                 "--test-name",
                 args.test_name,
                 "--simu-test",
                 args.simu,
+                "--var",
+                args.var,
                 "--startdate",
                 hist_start,
                 "--enddate",
                 hist_end,
+                "--sample-dir",
+                str(eval_dataset_dir),
+                "--prediction-path",
+                str(prediction_path),
+                "--frequency",
+                "daily",
             ],
             "expected": [
                 METRICS_DIR / args.exp / "mean_metrics" / f"metrics_test_mean_daily_{args.exp}_{metrics_test_name}.csv",
@@ -467,17 +486,25 @@ def main() -> int:
         "metrics_ml_month": {
             "command": [
                 args.python_bin,
-                "bin/evaluation/compute_test_metrics_month.py",
+                "bin/evaluation/compute_prediction_file_metrics.py",
                 "--exp",
                 args.exp,
                 "--test-name",
                 args.test_name,
                 "--simu-test",
                 args.simu,
+                "--var",
+                args.var,
                 "--startdate",
                 hist_start,
                 "--enddate",
                 hist_end,
+                "--sample-dir",
+                str(eval_dataset_dir),
+                "--prediction-path",
+                str(prediction_path),
+                "--frequency",
+                "monthly",
             ],
             "expected": [
                 METRICS_DIR / args.exp / "mean_metrics" / f"metrics_test_mean_monthly_{args.exp}_{metrics_test_name}.csv",
@@ -510,17 +537,27 @@ def main() -> int:
         "metrics_rcm_day": {
             "command": [
                 args.python_bin,
-                "bin/evaluation/compute_test_metrics_day_rcm.py",
+                "bin/evaluation/compute_prediction_file_metrics.py",
                 "--exp",
                 args.exp,
                 "--test-name",
                 args.test_name,
                 "--simu-test",
                 args.simu,
+                "--var",
+                args.var,
                 "--startdate",
                 hist_start,
                 "--enddate",
                 hist_end,
+                "--sample-dir",
+                str(eval_dataset_dir),
+                "--prediction-path",
+                str(prediction_path),
+                "--frequency",
+                "daily",
+                "--suffix",
+                "_pp",
             ],
             "expected": [METRICS_DIR / args.exp / "mean_metrics" / f"metrics_test_mean_daily_{args.exp}_{metrics_test_name}_pp.csv"],
             "cleanup": [
@@ -531,17 +568,27 @@ def main() -> int:
         "metrics_rcm_month": {
             "command": [
                 args.python_bin,
-                "bin/evaluation/compute_test_metrics_month_rcm.py",
+                "bin/evaluation/compute_prediction_file_metrics.py",
                 "--exp",
                 args.exp,
                 "--test-name",
                 args.test_name,
                 "--simu-test",
                 args.simu,
+                "--var",
+                args.var,
                 "--startdate",
                 hist_start,
                 "--enddate",
                 hist_end,
+                "--sample-dir",
+                str(eval_dataset_dir),
+                "--prediction-path",
+                str(prediction_path),
+                "--frequency",
+                "monthly",
+                "--suffix",
+                "_pp",
             ],
             "expected": [METRICS_DIR / args.exp / "mean_metrics" / f"metrics_test_mean_monthly_{args.exp}_{metrics_test_name}_pp.csv"],
             "cleanup": [
