@@ -34,13 +34,19 @@ def load_trained_module(checkpoint_path: str | Path, device: str | torch.device 
     return module, hparams
 
 
-def predict_tensor(module, x: torch.Tensor, hparams: dict, device: str | torch.device):
+def predict_tensor(module, x: torch.Tensor, hparams: dict, device: str | torch.device, num_samples: int = 1):
     model_name = hparams.get("model", "unet")
     with torch.no_grad():
         if model_name == "cddpm":
-            return module.model.sampling(
-                start_t=module.model.n_steps,
-                conditioning_image=x.to(device),
-                eta=None,
-            )
+            draws = [
+                module.model.sampling(
+                    start_t=module.model.n_steps,
+                    conditioning_image=x.to(device),
+                    eta=None,
+                )
+                for _ in range(max(1, int(num_samples)))
+            ]
+            if len(draws) == 1:
+                return draws[0]
+            return torch.stack(draws, dim=0).mean(dim=0)
         return module(x.to(device))

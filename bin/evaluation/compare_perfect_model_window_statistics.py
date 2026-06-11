@@ -22,6 +22,8 @@ from iriscc.settings import (
     GRAPHS_DIR,
     METRICS_DIR,
     PREDICTION_DIR,
+    get_input_channel_index,
+    get_target_channel_index,
     get_bias_corrected_netcdf_path,
     normalize_bc_tag,
 )
@@ -109,11 +111,7 @@ def resolve_bc_methods(args: argparse.Namespace) -> list[tuple[str, str]]:
 
 
 def resolve_channel_indices(exp: str, var: str) -> tuple[int, int]:
-    input_vars = CONFIG[exp].get("input_vars", [])
-    target_vars = CONFIG[exp].get("target_vars", [])
-    input_index = input_vars.index(var) if var in input_vars else max(len(input_vars) - 1, 0)
-    target_index = target_vars.index(var) if var in target_vars else 0
-    return input_index, target_index
+    return get_input_channel_index(exp, var), get_target_channel_index(exp, var)
 
 
 def get_var_metadata(path: Path, var: str, fallback_unit: str | None) -> tuple[str, str]:

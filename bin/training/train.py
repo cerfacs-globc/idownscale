@@ -9,6 +9,7 @@ import argparse
 import os
 import shutil
 import sys
+from pathlib import Path
 sys.path.append('.')
 
 import torch
@@ -25,6 +26,7 @@ from iriscc.dataloaders import get_dataloaders
 from iriscc.hparams import IRISCCHyperParameters
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 
 
 def prepare_normalization_statistics(hparams: IRISCCHyperParameters) -> None:
@@ -64,6 +66,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    start_time = utc_now_iso()
     args = parse_args()
     torch.set_float32_matmul_precision('high')
     if args.seed is not None:
@@ -87,6 +90,27 @@ def main() -> int:
         output_range="minus_one_one" if args.model == "cddpm" else "zero_one",
     )
     prepare_normalization_statistics(hparams)
+    resolved_settings = {
+        "exp": args.exp,
+        "model": args.model,
+        "channels": hparams.channels,
+        "in_channels": hparams.in_channels,
+        "sample_dir": hparams.sample_dir,
+        "statistics_dir": hparams.statistics_dir,
+        "runs_dir": hparams.runs_dir,
+        "output_norm": hparams.output_norm,
+        "output_range": hparams.output_range,
+    }
+    print_resolved_context(
+        script_name="train.py",
+        parameters=vars(args),
+        settings=resolved_settings,
+        inputs={
+            "sample_dir": hparams.sample_dir,
+            "statistics_json": hparams.statistics_dir / "statistics.json",
+        },
+        outputs={"runs_dir": hparams.runs_dir},
+    )
 
     train_dataloader = get_dataloaders('train', hparams)
     val_dataloader = get_dataloaders('val', hparams)
@@ -147,6 +171,24 @@ def main() -> int:
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
     if not skip_test:
         trainer.test(model, dataloaders=test_dataloader, ckpt_path='best')
+    prov_path = write_provjson(
+        hparams.runs_dir / "provenance_train.prov.json",
+        build_prov_bundle(
+            script_name="train.py",
+            activity_type="training",
+            start_time=start_time,
+            end_time=utc_now_iso(),
+            parameters=vars(args),
+            settings=resolved_settings,
+            inputs={
+                "sample_dir": hparams.sample_dir,
+                "statistics_json": hparams.statistics_dir / "statistics.json",
+            },
+            outputs={"runs_dir": hparams.runs_dir},
+            cwd=Path(__file__).resolve().parents[2],
+        ),
+    )
+    print(f"provenance_provjson={prov_path}", flush=True)
     return 0
 
 

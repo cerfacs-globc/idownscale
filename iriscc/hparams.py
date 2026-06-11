@@ -36,7 +36,7 @@ class IRISCCHyperParameters():
     ):
         cfg = CONFIG[exp]
         self.img_size = cfg['shape']
-        self.in_channels = len(cfg['input_vars'])
+        self.in_channels = len(cfg['channels']) - 1
         self.mask = mask
         self.learning_rate = learning_rate
         self.batch_size = batch_size

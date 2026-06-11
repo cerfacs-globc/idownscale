@@ -4,16 +4,8 @@ import sys
 sys.path.append('.')
 
 from collections import OrderedDict
-from pathlib import Path
-
 import torch
 import torch.nn as nn
-
-import numpy as np 
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.plotutils import plot_test
-from iriscc.settings import DATASET_DIR, GRAPHS_DIR
-from torchvision.transforms import v2
 
 class UNet(nn.Module):
 
@@ -113,23 +105,8 @@ class UNet(nn.Module):
         )
 
 if __name__=='__main__':
-    model = UNet(in_channels=2, out_channels=1, init_features=32)
-    model = model.float()
-
-    sample_dir = DATASET_DIR / 'dataset_exp3_30y'
-    data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
-    x, y = data['x'], data['y']
-    transforms = v2.Compose([
-            MinMaxNormalisation(sample_dir, output_norm=False),
-            LandSeaMask('france', 0),
-            FillMissingValue(0),
-            Pad(0)
-            ])
-    
-    x, y = transforms((x,y))
-    x = np.expand_dims(x, axis=0)
-    x = torch.tensor(x)
-    y_hat = model(x.float())
-    print(y_hat)
-    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', GRAPHS_DIR / 'test4.png')
+    model = UNet(in_channels=3, out_channels=1, init_features=32).float()
+    x = torch.randn(1, 3, 64, 64)
+    y_hat = model(x)
+    print(y_hat.shape)
     

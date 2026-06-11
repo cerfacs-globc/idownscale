@@ -416,6 +416,28 @@ def get_evaluation_sample_dir(exp: str, test_name: str, simu_test: str | None = 
         return get_dataset_variant_dir(exp, simu_test)
     return None
 
+
+def get_input_channel_index(exp: str, var: str | None = None) -> int:
+    cfg = CONFIG[exp]
+    if "raw_input_channel_index" in cfg:
+        return int(cfg["raw_input_channel_index"])
+    input_vars = cfg.get("input_vars", [])
+    if var is not None and var in input_vars:
+        return int(input_vars.index(var))
+    return max(len(input_vars) - 1, 0)
+
+
+def get_bc_input_channel_index(exp: str) -> int | None:
+    value = CONFIG[exp].get("bc_input_channel_index")
+    return None if value is None else int(value)
+
+
+def get_target_channel_index(exp: str, var: str | None = None) -> int:
+    target_vars = CONFIG[exp].get("target_vars", [])
+    if var is not None and var in target_vars:
+        return int(target_vars.index(var))
+    return 0
+
 # Results redirected to OUTPUT_DIR
 DATASET_DIR = env_path('IDOWNSCALE_DATASET_DIR', OUTPUT_DIR / 'datasets')
 DATASET_EXP1_DIR = DATASET_DIR / 'dataset_exp1'
@@ -681,6 +703,8 @@ CONFIG['perfect_model_rcm'] = {
     'target_source': 'rcm_aladin',
     'dataset': DATASET_BC_DIR / 'dataset_perfect_model_rcm',
     'perfect_model_input_source': 'rcm_aladin',
+    'perfect_model_condition_on_bc': True,
+    'perfect_model_conditioning_bc_tag': None,
     'perfect_model_input_resolution': '150km',
     'perfect_model_input_grid_source': 'gcm_cnrm_cm6_1',
     'perfect_model_input_coarse_method': 'conservative_normed',
@@ -688,5 +712,8 @@ CONFIG['perfect_model_rcm'] = {
     'perfect_model_target_source': 'rcm_aladin',
     'perfect_model_target_resolution': 'native',
     'perfect_model_target_method': 'conservative_normed',
-    'channels': ['elevation', 'degraded model input', 'native model target'],
+    'input_vars': ['elevation', 'tas_coarse', 'tas_bc'],
+    'channels': ['elevation', 'degraded model input', 'bias-corrected model input', 'native model target'],
+    'raw_input_channel_index': 1,
+    'bc_input_channel_index': 2,
 }

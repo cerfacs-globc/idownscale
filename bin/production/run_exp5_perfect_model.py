@@ -30,6 +30,7 @@ from iriscc.settings import (
     get_prediction_output_path,
     get_value_metrics_output_path,
 )
+from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 
 
 DEFAULT_STEPS = [
@@ -69,6 +70,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-max-epoch", type=int, default=30)
     parser.add_argument("--train-batch-size", type=int, default=32)
     parser.add_argument("--predict-batch-size", type=int, default=None)
+    parser.add_argument("--predict-num-samples", type=int, default=1)
     parser.add_argument("--train-learning-rate", type=float, default=8e-4)
     parser.add_argument("--train-model", default="unet")
     parser.add_argument("--train-loss", default=None)
@@ -76,6 +78,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-seed", type=int, default=None)
     parser.add_argument("--train-n-steps", type=int, default=200)
     parser.add_argument("--sample-dir", default=None, help="Optional perfect-model sample directory override.")
+    parser.add_argument("--eval-sample-dir", default=None, help="Optional evaluation sample directory override for prediction and comparison.")
     parser.add_argument("--perfect-model-target-source", default=None, help="Optional native target source override for perfect-model sample generation.")
     parser.add_argument("--validation-startdate", default=None, help="Optional start date for training-sample validation.")
     parser.add_argument("--validation-enddate", default=None, help="Optional end date for training-sample validation.")
@@ -127,6 +130,7 @@ def run_step(
 
 
 def main() -> int:
+    start_time = utc_now_iso()
     args = parse_args()
     steps = resolve_steps(args.steps)
     train_start = yyyymmdd(DATES_BC_TRAIN_HIST[0])
@@ -139,7 +143,7 @@ def main() -> int:
     train_output_norm = args.train_output_norm or args.train_model == "cddpm"
 
     perfect_dataset_dir = Path(args.sample_dir) if args.sample_dir else Path(CONFIG[args.exp]["dataset"])
-    eval_dataset_dir = DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu}"
+    eval_dataset_dir = Path(args.eval_sample_dir) if args.eval_sample_dir else DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu}"
     runs_dir = RUNS_DIR / args.exp / args.test_name
     metrics_test_name = f"{args.test_name}_{args.simu}"
     prediction_path = get_prediction_output_path(
@@ -156,6 +160,30 @@ def main() -> int:
     validation_train_stem = f"perfect_model_samples_{args.exp}_{args.simu}_{validation_start}_{validation_end}"
     validation_eval_stem = f"perfect_model_samples_{args.exp}_{args.simu}_{hist_start}_{hist_end}"
     combined_comparison_stem = f"perfect_model_predictions_vs_truth_{args.exp}_combined_{args.simu}"
+    resolved_settings = {
+        "exp": args.exp,
+        "steps": steps,
+        "perfect_dataset_dir": perfect_dataset_dir,
+        "eval_dataset_dir": eval_dataset_dir,
+        "runs_dir": runs_dir,
+        "prediction_path": prediction_path,
+        "perfect_model_target_source": perfect_model_target_source,
+        "train_output_norm": train_output_norm,
+    }
+    print_resolved_context(
+        script_name="run_exp5_perfect_model.py",
+        parameters=vars(args),
+        settings=resolved_settings,
+        inputs={
+            "perfect_dataset_dir": perfect_dataset_dir,
+            "eval_dataset_dir": eval_dataset_dir,
+        },
+        outputs={
+            "runs_dir": runs_dir,
+            "prediction_path": prediction_path,
+            "comparison_output_dir": comparison_output_dir,
+        },
+    )
     step_table = {
         "build_train_dataset": {
             "command": [
@@ -173,6 +201,7 @@ def main() -> int:
                 perfect_model_target_source,
                 "--include-train-hist",
                 "--historical-only",
+                "--skip-existing",
                 "--output_dir",
                 str(perfect_dataset_dir),
             ],
@@ -198,6 +227,9 @@ def main() -> int:
                 "--perfect-model-target-source",
                 perfect_model_target_source,
                 "--historical-only",
+                "--skip-existing",
+                "--output_dir",
+                str(eval_dataset_dir),
             ],
             "expected": [
                 eval_dataset_dir / f"sample_{hist_start}.npz",
@@ -328,6 +360,10 @@ def main() -> int:
                 hist_start,
                 "--enddate",
                 hist_end,
+                "--num-samples",
+                str(args.predict_num_samples),
+                "--sample-dir",
+                str(eval_dataset_dir),
             ]
             + (["--batch-size", str(args.predict_batch_size)] if args.predict_batch_size is not None else []),
             "expected": [prediction_path],
@@ -612,6 +648,28 @@ def main() -> int:
             dry_run=args.dry_run,
         )
 
+    prov_path = write_provjson(
+        comparison_output_dir / f"workflow_{args.test_name}.prov.json",
+        build_prov_bundle(
+            script_name="run_exp5_perfect_model.py",
+            activity_type="workflow",
+            start_time=start_time,
+            end_time=utc_now_iso(),
+            parameters=vars(args),
+            settings=resolved_settings,
+            inputs={
+                "perfect_dataset_dir": perfect_dataset_dir,
+                "eval_dataset_dir": eval_dataset_dir,
+            },
+            outputs={
+                "runs_dir": runs_dir,
+                "prediction_path": prediction_path,
+                "comparison_output_dir": comparison_output_dir,
+            },
+            cwd=PROJECT_ROOT,
+        ),
+    )
+    print(f"provenance_provjson={prov_path}", flush=True)
     print("[done] RCM perfect-model workflow finished")
     return 0
 
