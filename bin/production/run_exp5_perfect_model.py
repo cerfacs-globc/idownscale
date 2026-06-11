@@ -79,6 +79,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-n-steps", type=int, default=200)
     parser.add_argument("--sample-dir", default=None, help="Optional perfect-model sample directory override.")
     parser.add_argument("--eval-sample-dir", default=None, help="Optional evaluation sample directory override for prediction and comparison.")
+    parser.add_argument("--work-startdate", default=None, help="Optional YYYYMMDD override for prediction/comparison/metrics start date.")
+    parser.add_argument("--work-enddate", default=None, help="Optional YYYYMMDD override for prediction/comparison/metrics end date.")
     parser.add_argument("--perfect-model-target-source", default=None, help="Optional native target source override for perfect-model sample generation.")
     parser.add_argument("--validation-startdate", default=None, help="Optional start date for training-sample validation.")
     parser.add_argument("--validation-enddate", default=None, help="Optional end date for training-sample validation.")
@@ -136,6 +138,8 @@ def main() -> int:
     train_start = yyyymmdd(DATES_BC_TRAIN_HIST[0])
     hist_start = yyyymmdd(DATES_BC_TEST_HIST[0])
     hist_end = yyyymmdd(DATES_BC_TEST_HIST[-1])
+    work_start = args.work_startdate or hist_start
+    work_end = args.work_enddate or hist_end
     validation_start = args.validation_startdate or train_start
     validation_end = args.validation_enddate or hist_end
     validation_historical_end = args.validation_historical_enddate or hist_end
@@ -151,8 +155,8 @@ def main() -> int:
         args.exp,
         args.simu,
         args.var,
-        hist_start,
-        hist_end,
+        work_start,
+        work_end,
         metrics_test_name,
         ssp=args.ssp,
     )
@@ -170,6 +174,7 @@ def main() -> int:
         "prediction_path": prediction_path,
         "perfect_model_target_source": perfect_model_target_source,
         "train_output_norm": train_output_norm,
+        "work_window": f"{work_start}_{work_end}",
     }
     print_resolved_context(
         script_name="run_exp5_perfect_model.py",
@@ -358,9 +363,9 @@ def main() -> int:
                 "--var",
                 args.var,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
                 "--num-samples",
                 str(args.predict_num_samples),
                 "--sample-dir",
@@ -385,9 +390,9 @@ def main() -> int:
                 "--unit",
                 args.validation_unit,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
                 "--sample-dir",
                 str(eval_dataset_dir),
                 "--raw-sample-dir",
@@ -395,20 +400,20 @@ def main() -> int:
                 "--output-dir",
                 str(comparison_output_dir / "chunks"),
                 "--stem-suffix",
-                f"_{hist_start}_{hist_end}",
+                f"_{work_start}_{work_end}",
             ],
             "expected": [
                 comparison_output_dir
                 / "chunks"
-                / f"perfect_model_predictions_vs_truth_{args.exp}_{metrics_test_name}_{hist_start}_{hist_end}.csv"
+                / f"perfect_model_predictions_vs_truth_{args.exp}_{metrics_test_name}_{work_start}_{work_end}.csv"
             ],
             "cleanup": [
                 comparison_output_dir
                 / "chunks"
-                / f"perfect_model_predictions_vs_truth_{args.exp}_{metrics_test_name}_{hist_start}_{hist_end}.csv",
+                / f"perfect_model_predictions_vs_truth_{args.exp}_{metrics_test_name}_{work_start}_{work_end}.csv",
                 comparison_output_dir
                 / "chunks"
-                / f"perfect_model_predictions_vs_truth_{args.exp}_{metrics_test_name}_{hist_start}_{hist_end}.md",
+                / f"perfect_model_predictions_vs_truth_{args.exp}_{metrics_test_name}_{work_start}_{work_end}.md",
             ],
         },
         "aggregate_comparison": {
@@ -478,7 +483,7 @@ def main() -> int:
                 "--input-csv",
                 str(comparison_output_dir / f"{combined_comparison_stem}.csv"),
                 "--window",
-                f"{hist_start}_{hist_end}",
+                f"{work_start}_{work_end}",
             ],
             "expected": [
                 GRAPHS_DIR / "metrics" / args.exp / f"perfect_model_distribution_pdf_{args.exp}_{args.simu}_{args.var}.png",
@@ -502,9 +507,9 @@ def main() -> int:
                 "--var",
                 args.var,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
                 "--sample-dir",
                 str(eval_dataset_dir),
                 "--prediction-path",
@@ -533,9 +538,9 @@ def main() -> int:
                 "--var",
                 args.var,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
                 "--sample-dir",
                 str(eval_dataset_dir),
                 "--prediction-path",
@@ -564,9 +569,9 @@ def main() -> int:
                 "--simu",
                 args.simu,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
             ],
             "expected": [get_value_metrics_output_path(args.exp, args.test_name, args.simu)],
             "cleanup": [get_value_metrics_output_path(args.exp, args.test_name, args.simu)],
@@ -584,9 +589,9 @@ def main() -> int:
                 "--var",
                 args.var,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
                 "--sample-dir",
                 str(eval_dataset_dir),
                 "--prediction-path",
@@ -615,9 +620,9 @@ def main() -> int:
                 "--var",
                 args.var,
                 "--startdate",
-                hist_start,
+                work_start,
                 "--enddate",
-                hist_end,
+                work_end,
                 "--sample-dir",
                 str(eval_dataset_dir),
                 "--prediction-path",

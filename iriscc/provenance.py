@@ -10,14 +10,20 @@ import socket
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from shutil import which
+from typing import TypeAlias
+
+JsonScalar: TypeAlias = str | int | float | bool | None
+JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 
 
 def utc_now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def json_ready(value: Any) -> Any:
+def json_ready(value: object) -> JsonValue:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, dict):
@@ -26,29 +32,31 @@ def json_ready(value: Any) -> Any:
         return [json_ready(v) for v in value]
     if hasattr(value, "isoformat"):
         try:
-            return value.isoformat()
+            return str(value.isoformat())
         except TypeError:
             pass
-    return value
+    return str(value)
 
 
 def git_commit(cwd: str | Path | None = None) -> str | None:
+    git_bin = which("git")
+    if git_bin is None:
+        return None
     try:
         return (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"],
+            subprocess.check_output(  # noqa: S603
+                [git_bin, "rev-parse", "HEAD"],
                 cwd=cwd,
                 stderr=subprocess.DEVNULL,
                 text=True,
-            )
-            .strip()
+            ).strip()
             or None
         )
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return None
 
 
-def runtime_agent() -> dict[str, Any]:
+def runtime_agent() -> dict[str, JsonValue]:
     return {
         "user": os.getenv("USER", ""),
         "hostname": socket.gethostname(),
@@ -69,15 +77,15 @@ def build_prov_bundle(
     activity_type: str,
     start_time: str,
     end_time: str,
-    parameters: dict[str, Any],
-    settings: dict[str, Any],
-    inputs: dict[str, Any],
-    outputs: dict[str, Any],
+    parameters: dict[str, object],
+    settings: dict[str, object],
+    inputs: dict[str, object],
+    outputs: dict[str, object],
     cwd: str | Path | None = None,
-) -> dict[str, Any]:
+) -> dict[str, JsonValue]:
     activity_id = f"idownscale:{script_name}:{start_time}"
     agent_id = "idownscale:runtime-agent"
-    bundle: dict[str, Any] = {
+    bundle: dict[str, JsonValue] = {
         "prefix": {
             "prov": "http://www.w3.org/ns/prov#",
             "idownscale": "https://github.com/cerfacs-globc/idownscale#",
@@ -142,10 +150,10 @@ def build_prov_bundle(
 def print_resolved_context(
     *,
     script_name: str,
-    parameters: dict[str, Any],
-    settings: dict[str, Any],
-    inputs: dict[str, Any],
-    outputs: dict[str, Any],
+    parameters: dict[str, object],
+    settings: dict[str, object],
+    inputs: dict[str, object],
+    outputs: dict[str, object],
 ) -> None:
     payload = {
         "script": script_name,
@@ -160,7 +168,7 @@ def print_resolved_context(
     print("=== IDOWNSCALE RESOLVED CONTEXT END ===", flush=True)
 
 
-def write_provjson(path: str | Path, bundle: dict[str, Any]) -> Path:
+def write_provjson(path: str | Path, bundle: dict[str, JsonValue]) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(json_ready(bundle), indent=2, sort_keys=True) + "\n")

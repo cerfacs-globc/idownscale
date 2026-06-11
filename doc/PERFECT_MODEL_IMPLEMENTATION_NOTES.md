@@ -1,6 +1,6 @@
 # Perfect-model implementation notes
 
-Date: 2026-06-08
+Date: 2026-06-11
 
 This note keeps the implementation history separate from the science-facing perfect-model report. It is meant to help us remember why the workflow is shaped the way it is, without putting debugging history in the main result note.
 
@@ -16,6 +16,14 @@ The corrected eval dataset had also been contaminated by `1980-1999` samples bec
 
 Future prediction and diagnostics now resolve sample directories by date window. This fixed hidden assumptions in `predict_loop.py`, `plot_perfect_model_distribution_pdf.py`, and `compare_perfect_model_climate_signal.py`.
 
+One more hidden default was found in the standalone perfect-model runner: its `predict`, `compare_predictions`, and metrics steps always used the historical `20000101-20141231` window internally. That was acceptable for the original historical-only run, but it became a real bug once we launched explicit future-window jobs. The runner now accepts `--work-startdate` and `--work-enddate`, and the Kraken submit wrapper passes these values through so future windows do not silently fall back to the historical period.
+
+CDDPM required three additional corrections to match the intended scientific workflow:
+
+- the BC field had to be part of the predictor tensor, just like the other ML methods
+- normalization statistics had to be model-specific, not shared across unrelated runs
+- the corrected inference path had to use the run-specific statistics directory and the intended diffusion settings
+
 ## 2. Multi-BC Support
 
 The workflow rule is still simple: one production run uses one selected BC method. The evaluation layer is more flexible: it can compare multiple BC baselines generated from separate runs.
@@ -24,13 +32,47 @@ Tagged BC outputs were added to the IBICUS and SBCK correction scripts. The comp
 
 One aggregation bug was found after SBCK was generated. The SBCK chunks were written correctly, but their filenames ended with suffixes such as `_bc_sbck_cdft.csv`, and the aggregator only looked for files ending exactly at the window token. The glob pattern was broadened so tagged BC chunks are included. The combined table now contains both BC baselines.
 
-## 3. Final Diagnostics
+## 3. Provenance
 
-The final diagnostic set now includes the combined prediction-vs-truth table, the climate-signal comparison, and the all-window statistics table. On 2026-06-08, the final files were verified with SBCK included in all three diagnostics.
+The workflow now writes provenance explicitly because several failures were caused by silent defaults rather than visible crashes.
+
+Each important step writes:
+
+- a resolved-context block to stdout, bracketed by
+  - `=== IDOWNSCALE RESOLVED CONTEXT START ===`
+  - `=== IDOWNSCALE RESOLVED CONTEXT END ===`
+- a `.prov.json` file on disk, echoed to stdout as `provenance_provjson=...`
+
+Current provenance files include:
+
+- dataset build:
+  - `.../dataset_perfect_model_rcm_*/provenance_build_dataset.prov.json`
+- statistics:
+  - `.../dataset_perfect_model_rcm_*/provenance_statistics.prov.json`
+- training:
+  - `.../runs/perfect_model_rcm/<test_name>/provenance_train.prov.json`
+- prediction:
+  - sidecar next to each prediction NetCDF, for example
+    `.../prediction/..._perfect_model_rcm_<test_name>_rcm.prov.json`
+- workflow:
+  - `.../metrics/perfect_model_rcm/comparison_tables/workflow_<test_name>.prov.json`
+
+The most useful provenance fields in practice are:
+
+- `parameters`: the explicit CLI request
+- `settings`: the resolved defaults after config expansion
+- `inputs` and `outputs`: the concrete files and directories
+- `runtime`: host, user, Slurm identifiers, runtime root, raw-data root
+
+This is now the first debugging layer to inspect before trusting a run result.
+
+## 4. Final Diagnostics
+
+The final diagnostic set now includes the combined prediction-vs-truth table, the climate-signal comparison, and the all-window statistics table. On 2026-06-11, the final files were regenerated and revalidated with the corrected BC-conditioned CDDPM path and with SBCK included in all three diagnostics.
 
 The window-statistics table is especially useful because it adds day-to-day variability, spatial variability, and annual variability diagnostics to the usual RMSE and bias comparison.
 
-## 4. Runtime Notes From Kraken
+## 5. Runtime Notes From Kraken
 
 Kraken showed intermittent filesystem symptoms during the last refreshes. Some Python processes entered `D` state while streaming many sample files from scratch, and several tiny Slurm reruns failed immediately with `RaisedSignal:53(Real-time_signal_19)`. The outputs eventually landed, but this is a reminder that the filesystem behavior was part of the runtime risk.
 
@@ -38,7 +80,7 @@ A separate Git metadata issue also appeared on the scratch-hosted checkout. The 
 
 The safer long-term layout is now documented and partly implemented: keep the Git repository in backed-up `home`, and keep raw data, outputs, weights, runs, predictions, metrics, and temporary files on scratch.
 
-## 5. Remaining Engineering Work
+## 6. Remaining Engineering Work
 
 The current perfect-model result is complete for the present benchmark. The next engineering improvement would be to make the all-window future sample materialization a first-class workflow step instead of relying on recovery scripts and manually prepared validation windows.
 
