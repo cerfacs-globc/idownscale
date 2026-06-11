@@ -81,17 +81,40 @@ def ARCHIVAL_standardize_dims_and_coords(ds) :
     return ds
 
 
+def standardize_dims_and_coords(ds: xr.Dataset) -> xr.Dataset:
+    """Compatibility wrapper for tests and generic geometry utilities."""
+    rename_dict = {}
+    if "nav_lon" in ds.coords:
+        rename_dict["nav_lon"] = "lon"
+    if "nav_lat" in ds.coords:
+        rename_dict["nav_lat"] = "lat"
+    if rename_dict:
+        ds = ds.rename(rename_dict)
+
+    ds = ARCHIVAL_standardize_dims_and_coords(ds)
+
+    if "x" in ds.dims and "lon" not in ds.coords and "x" in ds.coords:
+        ds = ds.assign_coords(lon=ds["x"])
+    if "y" in ds.dims and "lat" not in ds.coords and "y" in ds.coords:
+        ds = ds.assign_coords(lat=ds["y"])
+    return ds
+
+
 
 def standardize_longitudes(ds) :
     # v65faa6 Archival Sync: Mandatory -180..180 Shift and Monotonic Sort
     if 'lon' in ds.coords:
         lon = np.asarray(ds.coords['lon'].values)
-        ds = ds.assign_coords(lon=("lon", np.array(((lon + 180) % 360) - 180, copy=True)))
+        ds = ds.assign_coords(
+            lon=(ds.coords["lon"].dims, np.array(((lon + 180) % 360) - 180, copy=True))
+        )
         if len(ds.lon.shape) == 1:
             ds = ds.sortby('lon')
     elif 'x' in ds.coords :
         x = np.asarray(ds.x.values)
-        ds = ds.assign_coords(x=("x", np.array((((x + 180) % 360) - 180), copy=True)))
+        ds = ds.assign_coords(
+            x=(ds.coords["x"].dims, np.array((((x + 180) % 360) - 180), copy=True))
+        )
         ds = ds.sortby('x')
       
     return ds

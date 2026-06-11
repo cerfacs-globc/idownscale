@@ -57,6 +57,17 @@ Monitoring & Logging
 When monitoring long-running jobs, expect skip messages for already completed steps and
 long silent stretches during regridding-heavy phases.
 
+For Slurm-driven perfect-model production, prefer launching through local submit
+wrappers and monitor the active job rather than assuming the wrapper defaults
+match the intended scientific window.
+
+Operationally important checks are:
+
+* resolved-context stdout blocks at job start
+* ``squeue`` or ``sacct`` state changes
+* the final ``provenance_provjson=...`` line for each finished phase
+* the presence of expected output files in the configured runtime roots
+
 Customizing for Your Cluster
 ----------------------------
 

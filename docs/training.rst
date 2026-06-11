@@ -59,6 +59,30 @@ Supported models include:
 * **Swin2SR**: Transformer-based architecture for super-resolution.
 * **CDDPM**: Conditional Denoising Diffusion Probabilistic Model.
 
+Perfect-Model Framework
+-----------------------
+
+The standalone perfect-model framework is driven by
+``bin/production/run_exp5_perfect_model.py``.
+
+The corrected temperature workflow now uses the same scientific conditioning
+logic for the full ML comparison set:
+
+* BC baselines are evaluated explicitly as standalone methods
+* ML models are trained in BC+ML mode
+* CDDPM is conditioned on the same BC-informed predictor family as the UNet
+  models
+
+For ``perfect_model_rcm``, the input tensor contains elevation, degraded coarse
+temperature, and bias-corrected coarse temperature. The target is the native
+RCM temperature field.
+
+Replicates used in the current benchmark:
+
+* ``unet_rep3_perfect_model_rcm``: third UNet replicate with the same protocol
+  and a different random initialization
+* ``unet_seed2_perfect_model_rcm``: UNet replicate trained with seed 2
+
 Inference
 ---------
 
@@ -75,3 +99,38 @@ To generate predictions for specific dates or long loops:
 ``predict_loop.py`` also supports ``--var`` and writes lightweight dataset
 provenance attributes so downstream diagnostics can recover experiment, sample,
 and source-role context from the prediction NetCDF itself.
+
+For perfect-model reruns, pass explicit windows all the way through the
+standalone launcher:
+
+.. code-block:: bash
+
+   python bin/production/run_exp5_perfect_model.py \
+     --exp perfect_model_rcm \
+     --test-name cddpm_perfect_model_rcm \
+     --steps predict,compare_predictions \
+     --predict-startdate 20900101 \
+     --predict-enddate 21001231 \
+     --work-startdate 20900101 \
+     --work-enddate 21001231
+
+The explicit ``work`` window is important because comparison and metrics steps
+must use the same window as prediction.
+
+Training and Inference Provenance
+---------------------------------
+
+Training and prediction stages now write both stdout resolved-context blocks and
+``.prov.json`` files.
+
+Common locations:
+
+* ``$IDOWNSCALE_OUTPUT_DIR/runs/<exp>/<test_name>/provenance_train.prov.json``
+* ``$IDOWNSCALE_OUTPUT_DIR/prediction/...<test_name>....prov.json``
+
+The most useful fields are:
+
+* ``parameters``: dates, test name, number of diffusion samples, output range
+* ``settings``: dataset, evaluation dataset, runs dir, prediction dir
+* ``inputs``: checkpoint, statistics file, sample directory
+* ``outputs``: prediction NetCDF and metric tables

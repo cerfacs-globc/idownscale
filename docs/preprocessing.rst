@@ -58,3 +58,39 @@ Two scripts are used to compute normalization parameters:
 
 1. ``compute_statistics.py``: Calculates global min, max, mean, and standard deviation across the training set (saved in ``statistics.json``).
 2. ``compute_statistics_gamma.py``: Performs pixel-wise Gamma distribution fitting for precipitation variables (saved in ``gamma_params.npz``).
+
+The statistics file is now treated as a required dataset artifact rather than a
+silent shared fallback. Model evaluation and denormalization must resolve a
+dataset-specific ``statistics.json`` that matches the actual training samples.
+
+Perfect-Model Sample Layout
+---------------------------
+
+The corrected perfect-model temperature workflow uses a bias-correction-plus-ML
+design for all ML models, including CDDPM.
+
+For ``perfect_model_rcm`` the packaged samples are:
+
+* ``x[0]``: elevation
+* ``x[1]``: degraded coarse predictor
+* ``x[2]``: bias-corrected coarse predictor
+* ``y[0]``: native-resolution RCM pseudo-truth
+
+This means perfect-model training and evaluation no longer compare BC baselines
+against ML models that were denied the BC conditioning field.
+
+Preprocessing Provenance
+------------------------
+
+Dataset-building and statistics scripts now write:
+
+* a resolved-context stdout block
+* ``provenance_build_dataset.prov.json`` beside the dataset
+* ``provenance_statistics.prov.json`` beside the computed statistics outputs
+
+The most useful preprocessing provenance fields are:
+
+* ``inputs``: source files and source roles
+* ``outputs``: dataset directory and statistics path
+* ``settings``: resolved output roots, target source, and grid configuration
+* ``parameters``: explicit dates, channels, and step flags

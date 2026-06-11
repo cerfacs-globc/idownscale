@@ -81,7 +81,11 @@ Typical workflow:
    python bin/production/run_exp5_perfect_model.py \
      --exp perfect_model_rcm \
      --test-name unet_perfect_model_rcm \
-     --steps build_train_dataset,build_eval_dataset,validate_train_dataset,validate_eval_dataset,stats,train,predict,compare_predictions,aggregate_comparison,plot_score_comparison,plot_distribution
+     --steps build_train_dataset,build_eval_dataset,validate_train_dataset,validate_eval_dataset,stats,train,predict,compare_predictions,aggregate_comparison,plot_score_comparison,plot_distribution \
+     --predict-startdate 20000101 \
+     --predict-enddate 20141231 \
+     --work-startdate 20000101 \
+     --work-enddate 20141231
 
 Validation is designed to fail early on:
 
@@ -89,6 +93,36 @@ Validation is designed to fail early on:
 * incorrect ``x`` / ``y`` structure
 * suspicious cross-period repetition in the coarse predictor
 * distribution drift visible in the probability-density comparison
+
+The explicit ``work-startdate`` and ``work-enddate`` arguments are important for
+future-window or partial reruns. They prevent comparison and metrics steps from
+silently falling back to the historical benchmark window.
+
+Current validated outputs for the corrected ``perfect_model_rcm`` benchmark
+include:
+
+* a combined comparison table for historical and late-century windows
+* a climate-signal comparison table and figure
+* an all-window variability table
+* method-comparison and distribution figures
+
+Perfect-Model Provenance
+------------------------
+
+The perfect-model evaluation chain now writes workflow provenance files under:
+
+* ``$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/``
+
+In practice, the most useful provenance file is:
+
+* ``workflow_<test_name>.prov.json``
+
+Use it to confirm:
+
+* which prediction file was scored
+* which sample directory and statistics file were used
+* which window was evaluated
+* which settings-derived output roots were active
 
 Where metadata are available in NetCDF outputs, these diagnostics prefer
 ``long_name`` / ``standard_name`` / ``units`` over hardcoded variable labels.

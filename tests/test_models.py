@@ -1,12 +1,12 @@
+import json
+
 import torch
 import pytest
-from iriscc.models.unet import UNet
-from iriscc.models.miniunet import MiniUNet
-from iriscc.models.denoising_unet import CUNet
-from iriscc.models.cddpm import CDDPM
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
-from iriscc.models.swin2sr import Swin2SR
-from iriscc.models.miniswinunetr import MiniSwinUNETR
+from iriscc.models.cddpm import CDDPM
+from iriscc.models.miniunet import MiniUNet
+from iriscc.models.unet import UNet
+
 
 def test_unet_smoke():
     model = UNet(in_channels=2, out_channels=1)
@@ -14,14 +14,17 @@ def test_unet_smoke():
     y = model(x)
     assert y.shape == (1, 1, 64, 64)
 
+
 def test_mini_unet_smoke():
     model = MiniUNet(in_channels=2, out_channels=1)
     x = torch.randn(1, 2, 64, 64)
     y = model(x)
     assert y.shape == (1, 1, 64, 64)
 
+
 def test_denoising_unet_smoke():
     pytest.skip("External CUNet model test skipped")
+
 
 def test_cddpm_smoke():
     model = CDDPM(n_steps=8, in_ch=3)
@@ -36,6 +39,7 @@ def test_cddpm_smoke():
     sample = model.sampling(start_t=model.n_steps, conditioning_image=conditioning)
     assert sample.shape == (1, 1, 32, 32)
 
+
 def test_cddpm_denoiser_output_is_unbounded_regression_head():
     model = CDDPM(n_steps=8, in_ch=3)
     last = model.network.conv
@@ -48,7 +52,18 @@ def test_cddpm_denoiser_output_is_unbounded_regression_head():
     eta_theta = model.backward(noisy, t, conditioning)
     assert torch.all(eta_theta < 0.0)
 
+
 def test_cddpm_lightning_module_forward_smoke(tmp_path):
+    stats_file = tmp_path / "statistics.json"
+    with stats_file.open("w") as f:
+        json.dump(
+            {
+                "chan0": {"min": 0.0, "max": 1.0},
+                "chan1": {"min": 0.0, "max": 1.0},
+                "chan2": {"min": 0.0, "max": 1.0},
+            },
+            f,
+        )
     hparams = {
         "fill_value": 0.0,
         "learning_rate": 8e-4,
@@ -69,12 +84,10 @@ def test_cddpm_lightning_module_forward_smoke(tmp_path):
     assert eta.shape == (2, 1, 32, 32)
     assert eta_theta.shape == (2, 1, 32, 32)
 
+
 def test_swin2sr_smoke():
     pytest.skip("External Swin2SR model test skipped")
 
+
 def test_miniswinunetr_smoke():
     pytest.skip("MiniSwinUNETR implementation is incompatible with installed MONAI version")
-    model = MiniSwinUNETR(in_channels=2, out_channels=1, img_size=(64, 64))
-    x = torch.randn(1, 2, 64, 64)
-    y = model(x)
-    assert y.shape == (1, 1, 64, 64)
