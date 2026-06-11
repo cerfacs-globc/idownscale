@@ -31,14 +31,15 @@ def resolve_checkpoint_from_bundle(bundle_dir: str | Path) -> Path:
 
 
 def activate_bundle_contract(bundle_dir: str | Path) -> dict[str, Any]:
-    """Export environment hints for bundle-aware contract resolution.
+    """Export environment hints for bundle-aware metadata resolution.
 
-    Existing transform resolution logic can use the bundle contract without
+    Existing transform resolution logic can use the bundle metadata without
     requiring every caller to reimplement path logic.
     """
     bundle_dir = Path(bundle_dir)
     manifest = load_bundle_manifest(bundle_dir)
-    stats_entry = manifest.get("contract_files", {}).get("statistics.json", {})
+    stats_catalog = manifest.get("bundle_files", manifest.get("contract_files", {}))
+    stats_entry = stats_catalog.get("statistics.json", {})
     copied_stats = stats_entry.get("copied_path")
     resolved_stats = stats_entry.get("resolved_source")
     stats_dir = None
@@ -48,4 +49,5 @@ def activate_bundle_contract(bundle_dir: str | Path) -> dict[str, Any]:
         stats_dir = str(Path(resolved_stats).parent)
     if stats_dir:
         os.environ["IDOWNSCALE_SAMPLE_STATS_DIR"] = stats_dir
+        os.environ["IDOWNSCALE_ALLOW_STATISTICS_FALLBACK"] = "1"
     return manifest

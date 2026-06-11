@@ -112,18 +112,20 @@ doc/PERFECT_MODEL_ENGINEER_REPORT.md
 doc/PERFECT_MODEL_IMPLEMENTATION_NOTES.md
 ```
 
-The perfect-model benchmark compares:
+The perfect-model benchmark now compares:
 
 - raw degraded RCM input
 - CDFt BC baseline through the default/IBICUS path
 - CDFt BC baseline through SBCK
-- ML methods including UNet variants and MiniUNet
+- ML methods including UNet variants, MiniUNet, and CDDPM
 
 The current scientific conclusion is that ML downscaling clearly improves over
 raw degraded RCM input and over the BC-only baselines in the controlled
 perfect-model ALADIN/RCM benchmark. The output-normalized UNet is the best
-overall candidate in the current results. MiniUNet is strong on the climate
-signal but has a warmer mean bias.
+overall candidate in the corrected results. MiniUNet is strong on the climate
+signal and remains very competitive on direct field RMSE. The corrected CDDPM
+workflow is scientifically acceptable as a comparison method, but it still
+underperforms the best UNet variants on direct field error.
 
 Validated outputs should now live under:
 
@@ -131,6 +133,38 @@ Validated outputs should now live under:
 $IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/
 $IDOWNSCALE_GRAPHS_DIR/metrics/perfect_model_rcm/
 ```
+
+Important validated files from the corrected June 11 rerun are:
+
+- combined comparison:
+  - `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/perfect_model_predictions_vs_truth_perfect_model_rcm_combined_rcm.csv`
+- climate signal:
+  - `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/perfect_model_climate_signal_perfect_model_rcm_rcm_19810101_20101231_vs_20800101_21001231.csv`
+- all-window variability:
+  - `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/perfect_model_window_statistics_perfect_model_rcm_rcm.csv`
+
+Key plots from the corrected rerun are:
+
+- `$IDOWNSCALE_GRAPHS_DIR/metrics/perfect_model_rcm/perfect_model_method_comparison_perfect_model_rcm_rcm.png`
+- `$IDOWNSCALE_GRAPHS_DIR/metrics/perfect_model_rcm/perfect_model_distribution_pdf_perfect_model_rcm_rcm_tas.png`
+- `$IDOWNSCALE_GRAPHS_DIR/metrics/perfect_model_rcm/perfect_model_climate_signal_perfect_model_rcm_rcm_19810101_20101231_vs_20800101_21001231.png`
+
+The all-window sample build used the corrected BC-conditioned dataset:
+
+- `$IDOWNSCALE_OUTPUT_DIR/datasets/dataset_bc/dataset_perfect_model_rcm_all_windows_bcml_audit`
+
+Prediction, training, dataset-build, statistics, and workflow stages now all
+emit provenance files and resolved-context stdout blocks. The main places to
+look are:
+
+- training:
+  - `$IDOWNSCALE_OUTPUT_DIR/runs/perfect_model_rcm/<test_name>/provenance_train.prov.json`
+- prediction:
+  - sidecar next to each prediction NetCDF, ending in `.prov.json`
+- dataset build:
+  - `.../dataset_perfect_model_rcm_*/provenance_build_dataset.prov.json`
+- workflow:
+  - `$IDOWNSCALE_OUTPUT_DIR/metrics/perfect_model_rcm/comparison_tables/workflow_<test_name>.prov.json`
 
 ## Merged Cleanup Work
 
@@ -156,34 +190,23 @@ Validation before PR merge:
 - local markdown relative-link scan
 - GitHub CI passed after merge
 
-## Next Recommended Work
+## Current Workflow Notes
 
-Start a new branch from `master` for DDPM/CDDPM feasibility in the perfect-model
-comparison. Suggested branch name:
+The corrected standalone perfect-model workflow now has one important date
+override mechanism:
 
-```bash
-git checkout master
-git pull --ff-only origin master
-git checkout -b explore/perfect-model-ddpm
-```
+- `bin/production/run_exp5_perfect_model.py` accepts
+  - `--work-startdate`
+  - `--work-enddate`
 
-Initial DDPM questions:
+These are used by the standalone `predict`, `compare_predictions`, and metrics
+steps so future-window launches do not silently fall back to the historical
+`20000101-20141231` window.
 
-1. Confirm which DDPM/CDDPM scripts are currently runnable.
-2. Confirm checkpoint availability or training requirements.
-3. Check whether DDPM predictions can be generated with the same perfect-model
-   dataset and naming conventions as the other ML methods.
-4. Add DDPM as an optional comparison method only after the run is technically
-   reproducible and scientifically validated.
+The Kraken submit wrapper forwards the same values through:
 
-Known relevant files:
-
-```text
-iriscc/diffusionutils.py
-iriscc/models/cddpm.py
-iriscc/models/denoising_unet.py
-bin/training/predict_cddpm.py
-```
+- `WORK_STARTDATE`
+- `WORK_ENDDATE`
 
 The recent model-file cleanup only touched `if __name__ == "__main__"` demo
 blocks to remove hard-coded personal sample paths. It did not change model class

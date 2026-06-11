@@ -2,7 +2,7 @@
 Data correction, evaluation and saving of the bias corrected dataset using the
 SBCK python library.
 
-This script mirrors the production contract of bias_correction_ibicus.py:
+This script mirrors the production definition of bias_correction_ibicus.py:
 - consumes bc_train_hist/test_hist/test_future_<simu>.npz
 - writes canonical bias-corrected NetCDF outputs
 - materializes dataset_<exp>_test_<simu>_bc sample files

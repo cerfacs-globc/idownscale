@@ -17,7 +17,8 @@ import xarray as xr
 from tqdm import tqdm
 
 from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR,
-                             DATES_BC_TEST_HIST, METRICS_DIR)
+                             DATES_BC_TEST_HIST, METRICS_DIR,
+                             get_evaluation_sample_dir, get_metrics_test_name)
 from iriscc.value_metrics import (get_marginal_metrics, get_temporal_metrics, 
                                   get_spatial_metrics, get_spell_length)
 
@@ -47,13 +48,16 @@ def main():
         print(f"Error: No prediction files found for {args.exp}/{args.test_name} in historical period.")
         sys.exit(1)
         
-    ds_pred = xr.open_mfdataset(pred_files)
+    if len(pred_files) == 1:
+        ds_pred = xr.open_dataset(pred_files[0])
+    else:
+        ds_pred = xr.concat([xr.open_dataset(path) for path in pred_files], dim="time")
     
     # 3. Load Target Data (ERA5)
     # The ERA5 target data is saved in the sample files or we can load it from raw if easier.
     # However, 'compute_test_metrics_day.py' loads it from the BC test dataset samples.
     # We'll do the same for consistency.
-    sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}'
+    sample_dir = get_evaluation_sample_dir(args.exp, args.test_name, args.simu_test) or DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}'
     
     dates = []
     obs_list = []
@@ -125,7 +129,8 @@ def main():
     all_metrics = {**marginal, **avg_temporal, **spatial}
     
     df = pd.DataFrame([all_metrics])
-    output_path = metric_dir / f'value_metrics_{args.exp}_{args.test_name}.csv'
+    metrics_test_name = get_metrics_test_name(args.test_name, args.simu_test)
+    output_path = metric_dir / f'value_metrics_{args.exp}_{metrics_test_name}.csv'
     df.to_csv(output_path, index=False)
     
     print("\nVALUE Summary Table:", flush=True)

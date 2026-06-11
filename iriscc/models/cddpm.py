@@ -120,6 +120,7 @@ class CDDPM(nn.Module):
         #print('  >> <class CDDPM> : set_device  ')
         self.network.to(device)
         self.betas = self.betas.to(device)
+        self.alphas = self.alphas.to(device)
         self.alpha_bars = self.alpha_bars.to(device)
 
     def sampling(self, start_t: int, conditioning_image: torch.Tensor, eta: torch.Tensor = None) -> torch.Tensor:
@@ -136,7 +137,15 @@ class CDDPM(nn.Module):
         """
         # If noise is not provided, generate random noise
         if eta is None:
-            eta = torch.randn((1,1,conditioning_image.shape[2], conditioning_image.shape[3]), device=self.device)
+            eta = torch.randn(
+                (
+                    conditioning_image.shape[0],
+                    1,
+                    conditioning_image.shape[2],
+                    conditioning_image.shape[3],
+                ),
+                device=self.device,
+            )
         x = eta
         for idx, t in enumerate(list(range(start_t))[::-1]):
             time_tensor = (t * torch.ones(x.shape[0], 1)).to(self.device).long()
@@ -171,4 +180,3 @@ if __name__=='__main__':
                   max_beta=0.02,
                   encode_conditioning_image=False,
                   in_ch=3)
-

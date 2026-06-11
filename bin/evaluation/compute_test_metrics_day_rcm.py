@@ -18,8 +18,8 @@ import pandas as pd
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
-from iriscc.lightning_module import IRISCCLightningModule
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, Log10Transform
+from iriscc.inference import load_trained_module, predict_tensor
+from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, Log10Transform
 from iriscc.settings import (CONFIG,
                              DATES_BC_TEST_HIST,
                              GRAPHS_DIR,
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
     parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'))
     parser.add_argument('--enddate', type=str, help='End date (e.g., 20230101)', default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'))
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')   
+    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)')
     parser.add_argument('--test-name', type=str, help='Test name (e.g., unet, baseline, gcm_raw ...)')
     parser.add_argument('--simu-test', type=str, help='(e.g., gcm or gcm_bc)', default=None)
     args = parser.parse_args()
@@ -51,32 +51,27 @@ if __name__ == "__main__":
     os.makedirs(graph_dir, exist_ok=True)
     os.makedirs(metric_dir, exist_ok=True)
 
-    model = IRISCCLightningModule.load_from_checkpoint(
-        checkpoint_dir,
-        map_location='cpu',
-        weights_only=False,
-    )
-    model.eval()
-    hparams = model.hparams['hparams']
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model, hparams = load_trained_module(checkpoint_dir, device=device)
     arch = hparams['model']
     domain = hparams['domain']
     if CONFIG[exp]['target'] == 'safran':
         domain = 'france_xy'
+    statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
     transforms = v2.Compose([
                 Log10Transform(hparams['channels']),
-                MinMaxNormalisation(hparams['sample_dir'], hparams['output_norm']), 
+                MinMaxNormalisation(statistics_dir, hparams['output_norm']),
                 LandSeaMask(hparams['mask'], hparams['fill_value']),
                 FillMissingValue(hparams['fill_value']),
                 Pad(hparams['fill_value'])
                 ])
-    device = 'cpu'
     sample_dir = hparams['sample_dir']
 
     rmse = MeanSquaredError(squared=False).to(device)
     corr = PearsonCorrCoef().to(device)
 
-    rmse_temporal = []  
-    rmse_spatial = []  
+    rmse_temporal = []
+    rmse_spatial = []
     rmse_spatial_summer = []
     rmse_spatial_winter = []
     bias_spatial = []
@@ -113,11 +108,17 @@ if __name__ == "__main__":
 
         x, y = transforms((x, y))
         x = torch.unsqueeze(x, dim=0).float()
-        y_hat = model(x.to(device)).to(device)
+        y_hat = predict_tensor(model, x, model.hparams['hparams'], device).to(device)
         y_hat = y_hat.detach().cpu()
         unpad_func = UnPad(list(CONFIG[exp]['shape']))
         y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
-        
+        hparams = model.hparams['hparams']
+        if hparams.get('output_norm'):
+            statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+            denorm = DeMinMaxNormalisation(statistics_dir, hparams['output_norm'])
+            y = denorm((False, np.expand_dims(y, axis=0))).numpy()[0]
+            y_hat = denorm((False, np.expand_dims(y_hat, axis=0))).numpy()[0]
+
 
         y_hat[condition] = np.nan
         y[condition] = np.nan

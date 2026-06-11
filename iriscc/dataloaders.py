@@ -19,9 +19,9 @@ from torch import Tensor
 
 from iriscc.settings import DATES_TRAIN
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import (MinMaxNormalisation, 
-                               LandSeaMask, 
-                               Pad, 
+from iriscc.transforms import (MinMaxNormalisation,
+                               LandSeaMask,
+                               Pad,
                                FillMissingValue,
                                Log10Transform)
 
@@ -92,7 +92,7 @@ def get_dataloaders(data_type: str, hparams: Optional[IRISCCHyperParameters] = N
         hparams = IRISCCHyperParameters()
     transforms = v2.Compose([
                 Log10Transform(hparams.channels),
-                MinMaxNormalisation(hparams.sample_dir, hparams.output_norm), 
+                MinMaxNormalisation(hparams.statistics_dir, hparams.output_norm, hparams.output_range),
                 LandSeaMask(hparams.mask, hparams.fill_value),
                 FillMissingValue(hparams.fill_value),
                 Pad(hparams.fill_value)
@@ -100,8 +100,8 @@ def get_dataloaders(data_type: str, hparams: Optional[IRISCCHyperParameters] = N
     training_data = IRISCC(transform=transforms,
                             hparams=hparams,
                             data_type=data_type)
-    
-    
+
+
     if data_type == 'train':
         shuffle = True
     else:
@@ -109,7 +109,7 @@ def get_dataloaders(data_type: str, hparams: Optional[IRISCCHyperParameters] = N
 
     if data_type == 'train':
         batch_size = hparams.batch_size
-    else : 
+    else :
         batch_size = 1
 
     return DataLoader(training_data,

@@ -18,7 +18,10 @@ We recommend a Conda-based setup because ``xesmf`` depends on ``ESMF``/``esmpy``
 Runtime Configuration
 ---------------------
 
-The main runtime paths are configured with environment variables:
+The main runtime paths are configured in ``iriscc/settings.py`` and can be
+overridden with environment variables at runtime.
+
+The most important overrides are:
 
 .. code-block:: bash
 
@@ -48,6 +51,10 @@ If ``IDOWNSCALE_RAW_DIR`` is not set explicitly, the code now uses:
 If ``IDOWNSCALE_OUTPUT_DIR`` is not set explicitly, the code now uses:
 
 1. ``$IDOWNSCALE_RUNTIME_ROOT/output``
+
+The repository also resolves evaluation, prediction, runs, and metrics roots
+from the same settings layer. For production reruns, prefer explicit
+environment overrides over editing scripts or hardcoding local paths.
 
 Optional archival parity reference:
 
@@ -80,6 +87,32 @@ evaluation phases can run on CPU if GPU capacity is unavailable.
 
 Once coarse bias correction is built, the same runner can also package raw GCM test samples
 and drive downstream prediction or VALUE evaluation steps if a trained checkpoint is available.
+
+Resolved Context and Provenance
+-------------------------------
+
+The main preprocessing, training, prediction, and workflow entrypoints now emit
+two complementary provenance traces:
+
+1. A resolved-context JSON block printed to stdout between:
+
+   * ``=== IDOWNSCALE RESOLVED CONTEXT START ===``
+   * ``=== IDOWNSCALE RESOLVED CONTEXT END ===``
+
+2. A ``.prov.json`` file on disk, with its path echoed in stdout as
+   ``provenance_provjson=...``.
+
+These traces are meant to expose the values that have historically caused
+silent workflow drift:
+
+* settings-derived directories
+* explicit start and end dates
+* dataset and statistics paths
+* checkpoint and run directories
+* experiment and model names
+
+For partial reruns, always pass explicit date windows. This is especially
+important when running only prediction or comparison steps.
 
 HPC note
 --------

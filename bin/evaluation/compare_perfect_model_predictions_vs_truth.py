@@ -20,6 +20,8 @@ from iriscc.settings import (
     DATES_BC_TEST_HIST,
     DATES_BC_TRAIN_HIST,
     METRICS_DIR,
+    get_input_channel_index,
+    get_target_channel_index,
     get_bias_corrected_netcdf_path,
     get_prediction_output_path,
     normalize_bc_tag,
@@ -27,11 +29,7 @@ from iriscc.settings import (
 
 
 def resolve_channel_indices(exp: str, var: str) -> tuple[int, int]:
-    input_vars = CONFIG[exp].get("input_vars", [])
-    target_vars = CONFIG[exp].get("target_vars", [])
-    input_index = input_vars.index(var) if var in input_vars else max(len(input_vars) - 1, 0)
-    target_index = target_vars.index(var) if var in target_vars else 0
-    return input_index, target_index
+    return get_input_channel_index(exp, var), get_target_channel_index(exp, var)
 
 
 def get_prediction_metadata(prediction_path: Path, var: str, fallback_unit: str | None) -> dict[str, str]:
@@ -47,6 +45,7 @@ def get_prediction_metadata(prediction_path: Path, var: str, fallback_unit: str 
         "idownscale_test_name": str(ds_attrs.get("idownscale_test_name", "")),
         "idownscale_simu_test": str(ds_attrs.get("idownscale_simu_test", "")),
         "idownscale_sample_dir": str(ds_attrs.get("idownscale_sample_dir", "")),
+        "idownscale_diffusion_num_samples": str(ds_attrs.get("idownscale_diffusion_num_samples", "")),
         "idownscale_perfect_model_input_source": str(ds_attrs.get("idownscale_perfect_model_input_source", "")),
         "idownscale_perfect_model_target_source": str(ds_attrs.get("idownscale_perfect_model_target_source", "")),
         "idownscale_perfect_model_input_resolution": str(ds_attrs.get("idownscale_perfect_model_input_resolution", "")),

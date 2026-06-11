@@ -1,6 +1,46 @@
 Release Notes
 =============
 
+v1.3.0 - Perfect-Model BC+ML and Provenance Hardening
+-----------------------------------------------------
+
+Summary
+~~~~~~~
+This update corrects the scientific and operational behavior of the
+``perfect_model_rcm`` workflow. It fixes silent date-window fallback,
+standardizes BC+ML conditioning across the comparison set, and adds explicit
+provenance so production reruns can be audited directly from logs and output
+directories.
+
+Perfect-Model Workflow
+~~~~~~~~~~~~~~~~~~~~~~
+* **Correct BC+ML conditioning**: the perfect-model dataset now packages
+  elevation, degraded coarse temperature, and bias-corrected coarse temperature
+  for ML methods, including CDDPM.
+* **Explicit work windows**: ``run_exp5_perfect_model.py`` now accepts
+  ``--work-startdate`` and ``--work-enddate`` so prediction, comparison, and
+  metrics steps do not silently reuse the historical benchmark window.
+* **Model-specific statistics**: denormalization now relies on the matching
+  dataset or run ``statistics.json`` instead of silently sharing one file across
+  methods.
+
+CDDPM and Evaluation
+~~~~~~~~~~~~~~~~~~~~
+* **CDDPM parity restored**: the CDDPM perfect-model workflow now uses the
+  corrected conditioning path, model-specific normalization, and validated
+  prediction outputs.
+* **Benchmark outputs regenerated**: historical, future, climate-signal, and
+  all-window diagnostics were rerun and refreshed for the corrected workflow.
+
+Provenance and Defaults
+~~~~~~~~~~~~~~~~~~~~~~~
+* **W3C-style provenance sidecars**: workflow, dataset, training, and
+  prediction steps now write ``.prov.json`` files.
+* **Resolved-context stdout blocks**: key settings, directories, inputs,
+  outputs, and parameters are printed at runtime to expose silent defaults.
+* **Wrapper/default cleanup**: path and date-window assumptions were removed
+  from the standalone perfect-model launcher and related submit wrappers.
+
 v1.2.0 - End-to-End Training, Evaluation, and Packaging
 -------------------------------------------------------
 

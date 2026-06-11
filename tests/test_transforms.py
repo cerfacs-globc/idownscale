@@ -1,5 +1,6 @@
 import json
 
+import pytest
 import torch
 
 from iriscc.transforms import (
@@ -8,6 +9,7 @@ from iriscc.transforms import (
     Pad,
     StandardNormalisation,
     UnPad,
+    resolve_statistics_dir,
 )
 
 def test_standard_normalisation(tmp_path):
@@ -44,6 +46,24 @@ def test_min_max_normalisation(tmp_path):
     x_norm, y_norm = norm((x, y))
     assert x_norm[0,0,0] == 0.5
     assert y_norm[0,0,0] == 0.5
+
+
+def test_missing_statistics_fail_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("IDOWNSCALE_ALLOW_STATISTICS_FALLBACK", raising=False)
+    with pytest.raises(FileNotFoundError):
+        resolve_statistics_dir(tmp_path / "missing")
+
+
+def test_statistics_fallback_is_explicit(tmp_path, monkeypatch):
+    sample_dir = tmp_path / "samples"
+    sample_dir.mkdir()
+    fallback = tmp_path / "fallback"
+    fallback.mkdir()
+    with (fallback / "statistics.json").open("w") as f:
+        json.dump({"chan1": {"min": 0.0, "max": 1.0}}, f)
+    monkeypatch.setenv("IDOWNSCALE_ALLOW_STATISTICS_FALLBACK", "1")
+    monkeypatch.setenv("IDOWNSCALE_SAMPLE_STATS_DIR", str(fallback))
+    assert resolve_statistics_dir(sample_dir) == fallback
 
 def test_pad_unpad():
     fill_ref = -999.0

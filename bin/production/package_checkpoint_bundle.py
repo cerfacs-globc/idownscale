@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Package a checkpoint together with the metadata and data-contract files needed
+Package a checkpoint together with the metadata and data-definition files needed
 to understand and reuse it.
 """
 
@@ -97,16 +97,16 @@ def relink_candidate_paths(sample_dir: Path) -> list[Path]:
 
 def find_contract_files(sample_dir: Path) -> dict[str, Path | None]:
     wanted = ["statistics.json", "coordinates.npz", "gamma_params.npz"]
-    contract: dict[str, Path | None] = {}
+    bundle_files: dict[str, Path | None] = {}
     candidates = relink_candidate_paths(sample_dir)
     for filename in wanted:
-        contract[filename] = None
+        bundle_files[filename] = None
         for candidate_dir in candidates:
             candidate = candidate_dir / filename
             if candidate.exists():
-                contract[filename] = candidate
+                bundle_files[filename] = candidate
                 break
-    return contract
+    return bundle_files
 
 
 def summarize_metrics(metrics_csv: Path) -> dict[str, float]:
@@ -155,11 +155,11 @@ def main() -> int:
         loaded = yaml.load(handle, Loader=HParamsLoader)
     hparams = loaded["hparams"] if isinstance(loaded, dict) and "hparams" in loaded else loaded
     sample_dir = Path(hparams["sample_dir"])
-    contract_files = find_contract_files(sample_dir)
+    bundle_files = find_contract_files(sample_dir)
 
     bundle_dir = Path(args.output_root) / f"{args.exp}_{args.test_name}_bundle"
     metadata_dir = bundle_dir / "metadata"
-    contract_dir = bundle_dir / "data_contract"
+    metadata_files_dir = bundle_dir / "data_definition"
     checkpoint_dir = bundle_dir / "checkpoint"
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
@@ -168,9 +168,9 @@ def main() -> int:
     if metrics_path.exists():
         shutil.copy2(metrics_path, metadata_dir / "metrics_test_set.csv")
 
-    copied_contract = {
-        name: copy_if_present(path, contract_dir)
-        for name, path in contract_files.items()
+    copied_bundle_files = {
+        name: copy_if_present(path, metadata_files_dir)
+        for name, path in bundle_files.items()
     }
 
     if args.copy_checkpoint:
@@ -203,17 +203,17 @@ def main() -> int:
             "hparams_yaml": str(metadata_dir / "hparams.yaml"),
             "metrics_test_set_csv": str(metadata_dir / "metrics_test_set.csv") if metrics_path.exists() else None,
         },
-        "contract_files": {
+        "bundle_files": {
             name: {
                 "resolved_source": str(path) if path else None,
-                "copied_path": copied_contract[name],
+                "copied_path": copied_bundle_files[name],
                 "sha256": sha256sum(path) if path and path.exists() else None,
             }
-            for name, path in contract_files.items()
+            for name, path in bundle_files.items()
         },
         "metrics_summary": summarize_metrics(metrics_path) if metrics_path.exists() else {},
         "notes": [
-            "A checkpoint is only portable together with the preprocessing and normalization contract that defined its training world.",
+            "A checkpoint is only portable together with the preprocessing and normalization metadata that defined its training world.",
             "If the reference reanalysis, target dataset, grid, predictors, or normalization change, retraining is usually required.",
             "The original hparams.yaml can contain legacy sample_dir or runs_dir paths from older filesystem layouts.",
         ],
@@ -225,10 +225,10 @@ def main() -> int:
     readme = f"""idownscale checkpoint bundle: {args.exp}/{args.test_name}
 
 Contents
-- checkpoint_manifest.json: machine-readable contract summary
+- checkpoint_manifest.json: machine-readable metadata summary
 - metadata/hparams.yaml: original Lightning hyperparameters saved with the run
 - metadata/metrics_test_set.csv: historical test metrics saved by training
-- data_contract/: resolved sidecar files such as statistics.json when available
+- data_definition/: resolved sidecar files such as statistics.json when available
 - checkpoint/: copied checkpoint file when --copy-checkpoint is used
 
 Important

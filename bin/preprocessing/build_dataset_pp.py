@@ -17,6 +17,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
+from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 from iriscc.settings import (
     ALADIN_PROJ_PYPROJ,
     CONFIG,
@@ -196,7 +197,36 @@ def prepare_input_batch(
     )
 
 
+def prepare_bc_batch(
+    *,
+    exp: str,
+    simu: str,
+    var: str,
+    period: str,
+    ssp: str,
+    bc_tag: str | None,
+    startdate,
+    enddate,
+    target_file,
+    domain,
+) -> xr.Dataset:
+    bc_path = get_bias_corrected_netcdf_path(exp, simu, var, period, ssp=ssp, bc_tag=bc_tag)
+    ds_bc = xr.open_dataset(bc_path)
+    if "time" in ds_bc.coords:
+        ds_bc = ds_bc.sel(time=slice(startdate, enddate))
+    return reformat_as_target(
+        ds_bc,
+        target_file=target_file,
+        domain=domain,
+        method="conservative_normed",
+        mask=True,
+        input_projection=None,
+        reuse_weights=True,
+    )
+
+
 if __name__ == '__main__':
+    start_time = utc_now_iso()
     parser = argparse.ArgumentParser(description="Build daily sample datasets from simulation fields")
     parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp5)', default='exp5')
     parser.add_argument('--var', type=str, help='Variable to use', default='tas')
@@ -210,6 +240,12 @@ if __name__ == '__main__':
     parser.add_argument('--startdate', type=str, default=None, help='Optional inclusive first date to package, formatted YYYYMMDD.')
     parser.add_argument('--enddate', type=str, default=None, help='Optional inclusive last date to package, formatted YYYYMMDD.')
     parser.add_argument('--skip-existing', action='store_true', help='Skip samples that already exist in the output directory.')
+    parser.add_argument(
+        '--conditioning-bc-tag',
+        type=str,
+        default=None,
+        help='Optional BC tag to use for the perfect-model conditioning field, e.g. sbck_cdft.',
+    )
     parser.add_argument(
         '--perfect-model-target-source',
         default=None,
@@ -231,6 +267,12 @@ if __name__ == '__main__':
     orog_file = CONFIG[exp]['orog_file']
     target_file = CONFIG[exp]['target_file']
     perfect_model_target_source = args.perfect_model_target_source or CONFIG[exp].get('perfect_model_target_source')
+    perfect_model_condition_on_bc = bool(CONFIG[exp].get('perfect_model_condition_on_bc', False))
+    conditioning_bc_tag = normalize_bc_tag(
+        args.conditioning_bc_tag
+        if args.conditioning_bc_tag is not None
+        else CONFIG[exp].get('perfect_model_conditioning_bc_tag')
+    )
     perfect_model_input_grid_source = CONFIG[exp].get('perfect_model_input_grid_source')
     perfect_model_input_coarse_method = CONFIG[exp].get('perfect_model_input_coarse_method', 'conservative_normed')
     perfect_model_input_target_method = CONFIG[exp].get('perfect_model_input_target_method', 'bilinear')
@@ -242,6 +284,30 @@ if __name__ == '__main__':
     variant = f"{args.simu}_bc" if args.corrected else args.simu
     output_dir = Path(args.output_dir) if args.output_dir else dataset_variant_dir(exp, variant)
     output_dir.mkdir(parents=True, exist_ok=True)
+    resolved_settings = {
+        'exp': exp,
+        'var': var,
+        'simu': args.simu,
+        'ssp': ssp,
+        'output_dir': output_dir,
+        'perfect_model_target_source': perfect_model_target_source,
+        'perfect_model_condition_on_bc': perfect_model_condition_on_bc,
+        'conditioning_bc_tag': conditioning_bc_tag,
+        'perfect_model_input_grid_source': perfect_model_input_grid_source,
+        'perfect_model_input_coarse_method': perfect_model_input_coarse_method,
+        'perfect_model_input_target_method': perfect_model_input_target_method,
+        'perfect_model_target_method': perfect_model_target_method,
+    }
+    print_resolved_context(
+        script_name='build_dataset_pp.py',
+        parameters=vars(args),
+        settings=resolved_settings,
+        inputs={
+            'orog_file': orog_file,
+            'target_file': target_file,
+        },
+        outputs={'output_dir': output_dir},
+    )
 
     get_data = Data(domain=domain)
     source_name = get_simu_source(exp, args.simu)
@@ -272,6 +338,7 @@ if __name__ == '__main__':
         for batch_file, batch_dates in date_batches:
             ds_batch = xr.open_dataset(batch_file)
             ds_input_batch = None
+            ds_bc_batch = None
             try:
                 if not args.corrected:
                     ds_batch = get_data._standardize_source_geometry(
@@ -295,6 +362,19 @@ if __name__ == '__main__':
                         )
                     else:
                         ds_input_batch = None
+                    if perfect_model_target_source and perfect_model_condition_on_bc:
+                        ds_bc_batch = prepare_bc_batch(
+                            exp=exp,
+                            simu=args.simu,
+                            var=var,
+                            period=period,
+                            ssp=ssp,
+                            bc_tag=conditioning_bc_tag,
+                            startdate=batch_dates[0],
+                            enddate=batch_dates[-1],
+                            target_file=target_file,
+                            domain=domain,
+                        )
                 else:
                     ds_input_batch = None
                 for date in batch_dates:
@@ -317,7 +397,11 @@ if __name__ == '__main__':
                             reuse_weights=True,
                         )
 
-                    x = np.stack([orog, ds_i[var].values], axis=0)
+                    x_fields = [orog, ds_i[var].values]
+                    if ds_bc_batch is not None:
+                        ds_bc_i = select_date(ds_bc_batch, date)
+                        x_fields.append(ds_bc_i[var].values)
+                    x = np.stack(x_fields, axis=0)
                     sample = {'x': x.astype(np.float32)}
 
                     if perfect_model_target_source:
@@ -344,6 +428,26 @@ if __name__ == '__main__':
 
                     np.savez(sample_path, **sample)
             finally:
+                if ds_bc_batch is not None:
+                    ds_bc_batch.close()
                 if ds_input_batch is not None:
                     ds_input_batch.close()
                 ds_batch.close()
+    prov_path = write_provjson(
+        output_dir / 'provenance_build_dataset.prov.json',
+        build_prov_bundle(
+            script_name='build_dataset_pp.py',
+            activity_type='dataset_build',
+            start_time=start_time,
+            end_time=utc_now_iso(),
+            parameters=vars(args),
+            settings=resolved_settings,
+            inputs={
+                'orog_file': orog_file,
+                'target_file': target_file,
+            },
+            outputs={'output_dir': output_dir},
+            cwd=Path(__file__).resolve().parents[2],
+        ),
+    )
+    print(f"provenance_provjson={prov_path}", flush=True)

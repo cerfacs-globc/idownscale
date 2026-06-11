@@ -153,23 +153,8 @@ if __name__ == '__main__':
     train_dataloader = get_dataloaders('train')
     show_forward(cddpm, train_dataloader, n_images=4, n_noise_steps=8)
 
-    sample_dir = DATASET_DIR / 'dataset_exp3_30y'
-    data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
-    conditioning_image, y = data['x'], data['y']
-    transforms = v2.Compose([
-            MinMaxNormalisation(sample_dir),
-            LandSeaMask('france', 0),
-            FillMissingValue(0),
-            Pad(0)
-            ])
-    
-    conditioning_image, y = transforms((conditioning_image, y))
-    conditioning_image = np.expand_dims(conditioning_image, axis=0)
-    conditioning_image = torch.tensor(conditioning_image)
-
     start_t = 8
+    conditioning_image = torch.randn(1, 2, 64, 64)
     x = cddpm.sampling(start_t, conditioning_image, eta = None)
     print(x.shape)
-    plot_test(x[0,0,...].detach().numpy(), 
-              'generate x from noise', 
-              GRAPHS_DIR/'test2.png')
+    plot_test(x[0,0,...].detach().numpy(), 'generate x from noise', GRAPHS_DIR/'test2.png')

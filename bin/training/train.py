@@ -7,7 +7,9 @@ author: Zoé GARCIA
 
 import argparse
 import os
+import shutil
 import sys
+from pathlib import Path
 sys.path.append('.')
 
 import torch
@@ -24,6 +26,21 @@ from iriscc.dataloaders import get_dataloaders
 from iriscc.hparams import IRISCCHyperParameters
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
+from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+
+
+def prepare_normalization_statistics(hparams: IRISCCHyperParameters) -> None:
+    source = hparams.sample_dir / "statistics.json"
+    if not source.exists():
+        raise FileNotFoundError(
+            f"Missing training statistics file: {source}. "
+            "Run bin/preprocessing/compute_statistics.py on the exact training sample directory before training."
+        )
+    stats_dir = hparams.runs_dir / "normalization_stats"
+    stats_dir.mkdir(parents=True, exist_ok=True)
+    target = stats_dir / "statistics.json"
+    shutil.copy2(source, target)
+    hparams.statistics_dir = stats_dir
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,12 +59,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dropout", type=float, default=0.0, help="Dropout rate for supported architectures.")
     parser.add_argument("--output-norm", action="store_true", help="Enable output normalization in transforms.")
     parser.add_argument("--skip-test", action="store_true", help="Skip the post-fit test pass.")
+    parser.add_argument("--sample-dir", default=None, help="Optional override for the training sample directory.")
+    parser.add_argument("--seed", type=int, default=None, help="Optional reproducibility seed for training.")
+    parser.add_argument("--n-steps", type=int, default=200, help="CDDPM diffusion steps.")
     return parser.parse_args()
 
 
 def main() -> int:
+    start_time = utc_now_iso()
     args = parse_args()
     torch.set_float32_matmul_precision('high')
+    if args.seed is not None:
+        pl.seed_everything(args.seed, workers=True)
+    if args.model == "cddpm" and not args.output_norm:
+        raise ValueError("CDDPM training requires --output-norm so the diffusion target is sampled in normalized space.")
 
     hparams = IRISCCHyperParameters(
         exp=args.exp,
@@ -59,6 +84,32 @@ def main() -> int:
         loss=args.loss,
         dropout=args.dropout,
         output_norm=args.output_norm,
+        sample_dir=args.sample_dir,
+        seed=args.seed,
+        n_steps=args.n_steps,
+        output_range="minus_one_one" if args.model == "cddpm" else "zero_one",
+    )
+    prepare_normalization_statistics(hparams)
+    resolved_settings = {
+        "exp": args.exp,
+        "model": args.model,
+        "channels": hparams.channels,
+        "in_channels": hparams.in_channels,
+        "sample_dir": hparams.sample_dir,
+        "statistics_dir": hparams.statistics_dir,
+        "runs_dir": hparams.runs_dir,
+        "output_norm": hparams.output_norm,
+        "output_range": hparams.output_range,
+    }
+    print_resolved_context(
+        script_name="train.py",
+        parameters=vars(args),
+        settings=resolved_settings,
+        inputs={
+            "sample_dir": hparams.sample_dir,
+            "statistics_json": hparams.statistics_dir / "statistics.json",
+        },
+        outputs={"runs_dir": hparams.runs_dir},
     )
 
     train_dataloader = get_dataloaders('train', hparams)
@@ -120,6 +171,24 @@ def main() -> int:
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
     if not skip_test:
         trainer.test(model, dataloaders=test_dataloader, ckpt_path='best')
+    prov_path = write_provjson(
+        hparams.runs_dir / "provenance_train.prov.json",
+        build_prov_bundle(
+            script_name="train.py",
+            activity_type="training",
+            start_time=start_time,
+            end_time=utc_now_iso(),
+            parameters=vars(args),
+            settings=resolved_settings,
+            inputs={
+                "sample_dir": hparams.sample_dir,
+                "statistics_json": hparams.statistics_dir / "statistics.json",
+            },
+            outputs={"runs_dir": hparams.runs_dir},
+            cwd=Path(__file__).resolve().parents[2],
+        ),
+    )
+    print(f"provenance_provjson={prov_path}", flush=True)
     return 0
 
 

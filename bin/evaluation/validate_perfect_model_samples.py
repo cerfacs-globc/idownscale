@@ -12,7 +12,7 @@ import pandas as pd
 
 sys.path.append(".")
 
-from iriscc.settings import CONFIG, DATASET_BC_DIR, METRICS_DIR
+from iriscc.settings import CONFIG, DATASET_BC_DIR, METRICS_DIR, get_input_channel_index, get_target_channel_index
 
 
 QUANTILES = [0, 1, 5, 50, 95, 99, 100]
@@ -49,11 +49,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_channel_indices(exp: str, var: str) -> tuple[int, int]:
-    input_vars = CONFIG[exp].get("input_vars", [])
-    target_vars = CONFIG[exp].get("target_vars", [])
-    input_index = input_vars.index(var) if var in input_vars else max(len(input_vars) - 1, 0)
-    target_index = target_vars.index(var) if var in target_vars else 0
-    return input_index, target_index
+    return get_input_channel_index(exp, var), get_target_channel_index(exp, var)
 
 
 def stats(values: np.ndarray) -> dict[str, float | int]:

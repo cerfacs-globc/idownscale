@@ -7,16 +7,8 @@ import sys
 sys.path.append('.')
 
 from collections import OrderedDict
-from pathlib import Path
-
 import torch
 import torch.nn as nn
-
-import numpy as np 
-from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue
-from iriscc.plotutils import plot_test
-from iriscc.settings import DATASET_DIR, GRAPHS_DIR
-from torchvision.transforms import v2
 
 class TimeProcessing(nn.Module):
     def __init__(self, dim_in, dim_out):
@@ -117,7 +109,9 @@ class CUNet(nn.Module):
         dec1 = torch.cat((dec1, enc1), dim=1)
         dec1 = dec1 + self.time_fc_dec1(t).reshape(dec1.size(0), -1, 1, 1)
         dec1 = self.decoder1(dec1)
-        return torch.sigmoid(self.conv(dec1))
+        # DDPM training predicts Gaussian noise, so the denoising head must be
+        # an unconstrained regression output rather than a bounded image value.
+        return self.conv(dec1)
 
     def _make_sinusoidal_embedding(self, dim_in, dim_out):
         # Returns the standard positional embedding
@@ -165,31 +159,15 @@ class CUNet(nn.Module):
 if __name__=='__main__':
     model = CUNet(n_steps=100, 
                   time_emb_dim = 100, 
-                  in_channels=3, # 2 conditionning channels and 1 noise channel
+                  in_channels=4,
                   out_channels=1, 
                   init_features=32)
     model = model.float()
 
-    sample_dir = DATASET_DIR / 'dataset_exp3_30y'
-    data = dict(np.load(sample_dir / 'sample_20040101.npz', allow_pickle=True))
-    conditionning_image, y = data['x'], data['y']
-    transforms = v2.Compose([
-            MinMaxNormalisation(sample_dir),
-            LandSeaMask('france', 0),
-            FillMissingValue(0),
-            Pad(0)
-            ])
-    
-    conditionning_image, y = transforms((conditionning_image, y))
-    conditionning_image = np.expand_dims(conditionning_image, axis=0)
-    conditionning_image = torch.tensor(conditionning_image)
-    x = torch.randn(1, 1, 160, 160)
+    conditioning_image = torch.randn(1, 3, 64, 64)
+    x = torch.randn(1, 1, 64, 64)
     t = 1
     time_tensor = (torch.ones(1, 1) * t).long()
-
-    print(x.shape, conditionning_image.shape, t)
-
-    y_hat = model(x.float(), time_tensor, conditionning_image.float())
-    print(y_hat)
-    plot_test(y_hat.detach().numpy()[0, 0,:,:], 'title', GRAPHS_DIR / 'test4.png')
+    y_hat = model(x.float(), time_tensor, conditioning_image.float())
+    print(y_hat.shape)
     
