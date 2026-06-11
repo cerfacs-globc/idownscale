@@ -18,6 +18,7 @@ sys.path.append('.')
 import matplotlib.pyplot as plt
 import numpy as np
 
+from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 from iriscc.settings import CONFIG, DATES_TRAIN
 
 def update_statistics(current_sum: float, 
@@ -65,6 +66,7 @@ def plot_histogram(data,
 
 
 if __name__=='__main__':
+    start_time = utc_now_iso()
     parser = argparse.ArgumentParser(description="Compute statistics for a given dataset path")
     parser.add_argument('--exp', type=str, help='Experiment name', default='exp6')  
     parser.add_argument('--dataset_dir', type=str, help='Path to dataset directory', default=None)
@@ -78,6 +80,21 @@ if __name__=='__main__':
         dataset_dir = Path(args.dataset_dir).resolve()
     else:
         dataset_dir = CONFIG[args.exp]['dataset'].resolve()
+    resolved_settings = {
+        'exp': args.exp,
+        'dataset_dir': dataset_dir,
+        'channels': CONFIG[args.exp]['channels'],
+        'train_start_year': args.train_start_year,
+        'val_start_year': args.val_start_year,
+        'test_start_year': args.test_start_year,
+    }
+    print_resolved_context(
+        script_name='compute_statistics.py',
+        parameters=vars(args),
+        settings=resolved_settings,
+        inputs={'dataset_dir': dataset_dir},
+        outputs={'statistics_json': dataset_dir / 'statistics.json'},
+    )
     stats_file = dataset_dir / 'statistics.json'
     if stats_file.exists() and not args.force:
         print(f"Skipping statistics computation: {stats_file} already exists.", flush=True)
@@ -181,5 +198,25 @@ if __name__=='__main__':
                     CONFIG[args.exp]['target_vars'][0], 
                     f'y {data_type} dataset histogram', 
                     dataset_dir/f'hist_y_{data_type}.png')
+    prov_path = write_provjson(
+        dataset_dir / 'provenance_statistics.prov.json',
+        build_prov_bundle(
+            script_name='compute_statistics.py',
+            activity_type='statistics',
+            start_time=start_time,
+            end_time=utc_now_iso(),
+            parameters=vars(args),
+            settings=resolved_settings,
+            inputs={'dataset_dir': dataset_dir},
+            outputs={
+                'statistics_json': dataset_dir / 'statistics.json',
+                'hist_y_train_png': dataset_dir / 'hist_y_train.png',
+                'hist_y_val_png': dataset_dir / 'hist_y_val.png',
+                'hist_y_test_png': dataset_dir / 'hist_y_test.png',
+            },
+            cwd=Path(__file__).resolve().parents[2],
+        ),
+    )
+    print(f"provenance_provjson={prov_path}", flush=True)
  
     

@@ -34,6 +34,7 @@ from iriscc.settings import (
     get_bias_corrected_netcdf_path,
     get_prediction_output_path,
 )
+from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 
 
 DEFAULT_STEPS = ["phase1", "stats", "bc_dataset", "bc_apply"]
@@ -183,6 +184,7 @@ def run_step(
 
 
 def main() -> int:
+    start_time = utc_now_iso()
     args = parse_args()
     if bool(args.phase1_start_date) != bool(args.phase1_end_date):
         raise ValueError("phase1 date window requires both --phase1-start-date and --phase1-end-date")
@@ -207,6 +209,21 @@ def main() -> int:
     value_start_date = args.value_start_date or default_value_window()[0]
     value_end_date = args.value_end_date or default_value_window()[1]
     dataset_dir = Path(exp_cfg["dataset"])
+    resolved_settings = {
+        "exp": exp,
+        "steps": steps,
+        "dataset_dir": dataset_dir,
+        "ssp": ssp,
+        "bc_method": bc_method,
+        "simu": args.simu,
+    }
+    print_resolved_context(
+        script_name="run_exp5_workflow.py",
+        parameters=vars(args),
+        settings=resolved_settings,
+        inputs={"dataset_dir": dataset_dir},
+        outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
+    )
     phase1_outputs = list_phase1_outputs(dataset_dir, phase1_start_date, phase1_end_date)
 
     stats_outputs = [
@@ -531,6 +548,21 @@ def main() -> int:
         )
 
     print("[done] exp5 workflow orchestration finished")
+    prov_path = write_provjson(
+        METRICS_DIR / exp / f"workflow_{args.test_name or 'no_test_name'}.prov.json",
+        build_prov_bundle(
+            script_name="run_exp5_workflow.py",
+            activity_type="workflow",
+            start_time=start_time,
+            end_time=utc_now_iso(),
+            parameters=vars(args),
+            settings=resolved_settings,
+            inputs={"dataset_dir": dataset_dir},
+            outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
+            cwd=PROJECT_ROOT,
+        ),
+    )
+    print(f"provenance_provjson={prov_path}", flush=True)
     return 0
 
 

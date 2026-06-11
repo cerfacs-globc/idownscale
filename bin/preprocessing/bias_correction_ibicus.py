@@ -51,7 +51,7 @@ def apply_cdft_locationwise(
     sizes against the 1D time axes before location-wise dispatch. For our
     datasets that raises a false time-dimension mismatch. Dispatching through
     ``apply_location`` preserves the intended algorithm and matches the
-    documented per-location contract.
+    documented per-location definition.
     """
     output = np.empty_like(cm_future)
     for i, j in np.ndindex(obs.shape[1:]):

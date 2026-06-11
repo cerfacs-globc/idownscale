@@ -642,7 +642,7 @@ class Data(object):
           indices = np.where(y_match & m_match & d_match)[0]
           
           if len(indices) > 0:
-              # Perform Daily Mean to match archival EOBS-to-ERA5 temporal contract
+              # Perform Daily Mean to match archival EOBS-to-ERA5 temporal definition
               ds = ds.isel(time=indices).mean('time')
           else:
               # Final Fallback: Nearest selection via string
