@@ -403,6 +403,9 @@ def get_dataset_variant_dir(exp: str, variant: str) -> Path:
 
 def get_evaluation_sample_dir(exp: str, test_name: str, simu_test: str | None = None) -> Path | None:
     if CONFIG.get(exp, {}).get('target') == 'perfect_model':
+        configured_eval = CONFIG.get(exp, {}).get("evaluation_dataset")
+        if configured_eval is not None:
+            return Path(configured_eval)
         if simu_test:
             return get_dataset_variant_dir(exp, simu_test)
         return Path(CONFIG[exp]['dataset'])
@@ -701,7 +704,8 @@ CONFIG['perfect_model_rcm'] = {
     'target': 'perfect_model',
     'bc_reanalysis_source': 'rcm_aladin',
     'target_source': 'rcm_aladin',
-    'dataset': DATASET_BC_DIR / 'dataset_perfect_model_rcm',
+    'dataset': DATASET_BC_DIR / 'dataset_perfect_model_rcm_bcml_audit',
+    'evaluation_dataset': DATASET_BC_DIR / 'dataset_perfect_model_rcm_eval_bcml_audit',
     'perfect_model_input_source': 'rcm_aladin',
     'perfect_model_condition_on_bc': True,
     'perfect_model_conditioning_bc_tag': None,

@@ -143,7 +143,8 @@ def main() -> int:
     train_output_norm = args.train_output_norm or args.train_model == "cddpm"
 
     perfect_dataset_dir = Path(args.sample_dir) if args.sample_dir else Path(CONFIG[args.exp]["dataset"])
-    eval_dataset_dir = Path(args.eval_sample_dir) if args.eval_sample_dir else DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu}"
+    eval_dataset_default = CONFIG[args.exp].get("evaluation_dataset", DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu}")
+    eval_dataset_dir = Path(args.eval_sample_dir) if args.eval_sample_dir else Path(eval_dataset_default)
     runs_dir = RUNS_DIR / args.exp / args.test_name
     metrics_test_name = f"{args.test_name}_{args.simu}"
     prediction_path = get_prediction_output_path(

@@ -13,7 +13,7 @@ export IDOWNSCALE_OUTPUT_DIR="${IDOWNSCALE_OUTPUT_DIR:-${IDOWNSCALE_RUNTIME_ROOT
 EXP="${EXP:-perfect_model_rcm}"
 SIMU_TEST="${SIMU_TEST:-rcm}"
 VAR="${VAR:-tas}"
-RAW_SAMPLE_DIR="${RAW_SAMPLE_DIR:-${IDOWNSCALE_OUTPUT_DIR}/datasets/dataset_bc/dataset_perfect_model_rcm_all_windows_rcm_raw}"
+RAW_SAMPLE_DIR="${RAW_SAMPLE_DIR:-${IDOWNSCALE_OUTPUT_DIR}/datasets/dataset_bc/dataset_perfect_model_rcm_eval_bcml_audit}"
 COMPARISON_DIR="${COMPARISON_DIR:-${IDOWNSCALE_OUTPUT_DIR}/metrics/${EXP}/comparison_tables}"
 CHUNKS_DIR="${CHUNKS_DIR:-${COMPARISON_DIR}/chunks}"
 
@@ -25,6 +25,7 @@ MODELS=(
   "unet_rep3_perfect_model_rcm"
   "miniunet_perfect_model_rcm"
   "unet_seed2_perfect_model_rcm"
+  "cddpm_perfect_model_rcm"
 )
 
 EXACT_WINDOWS=(
