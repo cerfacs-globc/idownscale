@@ -205,11 +205,15 @@ def prepare_bc_batch(
     period: str,
     ssp: str,
     bc_tag: str | None,
+    startdate,
+    enddate,
     target_file,
     domain,
 ) -> xr.Dataset:
     bc_path = get_bias_corrected_netcdf_path(exp, simu, var, period, ssp=ssp, bc_tag=bc_tag)
     ds_bc = xr.open_dataset(bc_path)
+    if "time" in ds_bc.coords:
+        ds_bc = ds_bc.sel(time=slice(startdate, enddate))
     return reformat_as_target(
         ds_bc,
         target_file=target_file,
@@ -366,9 +370,11 @@ if __name__ == '__main__':
                             period=period,
                             ssp=ssp,
                             bc_tag=conditioning_bc_tag,
+                            startdate=batch_dates[0],
+                            enddate=batch_dates[-1],
                             target_file=target_file,
                             domain=domain,
-                        ).sel(time=slice(batch_dates[0], batch_dates[-1]))
+                        )
                 else:
                     ds_input_batch = None
                 for date in batch_dates:
