@@ -1,31 +1,28 @@
-'''
+"""
 Data correction, evaluation and saving of the bias corrected dataset using IBICUS python librairy
 
 date : 16/07/2025
 author : Zoé GARCIA
-'''
+"""
 
 import sys
-sys.path.append('.')
+sys.path.append(".")
 
 import xarray as xr
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
-from typing import Optional, List, Tuple
 from ibicus.evaluate import marginal, metrics, trend
 from ibicus.debias import CDFt
 
 from bin.preprocessing.build_dataset_pp import build_perfect_model_target
-from iriscc.datautils import (reformat_as_target, 
+from iriscc.datautils import (reformat_as_target,
                               Data)
 from iriscc.settings import (GRAPHS_DIR,
                              CONFIG,
-                             DATES_BC_TEST_FUTURE,
-                             DATES_BC_TEST_HIST,
-                             DATES_BC_TRAIN_HIST,
-                             DATASET_BC_DIR,
+                             get_bc_bundle_path,
+                             get_bc_train_hist_dates,
                              get_bias_corrected_sample_dir,
                              get_bias_corrected_netcdf_path,
                              get_simu_family,
@@ -67,32 +64,41 @@ def apply_cdft_locationwise(
 
 
 def corrected_geometry_reference(exp: str, simu: str, simu_source: str) -> str:
-    if get_simu_family(exp, simu) == 'rcm':
-        return CONFIG[exp].get('gcm_source', 'gcm_cnrm_cm6_1')
+    if get_simu_family(exp, simu) == "rcm":
+        return CONFIG[exp].get("gcm_source", "gcm_cnrm_cm6_1")
     return simu_source
 
 
 def bundle_obs(bundle: dict) -> np.ndarray:
-    if 'obs' in bundle:
-        return bundle['obs']
-    if 'era5' in bundle:
-        return bundle['era5']
+    if "obs" in bundle:
+        return bundle["obs"]
+    if "era5" in bundle:
+        return bundle["era5"]
     raise KeyError("BC bundle does not contain an 'obs' or legacy 'era5' reference field.")
 
 
 def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates: np.ndarray) -> xr.Dataset:
     spatial_dims = reference_ds["tas"].dims
-    coords = {'time': ('time', dates)}
-    for coord_name in ('lon', 'lat', 'x', 'y'):
+    coords = {"time": ("time", dates)}
+    for coord_name in ("lon", "lat", "x", "y"):
         if coord_name not in reference_ds.coords:
             continue
         coord = reference_ds.coords[coord_name]
         if coord.dims:
             coords[coord_name] = (coord.dims, coord.values)
     return xr.Dataset(
-        data_vars=dict(tas=(('time',) + spatial_dims, values)),
+        data_vars=dict(tas=(("time",) + spatial_dims, values)),
         coords=coords,
     )
+
+
+def filter_dates(dates, startdate: str | None, enddate: str | None) -> pd.DatetimeIndex:
+    dates = pd.DatetimeIndex(dates)
+    if startdate:
+        dates = dates[dates >= pd.Timestamp(startdate)]
+    if enddate:
+        dates = dates[dates <= pd.Timestamp(enddate)]
+    return dates
 
 
 def target_sample_for_date(
@@ -104,9 +110,9 @@ def target_sample_for_date(
     target_file,
     domain,
 ) -> np.ndarray:
-    perfect_model_target_source = CONFIG[exp].get('perfect_model_target_source')
+    perfect_model_target_source = CONFIG[exp].get("perfect_model_target_source")
     if perfect_model_target_source:
-        target_method = CONFIG[exp].get('perfect_model_target_method', 'conservative_normed')
+        target_method = CONFIG[exp].get("perfect_model_target_method", "conservative_normed")
         y = build_perfect_model_target(
             get_data,
             perfect_model_target_source,
@@ -120,10 +126,11 @@ def target_sample_for_date(
         return np.expand_dims(y, axis=0).astype(np.float32)
 
     ds_target = get_data.get_target_dataset(
-        target=CONFIG[exp]['target'],
+        target=CONFIG[exp]["target"],
         var=var,
         date=date,
-        source_name=CONFIG[exp].get('target_source'),
+        source_name=CONFIG[exp].get("target_source"),
+        skip_domain_crop=bool(CONFIG[exp].get("target_source_pregridded", False)),
     )
     try:
         return np.expand_dims(ds_target[var].values, axis=0).astype(np.float32)
@@ -144,15 +151,23 @@ def materialize_corrected_samples(
     var: str,
     ssp: str,
     include_target: bool,
+    startdate: str | None = None,
+    enddate: str | None = None,
+    skip_existing: bool = False,
 ) -> None:
-    for date in pd.DatetimeIndex(dates):
+    for date in filter_dates(dates, startdate, enddate):
+        date_str = date.date().strftime("%Y%m%d")
+        sample_path = dataset_bc_dir / f"sample_{date_str}.npz"
+        if skip_existing and sample_path.exists():
+            print(f"{date} exists")
+            continue
         print(date)
         ds_day = corrected_ds.sel(time=corrected_ds.time.dt.date == date.date()).isel(time=0, drop=True)
         ds_day_target = reformat_as_target(
             ds_day,
             target_file=target_file,
             domain=domain,
-            method="conservative_normed",
+            method=CONFIG[exp].get("perfect_model_target_method", "conservative_normed"),
             mask=True,
         )
         try:
@@ -160,9 +175,9 @@ def materialize_corrected_samples(
         finally:
             ds_day_target.close()
 
-        sample = {'x': x}
+        sample = {"x": x}
         if include_target:
-            sample['y'] = target_sample_for_date(
+            sample["y"] = target_sample_for_date(
                 get_data=get_data,
                 exp=exp,
                 var=var,
@@ -172,17 +187,16 @@ def materialize_corrected_samples(
                 domain=domain,
             )
 
-        date_str = date.date().strftime('%Y%m%d')
-        np.savez(dataset_bc_dir / f'sample_{date_str}.npz', **sample)
+        np.savez(sample_path, **sample)
 
 
 def plot_tprofiles_short_range(
-        y: Optional[np.ndarray], 
-        x: np.ndarray, 
+        y: np.ndarray | None,
+        x: np.ndarray,
         z: np.ndarray,
-        title: str, 
+        title: str,
         savedir: str,
-        simu: Optional[str] = None
+        simu: str | None = None
     ) -> None:
     """
     Plots {var} profiles for a short range of days and saves the plot to a file.
@@ -194,28 +208,29 @@ def plot_tprofiles_short_range(
         title (str): Title of the plot.
         savedir (str): Path to save the generated plot.
 
-    Returns:
+    Returns
+    -------
         None
     """
     plt.figure(figsize=(15, 5))
     if y is not None:
-        plt.plot(y[1000:2000],label='ERA5', color='red')
-    plt.plot(x[1000:2000],label=f'{simu}', color='blue')
-    plt.plot(z[1000:2000],label=f'{simu} bc', color='green')
-    plt.xlabel('Days')
-    plt.ylabel('Daily {var} ')
+        plt.plot(y[1000:2000],label="ERA5", color="red")
+    plt.plot(x[1000:2000],label=f"{simu}", color="blue")
+    plt.plot(z[1000:2000],label=f"{simu} bc", color="green")
+    plt.xlabel("Days")
+    plt.ylabel("Daily {var} ")
     plt.title(title)
     plt.legend()
     plt.savefig(savedir)
 
 def plot_seasonal_hist(
-        y: list | None, 
-        x: list, 
-        z: list, 
-        dates: list, 
-        title: str, 
+        y: list | None,
+        x: list,
+        z: list,
+        dates: list,
+        title: str,
         savedir: str,
-        simu: Optional[str] = None
+        simu: str | None = None
     ) -> None:
     """
     Plots seasonal histograms (winter and summer) for {var} data.
@@ -229,7 +244,8 @@ def plot_seasonal_hist(
         title (str): Title for the plot.
         savedir (str): File path to save the generated plot.
 
-    Returns:
+    Returns
+    -------
         None: The function saves the plot to the specified directory.
     """
     i_summer = []
@@ -239,28 +255,28 @@ def plot_seasonal_hist(
             i_summer.append(index)
         else:
             i_winter.append(index)
-    _, (ax1, ax2) = plt.subplots(1,2, figsize=(8,4), sharey='row')
+    _, (ax1, ax2) = plt.subplots(1,2, figsize=(8,4), sharey="row")
     if y is not None:
-        ax1.hist([y[i] for i in i_winter], histtype='step', color='red', label='ERA5', density=True)
-        ax2.hist([y[i] for i in i_summer], histtype='step', color='red', label='ERA5', density=True)
-    ax1.hist([x[i] for i in i_winter], histtype='step', color='blue', label=f'{simu}', density=True, range=(265,300))
-    ax1.hist([z[i] for i in i_winter], histtype='step', color='green', label=f'{simu} bc', density=True)
-    ax2.hist([x[i] for i in i_summer], histtype='step', color='blue', label=f'{simu}', density=True, range=(265,300))
-    ax2.hist([z[i] for i in i_summer], histtype='step', color='green', label=f'{simu} bc', density=True)
+        ax1.hist([y[i] for i in i_winter], histtype="step", color="red", label="ERA5", density=True)
+        ax2.hist([y[i] for i in i_summer], histtype="step", color="red", label="ERA5", density=True)
+    ax1.hist([x[i] for i in i_winter], histtype="step", color="blue", label=f"{simu}", density=True, range=(265,300))
+    ax1.hist([z[i] for i in i_winter], histtype="step", color="green", label=f"{simu} bc", density=True)
+    ax2.hist([x[i] for i in i_summer], histtype="step", color="blue", label=f"{simu}", density=True, range=(265,300))
+    ax2.hist([z[i] for i in i_summer], histtype="step", color="green", label=f"{simu} bc", density=True)
     plt.suptitle(title)
-    ax1.set_title('Winter')
-    ax2.set_title('Summer')
-    ax1.set_xlabel('{var} (K)')
-    ax2.set_xlabel('{var} (K)')
+    ax1.set_title("Winter")
+    ax2.set_title("Summer")
+    ax1.set_xlabel("{var} (K)")
+    ax2.set_xlabel("{var} (K)")
     ax2.legend()
     plt.tight_layout()
     plt.savefig(savedir)
-    
-def monthly_mean(y: Optional[np.ndarray], 
-                 x: np.ndarray, 
-                 z: np.ndarray, 
-                 dates: List[str]
-        ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+def monthly_mean(y: np.ndarray | None,
+                 x: np.ndarray,
+                 z: np.ndarray,
+                 dates: list[str]
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Calculate the monthly mean of input arrays grouped by year and month.
 
@@ -270,34 +286,38 @@ def monthly_mean(y: Optional[np.ndarray],
         z (np.ndarray): Another array of values to calculate the monthly mean for.
         dates (List[str]): A list of date strings corresponding to the input arrays.
 
-    Returns:
+    Returns
+    -------
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     if y is None:
         y = x
-    df = pd.DataFrame({'dates' : dates,
-                                'y': y,
-                                'x' : x,
-                                'z' : z})
-    df['month'] = pd.to_datetime(df['dates']).dt.month
-    df['year'] = pd.to_datetime(df['dates']).dt.year
-    df_month = df.groupby(['year','month']).mean().reset_index()
-    y_month = df_month['y'].values
-    x_month = df_month['x'].values
-    z_month = df_month['z'].values
-    dates_month = df_month['dates'].values
+    df = pd.DataFrame({"dates" : dates,
+                                "y": y,
+                                "x" : x,
+                                "z" : z})
+    df["month"] = pd.to_datetime(df["dates"]).dt.month
+    df["year"] = pd.to_datetime(df["dates"]).dt.year
+    df_month = df.groupby(["year","month"]).mean().reset_index()
+    y_month = df_month["y"].values
+    x_month = df_month["x"].values
+    z_month = df_month["z"].values
+    dates_month = df_month["dates"].values
     return y_month, x_month, z_month, dates_month
 
 
-if __name__=='__main__':
-    
+if __name__=="__main__":
+
     parser = argparse.ArgumentParser(description="Predict and plot results")
-    parser.add_argument('--exp', type=str, help='Experiment name (e.g., exp1)') 
-    parser.add_argument('--ssp', type=str, help='SSP scenario (e.g., ssp585)')
-    parser.add_argument('--simu', type=str, help='Simulation alias or model source key', default='gcm')
-    parser.add_argument('--var', type=str, help='tas, pr', default='tas')
-    parser.add_argument('--test', action='store_true', help='Skip expensive diagnostics and only materialize corrected outputs')
-    parser.add_argument('--bc-tag', type=str, default=None, help='Optional suffix to keep BC outputs separate across methods.')
+    parser.add_argument("--exp", type=str, help="Experiment name (e.g., exp1)")
+    parser.add_argument("--ssp", type=str, help="SSP scenario (e.g., ssp585)")
+    parser.add_argument("--simu", type=str, help="Simulation alias or model source key", default="gcm")
+    parser.add_argument("--var", type=str, help="tas, pr", default="tas")
+    parser.add_argument("--test", action="store_true", help="Skip expensive diagnostics and only materialize corrected outputs")
+    parser.add_argument("--bc-tag", type=str, default=None, help="Optional suffix to keep BC outputs separate across methods.")
+    parser.add_argument("--startdate", type=str, default=None, help="Optional inclusive first date to materialize, formatted YYYYMMDD.")
+    parser.add_argument("--enddate", type=str, default=None, help="Optional inclusive last date to materialize, formatted YYYYMMDD.")
+    parser.add_argument("--skip-existing", action="store_true", help="Skip corrected samples that already exist.")
     args = parser.parse_args()
 
     exp = args.exp
@@ -305,34 +325,34 @@ if __name__=='__main__':
     simu = args.simu
     var = args.var
     bc_tag = normalize_bc_tag(args.bc_tag)
-    domain =  CONFIG[exp]['domain']
-    bc_domain = CONFIG[exp].get('bc_domain', [-12.5, 27.5, 31., 71.])
+    domain =  CONFIG[exp]["domain"]
+    bc_domain = CONFIG[exp].get("bc_domain", [-12.5, 27.5, 31., 71.])
     simu_source = get_simu_source(exp, simu)
-    bc_reference_source = CONFIG[exp].get('bc_reanalysis_source', 'era5')
+    bc_reference_source = CONFIG[exp].get("bc_reanalysis_source", "era5")
     bc_reference_label = get_source_output_label(bc_reference_source)
-    orog_file = CONFIG[exp]['orog_file']
-    target_file = CONFIG[exp]['target_file']
-    dataset = CONFIG[exp]['dataset']
+    orog_file = CONFIG[exp]["orog_file"]
+    target_file = CONFIG[exp]["target_file"]
+    dataset = CONFIG[exp]["dataset"]
     dataset_bc_dir = get_bias_corrected_sample_dir(exp, simu, bc_tag)
-    graphs_bias_dir = GRAPHS_DIR / 'biascorrection'
+    graphs_bias_dir = GRAPHS_DIR / "biascorrection"
     dataset_bc_dir.mkdir(parents=True, exist_ok=True)
     graphs_bias_dir.mkdir(parents=True, exist_ok=True)
-    
+
 
     get_data_bc = Data(bc_domain)
     geometry_source = corrected_geometry_reference(exp, simu, simu_source)
-    model_ds = get_data_bc.get_model_dataset(geometry_source, var, DATES_BC_TRAIN_HIST[0], ssp=ssp)
+    model_ds = get_data_bc.get_model_dataset(geometry_source, var, get_bc_train_hist_dates(exp)[0], ssp=ssp)
     get_data = Data(domain=domain)
 
     debiaser = CDFt.from_variable(variable=var)
 
-    train_hist = dict(np.load(DATASET_BC_DIR/f'bc_train_hist_{simu}.npz', allow_pickle=True))
-    test_hist = dict(np.load(DATASET_BC_DIR/f'bc_test_hist_{simu}.npz', allow_pickle=True))
-    test_future = dict(np.load(DATASET_BC_DIR/f'bc_test_future_{simu}.npz', allow_pickle=True))
+    train_hist = dict(np.load(get_bc_bundle_path(exp, simu, "train_hist"), allow_pickle=True))
+    test_hist = dict(np.load(get_bc_bundle_path(exp, simu, "test_hist"), allow_pickle=True))
+    test_future = dict(np.load(get_bc_bundle_path(exp, simu, "test_future"), allow_pickle=True))
     train_obs = bundle_obs(train_hist)
     test_obs = bundle_obs(test_hist)
 
-   
+
     print("Applying IBICUS CDFt", flush=True)
     ##### 1980-1999
     train_hist_bc = apply_cdft_locationwise(
@@ -340,48 +360,48 @@ if __name__=='__main__':
                                 obs=train_obs,
                                 cm_hist=train_hist[simu],
                                 cm_future=train_hist[simu],
-                                time_obs=train_hist['dates'],
-                                time_cm_hist=train_hist['dates'],
-                                time_cm_future=train_hist['dates'])
+                                time_obs=train_hist["dates"],
+                                time_cm_hist=train_hist["dates"],
+                                time_cm_future=train_hist["dates"])
     ##### 2000-2014
     test_hist_bc = apply_cdft_locationwise(
                                 debiaser=debiaser,
                                 obs=train_obs,
                                 cm_hist=train_hist[simu],
                                 cm_future=test_hist[simu],
-                                time_obs=train_hist['dates'],
-                                time_cm_hist=train_hist['dates'],
-                                time_cm_future=test_hist['dates'])
-    
+                                time_obs=train_hist["dates"],
+                                time_cm_hist=train_hist["dates"],
+                                time_cm_future=test_hist["dates"])
+
     ##### 2015-2100
     test_future_bc = apply_cdft_locationwise(
                             debiaser=debiaser,
                             obs=train_obs,
                             cm_hist=train_hist[simu],
                             cm_future=test_future[simu],
-                            time_obs=train_hist['dates'],
-                            time_cm_hist=train_hist['dates'],
-                            time_cm_future=test_future['dates'])
+                            time_obs=train_hist["dates"],
+                            time_cm_hist=train_hist["dates"],
+                            time_cm_future=test_future["dates"])
     if args.test:
         print("Skipping IBICUS diagnostics in --test mode", flush=True)
     else:
-        var_marginal_bias_data = marginal.calculate_marginal_bias(metrics = [metrics.cold_days, metrics.warm_days], 
-                                                                percentage_or_absolute='absolute',
+        var_marginal_bias_data = marginal.calculate_marginal_bias(metrics = [metrics.cold_days, metrics.warm_days],
+                                                                percentage_or_absolute="absolute",
                                                                 obs = test_obs,
                                                                 raw = test_hist[simu],
                                                                 CDFt = test_hist_bc)
         plot = marginal.plot_marginal_bias(variable = var,
                                            bias_df = var_marginal_bias_data)
-        plot.savefig(GRAPHS_DIR /f'biascorrection/{var}_ibicus_bias_boxplot_{simu}.png')
-        
-        var_trend_bias_data = trend.calculate_future_trend_bias(statistics = ["mean", 0.05, 0.95], 
-                                                            trend_type = 'additive',
+        plot.savefig(GRAPHS_DIR /f"biascorrection/{var}_ibicus_bias_boxplot_{simu}.png")
+
+        var_trend_bias_data = trend.calculate_future_trend_bias(statistics = ["mean", 0.05, 0.95],
+                                                            trend_type = "additive",
                                                             raw_validate = test_hist[simu], raw_future = test_future[simu],
                                                             metrics = [metrics.cold_days, metrics.warm_days],
                                                             CDFt = [test_hist_bc, test_future_bc])
 
         plot = trend.plot_future_trend_bias_boxplot(variable =var, bias_df = var_trend_bias_data,remove_outliers = True)
-        plot.savefig(GRAPHS_DIR / f'biascorrection/{var}_ibicus_bias_futur_trend_{ssp}_{simu}.png')
+        plot.savefig(GRAPHS_DIR / f"biascorrection/{var}_ibicus_bias_futur_trend_{ssp}_{simu}.png")
 
         Y0 = np.mean(train_obs, axis=(1,2))
         X0 = np.mean(train_hist[simu], axis=(1,2))
@@ -396,63 +416,63 @@ if __name__=='__main__':
         print(Y1.shape, X1.shape, Z1.shape)
         print(X2.shape, Z2.shape)
 
-        plot_tprofiles_short_range(Y0, X0, Z0, 
-                                   title = f'Daily {var} over the historical Train period (1980-1999)',
-                                   savedir=GRAPHS_DIR / f'biascorrection/{var}_ibicus_train_hist_tprofiles_{simu}.png',
+        plot_tprofiles_short_range(Y0, X0, Z0,
+                                   title = f"Daily {var} over the historical Train period (1980-1999)",
+                                   savedir=GRAPHS_DIR / f"biascorrection/{var}_ibicus_train_hist_tprofiles_{simu}.png",
                                    simu = simu)
-        plot_tprofiles_short_range(Y1, X1, Z1, 
-                                   title = f'Daily {var} over the historical Test period (2000-2014)',
-                                   savedir=GRAPHS_DIR / f'biascorrection/{var}_ibicus_test_hist_tprofiles_{simu}.png',
+        plot_tprofiles_short_range(Y1, X1, Z1,
+                                   title = f"Daily {var} over the historical Test period (2000-2014)",
+                                   savedir=GRAPHS_DIR / f"biascorrection/{var}_ibicus_test_hist_tprofiles_{simu}.png",
                                    simu=simu)
-        plot_tprofiles_short_range(None, X2, Z2, 
-                                   title = f'Daily {var} over the future Test period (2015-2100 {ssp})',
-                                   savedir=GRAPHS_DIR / f'biascorrection/{var}_ibicus_test_future_tprofiles_{ssp}_{simu}.png',
+        plot_tprofiles_short_range(None, X2, Z2,
+                                   title = f"Daily {var} over the future Test period (2015-2100 {ssp})",
+                                   savedir=GRAPHS_DIR / f"biascorrection/{var}_ibicus_test_future_tprofiles_{ssp}_{simu}.png",
                                    simu = simu)
 
         plt.figure(figsize=(6, 6))
-        plt.scatter(X1, Z1, color='blue', s=5, label='2000-2014')
-        plt.scatter(X2, Z2, color='green', s=5, label = f'2015-2100 {ssp}')
-        plt.plot(np.arange(270,300), np.arange(270,300), color='black')
+        plt.scatter(X1, Z1, color="blue", s=5, label="2000-2014")
+        plt.scatter(X2, Z2, color="green", s=5, label = f"2015-2100 {ssp}")
+        plt.plot(np.arange(270,300), np.arange(270,300), color="black")
         plt.xlim(270,300)
         plt.ylim(270,300)
         plt.legend()
-        plt.xlabel(f'{var} {simu} (K)')
-        plt.ylabel(f'{var} {simu} bc (K)')
-        plt.title(f'Daily mean {var} over the historical and future test period')
-        plt.savefig(GRAPHS_DIR /f'biascorrection/{var}_ibicus_test_hist_linear_{ssp}_{simu}.png')
+        plt.xlabel(f"{var} {simu} (K)")
+        plt.ylabel(f"{var} {simu} bc (K)")
+        plt.title(f"Daily mean {var} over the historical and future test period")
+        plt.savefig(GRAPHS_DIR /f"biascorrection/{var}_ibicus_test_hist_linear_{ssp}_{simu}.png")
 
-        df_simu = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
-                                                 test_hist['dates'], 
-                                                 test_future['dates']), axis=None),
-                       'values' : np.concatenate((X0, 
-                                                  X1, 
+        df_simu = pd.DataFrame({"dates" : np.concatenate((train_hist["dates"],
+                                                 test_hist["dates"],
+                                                 test_future["dates"]), axis=None),
+                       "values" : np.concatenate((X0,
+                                                  X1,
                                                   X2), axis=None),
-                       'labels' : np.concatenate((np.ones_like(X0),
+                       "labels" : np.concatenate((np.ones_like(X0),
                                                   2*np.ones_like(X1),
                                                   3*np.ones_like(X2)), axis=None)})
-        df_simu['year'] = pd.to_datetime(df_simu['dates']).dt.year
-        df_simu_year = df_simu.groupby('year').mean()
+        df_simu["year"] = pd.to_datetime(df_simu["dates"]).dt.year
+        df_simu_year = df_simu.groupby("year").mean()
 
-        df_obs = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
-                                                    test_hist['dates']), axis=None),
-                        'values' : np.concatenate((Y0, 
+        df_obs = pd.DataFrame({"dates" : np.concatenate((train_hist["dates"],
+                                                    test_hist["dates"]), axis=None),
+                        "values" : np.concatenate((Y0,
                                                     Y1), axis=None),
-                        'labels' : np.concatenate((np.ones_like(Y0),
+                        "labels" : np.concatenate((np.ones_like(Y0),
                                                     2*np.ones_like(Y1)), axis=None)})
-        df_obs['year'] = pd.to_datetime(df_obs['dates']).dt.year
-        df_obs_year = df_obs.groupby('year').mean()
+        df_obs["year"] = pd.to_datetime(df_obs["dates"]).dt.year
+        df_obs_year = df_obs.groupby("year").mean()
 
-        df_simu_bc = pd.DataFrame({'dates' : np.concatenate((train_hist['dates'], 
-                                                 test_hist['dates'], 
-                                                 test_future['dates']), axis=None),
-                       'values' : np.concatenate((Z0, 
-                                                  Z1, 
+        df_simu_bc = pd.DataFrame({"dates" : np.concatenate((train_hist["dates"],
+                                                 test_hist["dates"],
+                                                 test_future["dates"]), axis=None),
+                       "values" : np.concatenate((Z0,
+                                                  Z1,
                                                   Z2), axis=None),
-                       'labels' : np.concatenate((np.ones_like(Z0),
+                       "labels" : np.concatenate((np.ones_like(Z0),
                                                   2*np.ones_like(Z1),
                                                   3*np.ones_like(Z2)), axis=None)})
-        df_simu_bc['year'] = pd.to_datetime(df_simu_bc['dates']).dt.year
-        df_simu_bc_year = df_simu_bc.groupby('year').mean()
+        df_simu_bc["year"] = pd.to_datetime(df_simu_bc["dates"]).dt.year
+        df_simu_bc_year = df_simu_bc.groupby("year").mean()
 
         plt.figure(figsize=(8, 4))
         plt.plot(df_obs_year.index, np.where(df_obs_year["labels"]==1., df_obs_year["values"], None), color="red", label=bc_reference_label)
@@ -463,35 +483,35 @@ if __name__=='__main__':
         plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==2., df_simu_bc_year["values"], None), color="green")
         plt.plot(df_simu_year.index, np.where(df_simu_year["labels"]==3., df_simu_year["values"], None), color="blue")
         plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"]==3., df_simu_bc_year["values"], None), color="green")
-        plt.title(f'Annual mean {var} {simu} ({ssp})')
-        plt.ylabel('{var} (K)')
+        plt.title(f"Annual mean {var} {simu} ({ssp})")
+        plt.ylabel("{var} (K)")
         plt.legend()
-        plt.savefig(GRAPHS_DIR/f'biascorrection/{var}_bc_datasets_temporal_profiles_ibicus_{ssp}_{simu}.png')
+        plt.savefig(GRAPHS_DIR/f"biascorrection/{var}_bc_datasets_temporal_profiles_ibicus_{ssp}_{simu}.png")
 
-        Y0, X0, Z0, dates = monthly_mean(Y0, X0, Z0, train_hist['dates'])
+        Y0, X0, Z0, dates = monthly_mean(Y0, X0, Z0, train_hist["dates"])
         plot_seasonal_hist(Y0, X0, Z0, dates,
-                           title =f'Monthly mean {var} over the historical Train period (1980-1999)',
-                           savedir=GRAPHS_DIR/f'biascorrection/{var}_ibicus_train_hist_histo_{simu}.png',
+                           title =f"Monthly mean {var} over the historical Train period (1980-1999)",
+                           savedir=GRAPHS_DIR/f"biascorrection/{var}_ibicus_train_hist_histo_{simu}.png",
                            simu=simu)
-        Y1, X1, Z1, dates = monthly_mean(Y1, X1, Z1, test_hist['dates'])
+        Y1, X1, Z1, dates = monthly_mean(Y1, X1, Z1, test_hist["dates"])
         plot_seasonal_hist(Y1, X1, Z1, dates,
-                           title =f'Monthly mean {var} over the historical Test period (2000-2014)',
-                           savedir=GRAPHS_DIR /f'biascorrection/{var}_ibicus_test_hist_histo_{simu}.png',
+                           title =f"Monthly mean {var} over the historical Test period (2000-2014)",
+                           savedir=GRAPHS_DIR /f"biascorrection/{var}_ibicus_test_hist_histo_{simu}.png",
                             simu=simu)
-        _, X2, Z2, dates = monthly_mean(None, X2, Z2, test_future['dates'])
+        _, X2, Z2, dates = monthly_mean(None, X2, Z2, test_future["dates"])
         plot_seasonal_hist(None, X2, Z2, dates,
-                           title =f'Monthly mean {var} over the future Test period (2015-2100 {ssp})',
-                           savedir=GRAPHS_DIR/f'biascorrection/{var}_ibicus_test_future_histo_{ssp}_{simu}.png',
+                           title =f"Monthly mean {var} over the future Test period (2015-2100 {ssp})",
+                           savedir=GRAPHS_DIR/f"biascorrection/{var}_ibicus_test_future_histo_{ssp}_{simu}.png",
                            simu=simu)
 
-    ds_train_hist_bc = build_corrected_dataset(model_ds, train_hist_bc, train_hist['dates'])
-    ds_test_hist_bc = build_corrected_dataset(model_ds, test_hist_bc, test_hist['dates'])
-    ds_test_future_bc = build_corrected_dataset(model_ds, test_future_bc, test_future['dates'])
-    ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'train_hist', ssp=ssp, bc_tag=bc_tag))
-    ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_hist', ssp=ssp, bc_tag=bc_tag))
-    ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, 'test_future', ssp=ssp, bc_tag=bc_tag))
+    ds_train_hist_bc = build_corrected_dataset(model_ds, train_hist_bc, train_hist["dates"])
+    ds_test_hist_bc = build_corrected_dataset(model_ds, test_hist_bc, test_hist["dates"])
+    ds_test_future_bc = build_corrected_dataset(model_ds, test_future_bc, test_future["dates"])
+    ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, "train_hist", ssp=ssp, bc_tag=bc_tag))
+    ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, "test_hist", ssp=ssp, bc_tag=bc_tag))
+    ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, "test_future", ssp=ssp, bc_tag=bc_tag))
     with xr.open_dataset(orog_file) as ds_orog:
-        orog = ds_orog['elevation'].values.astype(np.float32)
+        orog = ds_orog["elevation"].values.astype(np.float32)
 
     materialize_corrected_samples(
         corrected_ds=ds_train_hist_bc,
@@ -505,6 +525,9 @@ if __name__=='__main__':
         var=var,
         ssp=ssp,
         include_target=True,
+        startdate=args.startdate,
+        enddate=args.enddate,
+        skip_existing=args.skip_existing,
     )
     materialize_corrected_samples(
         corrected_ds=ds_test_hist_bc,
@@ -518,6 +541,9 @@ if __name__=='__main__':
         var=var,
         ssp=ssp,
         include_target=True,
+        startdate=args.startdate,
+        enddate=args.enddate,
+        skip_existing=args.skip_existing,
     )
     materialize_corrected_samples(
         corrected_ds=ds_test_future_bc,
@@ -531,8 +557,11 @@ if __name__=='__main__':
         var=var,
         ssp=ssp,
         include_target=False,
+        startdate=args.startdate,
+        enddate=args.enddate,
+        skip_existing=args.skip_existing,
     )
     ds_train_hist_bc.close()
     ds_test_hist_bc.close()
     ds_test_future_bc.close()
-    
+
