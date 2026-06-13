@@ -80,7 +80,7 @@ def load_bc_on_target_grid(
         ds_bc,
         target_file=CONFIG[exp]["target_file"],
         domain=CONFIG[exp]["domain"],
-        method="conservative_normed",
+        method=CONFIG[exp].get("perfect_model_target_method", "conservative_normed"),
         mask=True,
         input_projection=None,
         reuse_weights=True,

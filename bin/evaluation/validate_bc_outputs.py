@@ -33,9 +33,9 @@ sys.path.append(".")
 
 from iriscc.settings import (
     DATASET_BC_DIR,
-    EXP5_ARCHIVE_DATASET_DIR,
     GRAPHS_DIR,
     METRICS_DIR,
+    get_bc_bundle_path,
     get_bias_corrected_netcdf_path,
 )
 
@@ -162,10 +162,9 @@ def summarize_future_period(period: str, hist_raw: np.ndarray, hist_bc: np.ndarr
 
 
 def load_current_bc(exp: str, simu: str, var: str, ssp: str) -> tuple[dict, dict, dict, xr.Dataset, xr.Dataset, xr.Dataset]:
-    base = DATASET_BC_DIR
-    train_hist = dict(np.load(base / f"bc_train_hist_{simu}.npz", allow_pickle=True))
-    test_hist = dict(np.load(base / f"bc_test_hist_{simu}.npz", allow_pickle=True))
-    test_future = dict(np.load(base / f"bc_test_future_{simu}.npz", allow_pickle=True))
+    train_hist = dict(np.load(get_bc_bundle_path(exp, simu, "train_hist"), allow_pickle=True))
+    test_hist = dict(np.load(get_bc_bundle_path(exp, simu, "test_hist"), allow_pickle=True))
+    test_future = dict(np.load(get_bc_bundle_path(exp, simu, "test_future"), allow_pickle=True))
 
     train_hist_bc = xr.open_dataset(get_bias_corrected_netcdf_path(exp, simu, var, "train_hist", ssp=ssp))
     test_hist_bc = xr.open_dataset(get_bias_corrected_netcdf_path(exp, simu, var, "test_hist", ssp=ssp))

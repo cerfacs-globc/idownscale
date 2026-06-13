@@ -46,6 +46,7 @@ cd "${REPO_ROOT}"
 
 STEPS="${STEPS:-phase1,stats,bc_dataset,bc_apply}"
 IF_EXISTS="${IF_EXISTS:-skip}"
+EXP="${EXP:-exp5}"
 PHASE1_START_DATE="${PHASE1_START_DATE:-}"
 PHASE1_END_DATE="${PHASE1_END_DATE:-}"
 SIMU="${SIMU:-gcm}"
@@ -65,11 +66,13 @@ TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-32}"
 TRAIN_LEARNING_RATE="${TRAIN_LEARNING_RATE:-0.0008}"
 TRAIN_MODEL="${TRAIN_MODEL:-unet}"
 TRAIN_LOSS="${TRAIN_LOSS:-}"
+SAMPLE_START_DATE="${SAMPLE_START_DATE:-}"
+SAMPLE_END_DATE="${SAMPLE_END_DATE:-}"
 
 CMD=(
   "${IDOWNSCALE_PYTHON_BIN}"
   bin/production/run_exp5_workflow.py
-  --exp exp5
+  --exp "${EXP}"
   --steps "${STEPS}"
   --if-exists "${IF_EXISTS}"
   --simu "${SIMU}"
@@ -114,6 +117,12 @@ if [[ -n "${VALUE_END_DATE}" ]]; then
 fi
 if [[ -n "${TRAIN_LOSS}" ]]; then
   CMD+=(--train-loss "${TRAIN_LOSS}")
+fi
+if [[ -n "${SAMPLE_START_DATE}" ]]; then
+  CMD+=(--sample-start-date "${SAMPLE_START_DATE}")
+fi
+if [[ -n "${SAMPLE_END_DATE}" ]]; then
+  CMD+=(--sample-end-date "${SAMPLE_END_DATE}")
 fi
 
 echo "--- exp5 globc CPU workflow start: $(date) ---"

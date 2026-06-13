@@ -24,14 +24,15 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from iriscc.settings import (
     CONFIG,
-    DATASET_BC_DIR,
-    DATES,
-    DATES_BC_TEST_FUTURE,
-    DATES_BC_TEST_HIST,
     GRAPHS_DIR,
     METRICS_DIR,
     RUNS_DIR,
+    get_bc_bundle_path,
+    get_bc_train_hist_dates,
+    get_bc_test_future_dates,
+    get_bc_test_hist_dates,
     get_bias_corrected_netcdf_path,
+    get_phase1_dates,
     get_prediction_output_path,
 )
 from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
@@ -57,20 +58,40 @@ def yyyymmdd(value: pd.Timestamp) -> str:
     return pd.Timestamp(value).strftime("%Y%m%d")
 
 
-def default_phase1_window() -> tuple[str, str]:
-    return yyyymmdd(DATES[0]), yyyymmdd(DATES[-1])
+def default_phase1_window(exp: str) -> tuple[str, str]:
+    dates = get_phase1_dates(exp)
+    return yyyymmdd(dates[0]), yyyymmdd(dates[-1])
 
 
-def default_prediction_window() -> tuple[str, str]:
-    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_FUTURE[-1])
+def default_prediction_window(exp: str) -> tuple[str, str]:
+    hist_dates = get_bc_test_hist_dates(exp)
+    future_dates = get_bc_test_future_dates(exp)
+    return yyyymmdd(hist_dates[0]), yyyymmdd(future_dates[-1])
 
 
-def default_metrics_window() -> tuple[str, str]:
-    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
+def default_metrics_window(exp: str) -> tuple[str, str]:
+    hist_dates = get_bc_test_hist_dates(exp)
+    return yyyymmdd(hist_dates[0]), yyyymmdd(hist_dates[-1])
 
 
-def default_value_window() -> tuple[str, str]:
-    return yyyymmdd(DATES_BC_TEST_HIST[0]), yyyymmdd(DATES_BC_TEST_HIST[-1])
+def default_value_window(exp: str) -> tuple[str, str]:
+    hist_dates = get_bc_test_hist_dates(exp)
+    return yyyymmdd(hist_dates[0]), yyyymmdd(hist_dates[-1])
+
+
+def first_hist_train_day(exp: str) -> str:
+    dates = get_bc_train_hist_dates(exp)
+    return yyyymmdd(dates[0])
+
+
+def first_hist_test_day(exp: str) -> str:
+    dates = get_bc_test_hist_dates(exp)
+    return yyyymmdd(dates[0])
+
+
+def first_future_test_day(exp: str) -> str:
+    dates = get_bc_test_future_dates(exp)
+    return yyyymmdd(dates[0])
 
 
 def parse_args() -> argparse.Namespace:
@@ -112,6 +133,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-model", default="unet", help="Model family for the optional train step.")
     parser.add_argument("--train-loss", default=None, help="Optional loss override for the train step.")
     parser.add_argument("--train-output-norm", action="store_true", help="Enable output normalization in the train step.")
+    parser.add_argument("--sample-start-date", default=None, help="Optional YYYYMMDD start date for raw/BC sample packaging.")
+    parser.add_argument("--sample-end-date", default=None, help="Optional YYYYMMDD end date for raw/BC sample packaging.")
     parser.add_argument("--predict-start-date", default=None, help="Prediction start date. Defaults to the settings.py historical-test start.")
     parser.add_argument("--predict-end-date", default=None, help="Prediction end date. Defaults to the settings.py future-test end.")
     parser.add_argument("--metrics-start-date", default=None, help="Metrics evaluation start date. Defaults to the settings.py historical-test start.")
@@ -138,11 +161,11 @@ def resolve_steps(raw_steps: str) -> list[str]:
     return steps
 
 
-def list_phase1_outputs(dataset_dir: Path, start: str | None, end: str | None) -> list[Path]:
+def list_phase1_outputs(exp: str, dataset_dir: Path, start: str | None, end: str | None) -> list[Path]:
     if start and end:
         dates = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="D")
     else:
-        dates = pd.date_range("1980-01-01", "2014-12-31", freq="D")
+        dates = get_phase1_dates(exp)
     return [dataset_dir / f"sample_{date.strftime('%Y%m%d')}.npz" for date in dates]
 
 
@@ -200,14 +223,14 @@ def main() -> int:
     phase1_start_date, phase1_end_date = (
         (args.phase1_start_date, args.phase1_end_date)
         if args.phase1_start_date and args.phase1_end_date
-        else default_phase1_window()
+        else default_phase1_window(exp)
     )
-    predict_start_date = args.predict_start_date or default_prediction_window()[0]
-    predict_end_date = args.predict_end_date or default_prediction_window()[1]
-    metrics_start_date = args.metrics_start_date or default_metrics_window()[0]
-    metrics_end_date = args.metrics_end_date or default_metrics_window()[1]
-    value_start_date = args.value_start_date or default_value_window()[0]
-    value_end_date = args.value_end_date or default_value_window()[1]
+    predict_start_date = args.predict_start_date or default_prediction_window(exp)[0]
+    predict_end_date = args.predict_end_date or default_prediction_window(exp)[1]
+    metrics_start_date = args.metrics_start_date or default_metrics_window(exp)[0]
+    metrics_end_date = args.metrics_end_date or default_metrics_window(exp)[1]
+    value_start_date = args.value_start_date or default_value_window(exp)[0]
+    value_end_date = args.value_end_date or default_value_window(exp)[1]
     dataset_dir = Path(exp_cfg["dataset"])
     resolved_settings = {
         "exp": exp,
@@ -224,7 +247,7 @@ def main() -> int:
         inputs={"dataset_dir": dataset_dir},
         outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
     )
-    phase1_outputs = list_phase1_outputs(dataset_dir, phase1_start_date, phase1_end_date)
+    phase1_outputs = list_phase1_outputs(exp, dataset_dir, phase1_start_date, phase1_end_date)
 
     stats_outputs = [
         dataset_dir / "statistics.json",
@@ -237,9 +260,9 @@ def main() -> int:
         Path(exp_cfg["orog_file"]),
     ]
     bc_outputs = [
-        DATASET_BC_DIR / f"bc_train_hist_{args.simu}.npz",
-        DATASET_BC_DIR / f"bc_test_hist_{args.simu}.npz",
-        DATASET_BC_DIR / f"bc_test_future_{args.simu}.npz",
+        get_bc_bundle_path(exp, args.simu, "train_hist"),
+        get_bc_bundle_path(exp, args.simu, "test_hist"),
+        get_bc_bundle_path(exp, args.simu, "test_future"),
     ]
     raw_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{args.simu}"
     bc_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{args.simu}_bc"
@@ -247,12 +270,12 @@ def main() -> int:
         get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
         get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),
         get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
-        bc_dataset_dir / "sample_19800101.npz",
+        bc_dataset_dir / f"sample_{first_hist_train_day(exp)}.npz",
     ]
-    pp_outputs = [bc_dataset_dir / "sample_19800101.npz"]
+    pp_outputs = [bc_dataset_dir / f"sample_{first_hist_test_day(exp)}.npz"]
     raw_outputs = [
-        raw_dataset_dir / "sample_20000101.npz",
-        raw_dataset_dir / "sample_20150101.npz",
+        raw_dataset_dir / f"sample_{first_hist_test_day(exp)}.npz",
+        raw_dataset_dir / f"sample_{first_future_test_day(exp)}.npz",
     ]
     prediction_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
     prediction_outputs = []
@@ -371,7 +394,9 @@ def main() -> int:
                 args.var,
                 "--ssp",
                 ssp,
-            ],
+            ]
+            + (["--startdate", args.sample_start_date] if args.sample_start_date else [])
+            + (["--enddate", args.sample_end_date] if args.sample_end_date else []),
             "expected": raw_outputs,
             "cleanup": [raw_dataset_dir],
         },
@@ -410,7 +435,9 @@ def main() -> int:
                 "--ssp",
                 ssp,
                 "--corrected",
-            ],
+            ]
+            + (["--startdate", args.sample_start_date] if args.sample_start_date else [])
+            + (["--enddate", args.sample_end_date] if args.sample_end_date else []),
             "expected": pp_outputs,
             "cleanup": [bc_dataset_dir],
         },

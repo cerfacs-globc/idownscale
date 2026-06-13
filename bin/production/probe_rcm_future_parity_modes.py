@@ -6,7 +6,7 @@ import pandas as pd
 
 from bin.preprocessing.build_dataset import Data
 from iriscc.datautils import crop_domain_from_ds, interpolation_target_grid
-from iriscc.settings import ALADIN_PROJ_PYPROJ, CONFIG, get_simu_source
+from iriscc.settings import ALADIN_PROJ_PYPROJ, CONFIG, get_bc_bundle_path, get_simu_source
 
 
 def parse_args():
@@ -69,7 +69,7 @@ def main():
     simu_source = get_simu_source(exp, args.simu)
     get_bc_data = Data(domain=bc_domain)
 
-    archive_path = Path(args.archive_root) / "datasets" / "dataset_bc" / f"bc_test_future_{args.simu}.npz"
+    archive_path = Path(args.archive_root) / "datasets" / "dataset_bc" / get_bc_bundle_path(exp, args.simu, "test_future").name
     archive = np.load(archive_path, allow_pickle=True)
     archive_dates = pd.to_datetime(archive["dates"])
 

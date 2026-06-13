@@ -13,14 +13,14 @@ from iriscc.datautils import (
 
 def test_standardize_longitudes():
     # Test 1D lon
-    ds = xr.Dataset(coords={'lon': [350.0, 10.0]})
+    ds = xr.Dataset(coords={"lon": [350.0, 10.0]})
     ds_std = standardize_longitudes(ds)
     assert np.all(ds_std.lon.values <= 180.0)
     assert np.all(ds_std.lon.values >= -180.0)
     assert -10.0 in ds_std.lon.values
 
     # Test 2D lon (mesh)
-    ds2 = xr.Dataset(coords={'lon': (('y','x'), [[350.0]]), 'lat': (('y','x'), [[45.0]])})
+    ds2 = xr.Dataset(coords={"lon": (("y","x"), [[350.0]]), "lat": (("y","x"), [[45.0]])})
     ds2_std = standardize_longitudes(ds2)
     assert ds2_std.lon.values[0,0] == -10.0
 
@@ -34,15 +34,30 @@ def test_generate_bounds():
     assert bounds[3] == 35
 
 def test_standardize_dims_and_coords():
-    ds = xr.Dataset(coords={'nav_lon': [0, 1], 'nav_lat': [0, 1]}, data_vars={'tas': (('nav_lat', 'nav_lon'), [[1, 2], [3, 4]])})
-    ds = ds.rename({'nav_lon': 'nlon', 'nav_lat': 'nlat'}) # Mock some odd names
+    ds = xr.Dataset(coords={"nav_lon": [0, 1], "nav_lat": [0, 1]}, data_vars={"tas": (("nav_lat", "nav_lon"), [[1, 2], [3, 4]])})
+    ds = ds.rename({"nav_lon": "nlon", "nav_lat": "nlat"}) # Mock some odd names
     ds_std = standardize_dims_and_coords(ds)
-    assert 'lon' in ds_std.coords
-    assert 'lat' in ds_std.coords
+    assert "lon" in ds_std.coords
+    assert "lat" in ds_std.coords
 
 def test_crop_domain_from_ds():
-    ds = xr.Dataset(coords={'lon': [0, 10, 20], 'lat': [0, 10, 20]}, data_vars={'tas': (('lat', 'lon'), np.zeros((3,3)))})
+    ds = xr.Dataset(coords={"lon": [0, 10, 20], "lat": [0, 10, 20]}, data_vars={"tas": (("lat", "lon"), np.zeros((3,3)))})
     domain = (5, 15, 5, 15)
     ds_cropped = crop_domain_from_ds(ds, domain)
     assert len(ds_cropped.lon) == 1
     assert ds_cropped.lon.values[0] == 10
+
+
+def test_crop_domain_from_curvilinear_ds():
+    ds = xr.Dataset(
+        coords={
+            "lon": (("y", "x"), [[0.0, 10.0, 20.0], [0.0, 10.0, 20.0]]),
+            "lat": (("y", "x"), [[40.0, 40.0, 40.0], [50.0, 50.0, 50.0]]),
+        },
+        data_vars={"tas": (("y", "x"), np.zeros((2, 3)))},
+    )
+    domain = (5.0, 15.0, 45.0, 55.0)
+    ds_cropped = crop_domain_from_ds(ds, domain)
+    assert ds_cropped.sizes["x"] == 1
+    assert ds_cropped.sizes["y"] == 1
+    assert ds_cropped.lon.values[0, 0] == 10.0
