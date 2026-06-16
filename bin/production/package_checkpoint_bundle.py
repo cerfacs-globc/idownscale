@@ -23,6 +23,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from iriscc.runtime_paths import require_match
 from iriscc.settings import DATASET_DIR, EXP5_ARCHIVE_DATASET_DIR, LEGACY_DATASET_ROOTS, RAW_DIR, RUNS_DIR, OUTPUT_DIR
 
 DEFAULT_OUTPUT_ROOT = OUTPUT_DIR / "checkpoint_bundles"
@@ -141,11 +142,7 @@ def copy_if_present(path: Path | None, dest_dir: Path) -> str | None:
 def main() -> int:
     args = parse_args()
     run_dir = Path(args.runs_root) / args.exp / args.test_name / "lightning_logs" / "version_best"
-    checkpoint_matches = sorted((run_dir / "checkpoints").glob("best-checkpoint*.ckpt"))
-    if not checkpoint_matches:
-        raise FileNotFoundError(f"No best checkpoint found under {run_dir / 'checkpoints'}")
-
-    checkpoint_path = checkpoint_matches[0]
+    checkpoint_path = require_match(run_dir / "checkpoints", "best-checkpoint*.ckpt", "best checkpoint")
     hparams_path = run_dir / "hparams.yaml"
     metrics_path = run_dir / "metrics_test_set.csv"
     if not hparams_path.exists():

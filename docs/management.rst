@@ -66,6 +66,13 @@ are configured correctly, the main scripts should agree on which checkpoint,
 sample tree, and ``statistics.json`` belong to a given ``(exp, test_name,
 simu_test)`` combination.
 
+The same runtime helpers now also enforce file-discovery rules:
+
+* checkpoint discovery must yield exactly one best checkpoint
+* direct sample loads must point to an existing ``sample_<YYYYMMDD>.npz`` file
+* helper logic that bootstraps metadata from sample trees must fail clearly if
+  the directory is empty
+
 When debugging a run, check these in order:
 
 * the resolved-context block printed to stdout at startup

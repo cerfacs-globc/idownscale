@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from typing import Tuple, Union, List, Optional
 from pathlib import Path
 
+from iriscc.runtime_paths import require_existing_file
 from iriscc.settings import IMERG_MASK, DATASET_DIR, EXP5_ARCHIVE_DATASET_DIR
 
 
@@ -275,7 +276,7 @@ class DomainCrop:
     def __call__(self, sample: Tuple[np.ndarray, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
         x, y = sample
         if self.domain is not None:
-            coords_file = glob.glob(str(self.sample_dir / 'coordinates.npz'))[0]
+            coords_file = require_existing_file(self.sample_dir / "coordinates.npz", "coordinates file")
             coordinates = dict(np.load(coords_file, allow_pickle=True))
             self.lon = coordinates['lon']
             self.lat = coordinates['lat']

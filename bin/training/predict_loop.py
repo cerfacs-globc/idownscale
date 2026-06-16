@@ -18,7 +18,13 @@ from torchvision.transforms import v2
 
 from iriscc.inference import load_trained_module, predict_tensor
 from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
-from iriscc.runtime_paths import resolve_checkpoint_path, resolve_runtime_sample_dir, resolve_statistics_dir
+from iriscc.runtime_paths import (
+    require_match,
+    resolve_checkpoint_path,
+    resolve_runtime_sample_dir,
+    resolve_sample_file,
+    resolve_statistics_dir,
+)
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import (CONFIG,
 	                             get_bc_test_future_dates,
@@ -95,7 +101,8 @@ def get_target_format(exp:str, dates, var="tas", sample_dir=None):
     if CONFIG[exp].get("target") == "perfect_model":
         if sample_dir is None:
             sample_dir = CONFIG[exp]["dataset"]
-        first = np.load(next(iter(sorted(sample_dir.glob("sample_*.npz")))))
+        first_sample = require_match(sample_dir, "sample_*.npz", "sample file", allow_multiple=True)[0]
+        first = np.load(first_sample)
         y = first["y"][0]
         ds = xr.Dataset(
             data_vars={var: (["time", "y", "x"], np.empty((len(dates), y.shape[0], y.shape[1])), attrs)},
@@ -227,7 +234,7 @@ if __name__=="__main__":
         target_shapes = []
         for date in batch_dates:
             date_str = date.date().strftime("%Y%m%d")
-            sample = str(sample_dir / f"sample_{date_str}.npz")
+            sample = resolve_sample_file(sample_dir, date_str)
             data = dict(np.load(sample, allow_pickle=True))
 
             x = data["x"]

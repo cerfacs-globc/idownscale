@@ -27,6 +27,8 @@ For trained-model evaluation, the scripts resolve:
 
 * the checkpoint from ``--checkpoint-bundle`` when provided, otherwise from the
   standard ``runs/<exp>/<test_name>/.../checkpoints`` location
+* checkpoint discovery must now resolve to exactly one file; missing or
+  ambiguous matches raise a clear error
 * the statistics directory from checkpoint hyperparameters, preferring
   ``statistics_dir`` over ``sample_dir``
 * the sample directory from the evaluation dataset mapping for
@@ -35,6 +37,9 @@ For trained-model evaluation, the scripts resolve:
 
 For baseline and raw comparisons, the same sample-directory mapping is used
 without requiring a checkpointed model.
+
+Requested daily sample files are also validated explicitly, so a missing
+``sample_<YYYYMMDD>.npz`` now stops the run with the exact missing path.
 
 This matters operationally because prediction and evaluation now resolve the
 same sample roots by construction instead of duplicating slightly different
