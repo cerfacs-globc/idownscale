@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generic Calypso globc CPU submitter for exp5 workflow phases.
+# Generic Calypso globc CPU submitter for observation-target workflow phases.
 
 #SBATCH --job-name=exp5_workflow_cpu
 #SBATCH --partition=globc
@@ -71,7 +71,7 @@ SAMPLE_END_DATE="${SAMPLE_END_DATE:-}"
 
 CMD=(
   "${IDOWNSCALE_PYTHON_BIN}"
-  bin/production/run_exp5_workflow.py
+  bin/production/run_obs_workflow.py
   --exp "${EXP}"
   --steps "${STEPS}"
   --if-exists "${IF_EXISTS}"
@@ -125,11 +125,11 @@ if [[ -n "${SAMPLE_END_DATE}" ]]; then
   CMD+=(--sample-end-date "${SAMPLE_END_DATE}")
 fi
 
-echo "--- exp5 globc CPU workflow start: $(date) ---"
+echo "--- observation-target globc CPU workflow start: $(date) ---"
 echo "repo_root=${REPO_ROOT}"
 echo "steps=${STEPS}"
 echo "python=${IDOWNSCALE_PYTHON_BIN}"
 echo "venv=${IDOWNSCALE_VENV_PATH:-<none>}"
 echo "command: ${CMD[*]}"
 "${CMD[@]}"
-echo "--- exp5 globc CPU workflow end: $(date) ---"
+echo "--- observation-target globc CPU workflow end: $(date) ---"

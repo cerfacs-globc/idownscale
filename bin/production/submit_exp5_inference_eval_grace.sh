@@ -67,7 +67,7 @@ echo "CHECKPOINT_BUNDLE=${CHECKPOINT_BUNDLE:-<none>}"
 
 CMD=(
   python
-  bin/production/run_exp5_workflow.py
+  bin/production/run_obs_workflow.py
   --exp exp5
   --steps "${STEPS}"
   --if-exists "${IF_EXISTS}"

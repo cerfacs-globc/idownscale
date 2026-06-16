@@ -139,7 +139,7 @@ WARNING: If you wish to apply a mask to the inputs, remember to do this step bef
 For the cleaned branch, the recommended entrypoint is:
 
 ```bash
-python3 bin/production/run_exp5_workflow.py --exp exp5
+python3 bin/production/run_obs_workflow.py --exp exp5
 ```
 
 By default it runs:
@@ -162,13 +162,13 @@ Optional workflow steps:
 Useful variants:
 
 ```bash
-python3 bin/production/run_exp5_workflow.py --exp exp5 --if-exists skip
-python3 bin/production/run_exp5_workflow.py --exp exp5 --if-exists overwrite
-python3 bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850131
-python3 bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
-python3 bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
-python3 bin/production/run_exp5_workflow.py --exp exp5 --simu rcm --steps bc_dataset,bc_apply,pp_dataset
-python3 bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
+python3 bin/production/run_obs_workflow.py --exp exp5 --if-exists skip
+python3 bin/production/run_obs_workflow.py --exp exp5 --if-exists overwrite
+python3 bin/production/run_obs_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850131
+python3 bin/production/run_obs_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
+python3 bin/production/run_obs_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
+python3 bin/production/run_obs_workflow.py --exp exp5 --simu rcm --steps bc_dataset,bc_apply,pp_dataset
+python3 bin/production/run_obs_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 
 Date defaults are resolved from `iriscc/settings.py`, but for reproducible reruns it is safer to pass explicit windows whenever you run only part of the workflow.
 ```

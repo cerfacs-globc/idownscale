@@ -6,8 +6,8 @@ from iriscc import settings
 
 
 def load_workflow_module():
-    module_path = Path(__file__).resolve().parents[1] / "bin" / "production" / "run_exp5_workflow.py"
-    spec = spec_from_file_location("run_exp5_workflow", module_path)
+    module_path = Path(__file__).resolve().parents[1] / "bin" / "production" / "run_obs_workflow.py"
+    spec = spec_from_file_location("run_obs_workflow", module_path)
     module = module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)

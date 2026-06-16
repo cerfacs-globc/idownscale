@@ -38,7 +38,7 @@ fi
 cd "${REPO_ROOT}"
 
 echo "--- Refresh exp5 metric plots: $(date) ---"
-bash bin/production/run_exp5_workflow_grace.sh \
+bash bin/production/run_obs_workflow_grace.sh \
   --exp exp5 \
   --steps plot_metrics_day,plot_metrics_month \
   --test-name unet_all \

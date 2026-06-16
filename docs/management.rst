@@ -1,4 +1,4 @@
-The cleaned exp5 pipeline is managed through ``bin/production/run_exp5_workflow.py``.
+The cleaned observation-target pipeline is managed through ``bin/production/run_obs_workflow.py``.
 It coordinates preprocessing and bias-correction steps with explicit skip or overwrite
 behavior at the step level.
 
@@ -11,14 +11,14 @@ The workflow can be run on a workstation for small windows or on HPC for full pr
 
 .. code-block:: bash
 
-   python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats
+   python bin/production/run_obs_workflow.py --exp exp5 --steps phase1,stats
 
 Optional downstream steps extend the same runner to Phase 3 and Phase 4 style tasks:
 
 .. code-block:: bash
 
-   python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
-   python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
+   python bin/production/run_obs_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
+   python bin/production/run_obs_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 
 **Workload Manager (Slurm):**
 

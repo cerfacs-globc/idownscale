@@ -60,7 +60,7 @@ echo "python: $(command -v python)"
 echo "IDOWNSCALE_VENV_PATH=${IDOWNSCALE_VENV_PATH:-<none>}"
 echo "IDOWNSCALE_EXTRA_PYTHONPATH=${IDOWNSCALE_EXTRA_PYTHONPATH:-<none>}"
 echo "IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES=${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES:-<none>}"
-bash bin/production/run_exp5_workflow_grace.sh \
+bash bin/production/run_obs_workflow_grace.sh \
   --exp exp5 \
   --steps "${STEPS}" \
   --if-exists "${IF_EXISTS}" \

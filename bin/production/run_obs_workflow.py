@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Run the exp5 preprocessing workflow with simple step orchestration.
+Run the observation-target workflow with simple step orchestration.
 
 This entrypoint keeps the clean branch usable for day-to-day work:
-- central exp5 workflow command
+- central observation-target workflow command
 - step-level skip or overwrite behavior
 - no hidden shell history required to rebuild the pipeline
 """
@@ -92,8 +92,8 @@ def first_hist_train_day(exp: str) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the exp5 workflow end to end.")
-    parser.add_argument("--exp", default="exp5", help="Experiment name. Currently tuned for exp5.")
+    parser = argparse.ArgumentParser(description="Run the observation-target workflow end to end.")
+    parser.add_argument("--exp", default="exp5", help="Experiment name. Supports exp5, expc, and related obs-target workflows.")
     parser.add_argument(
         "--steps",
         default="all",
@@ -250,7 +250,7 @@ def main() -> int:
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
     print_resolved_context(
-        script_name="run_exp5_workflow.py",
+        script_name="run_obs_workflow.py",
         parameters=vars(args),
         settings=resolved_settings,
         inputs={"dataset_dir": dataset_dir},
@@ -588,11 +588,11 @@ def main() -> int:
             dry_run=args.dry_run,
         )
 
-    print("[done] exp5 workflow orchestration finished")
+    print("[done] observation-target workflow orchestration finished")
     prov_path = write_provjson(
         METRICS_DIR / exp / f"workflow_{args.test_name or 'no_test_name'}.prov.json",
         build_prov_bundle(
-            script_name="run_exp5_workflow.py",
+            script_name="run_obs_workflow.py",
             activity_type="workflow",
             start_time=start_time,
             end_time=utc_now_iso(),

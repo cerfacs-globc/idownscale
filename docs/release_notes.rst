@@ -52,7 +52,7 @@ plot generation, and checkpoint packaging are now all supported in a coherent wa
 
 Workflow and Training
 ~~~~~~~~~~~~~~~~~~~~~
-* **Training integrated in workflow**: ``bin/production/run_exp5_workflow.py`` now supports a ``train`` step and training-related overrides.
+* **Training integrated in workflow**: ``bin/production/run_obs_workflow.py`` now supports a ``train`` step and training-related overrides.
 * **Robust training entrypoint**: ``bin/training/train.py`` now supports reusable CLI arguments for experiment, run name, model, loss, learning rate, batch size, and epoch count.
 * **Grace GPU validation**: the training path was validated on Grace GPU with a working documented module and environment combination.
 
@@ -95,10 +95,10 @@ Scientific Integrity
 
 Infrastructure & Automation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* **Workflow Runner**: ``bin/production/run_exp5_workflow.py`` provides a clean exp5 preprocessing entrypoint.
+* **Workflow Runner**: ``bin/production/run_obs_workflow.py`` provides a clean observation-target preprocessing entrypoint.
 * **Workspace Portability**: environment variables and ``environment.yml`` support laptop and HPC installs.
 
 Documentation
 ~~~~~~~~~~~~~
 * **Sphinx/RTD Support**: RTD material has been restored on the clean branch and updated to reflect the cleaned workflow.
-* **Unified Readme**: Updated with portable environment setup and the cleaned exp5 workflow.
+* **Unified Readme**: Updated with portable environment setup and the cleaned observation-target workflow.
