@@ -9,8 +9,8 @@ import sys
 sys.path.append('.')
 
 import os
-import glob
 import argparse
+from pathlib import Path
 import xarray as xr
 import torch
 import numpy as np
@@ -19,15 +19,21 @@ from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.inference import load_trained_module, predict_tensor
+from iriscc.runtime_paths import require_match, resolve_checkpoint_path, resolve_sample_file, resolve_statistics_dir
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, Log10Transform
 from iriscc.settings import (CONFIG,
                              DATES_BC_TEST_HIST,
                              GRAPHS_DIR,
-                             RUNS_DIR,
                              METRICS_DIR,
                              RCM_RAW_DIR)
 from iriscc.transforms import UnPad
 from iriscc.datautils import Data
+
+
+def resolve_rcm_target_file(var: str) -> Path:
+    return require_match(RCM_RAW_DIR / "ALADIN_reformat", f"{var}*nc", f"RCM target file for {var}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute metrics for test period")
     parser.add_argument('--startdate', type=str, help='Start date (e.g., 20230101)', default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'))
@@ -43,8 +49,7 @@ if __name__ == "__main__":
     dates = pd.date_range(start=args.startdate, end=args.enddate, freq='D')
     get_data = Data(CONFIG[exp]['domain'])
 
-    run_dir = RUNS_DIR/f'{exp}/{test_name}/lightning_logs/version_best'
-    checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    checkpoint_dir = resolve_checkpoint_path(exp, test_name)
     test_name = f'{test_name}_{simu_test}_pp'
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
@@ -57,7 +62,7 @@ if __name__ == "__main__":
     domain = hparams['domain']
     if CONFIG[exp]['target'] == 'safran':
         domain = 'france_xy'
-    statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+    statistics_dir = resolve_statistics_dir(hparams)
     transforms = v2.Compose([
                 Log10Transform(hparams['channels']),
                 MinMaxNormalisation(statistics_dir, hparams['output_norm']),
@@ -65,7 +70,8 @@ if __name__ == "__main__":
                 FillMissingValue(hparams['fill_value']),
                 Pad(hparams['fill_value'])
                 ])
-    sample_dir = hparams['sample_dir']
+    sample_dir = Path(hparams['sample_dir'])
+    target_files = {var: resolve_rcm_target_file(var) for var in CONFIG[exp]['target_vars']}
 
     rmse = MeanSquaredError(squared=False).to(device)
     corr = PearsonCorrCoef().to(device)
@@ -92,13 +98,12 @@ if __name__ == "__main__":
         if date.month in [1,2,12]:
             i_winter.append(i)
         date_str = date.date().strftime('%Y%m%d')
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        sample = resolve_sample_file(sample_dir, date_str)
         data = dict(np.load(sample), allow_pickle=True)
         x = data['x']
         y = []
         for var in CONFIG[exp]['target_vars']:
-            file = glob.glob(str(RCM_RAW_DIR/f'ALADIN_reformat/{var}*nc'))[0]
-            ds = xr.open_dataset(file)
+            ds = xr.open_dataset(target_files[var])
             ds = ds.sel(time=ds.time.dt.date == date.date())
             ds = ds.isel(time=0)
             y.append(ds[var].values)
@@ -114,7 +119,7 @@ if __name__ == "__main__":
         y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
         hparams = model.hparams['hparams']
         if hparams.get('output_norm'):
-            statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+            statistics_dir = resolve_statistics_dir(hparams)
             denorm = DeMinMaxNormalisation(statistics_dir, hparams['output_norm'])
             y = denorm((False, np.expand_dims(y, axis=0))).numpy()[0]
             y_hat = denorm((False, np.expand_dims(y_hat, axis=0))).numpy()[0]

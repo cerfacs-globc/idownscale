@@ -43,6 +43,11 @@ Requested daily sample files are also validated explicitly, so a missing
 
 This matters operationally because prediction and evaluation now resolve the
 same sample roots by construction instead of duplicating slightly different
+
+The older RCM-only metric scripts now use the same checked discovery policy for
+their checkpoint, sample, and ALADIN target NetCDF inputs. Missing or
+ambiguous matches therefore fail loudly instead of silently taking the first
+glob hit.
 logic in each script.
 
 Score Visualization
