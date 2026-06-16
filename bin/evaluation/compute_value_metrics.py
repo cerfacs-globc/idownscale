@@ -16,7 +16,7 @@ import xarray as xr
 from scipy.stats import wasserstein_distance
 from tqdm import tqdm
 
-from iriscc.runtime_paths import resolve_runtime_sample_dir
+from iriscc.runtime_paths import require_match, resolve_runtime_sample_dir, resolve_sample_file
 from iriscc.settings import (CONFIG, PREDICTION_DIR,
                              DATES_BC_TEST_HIST, METRICS_DIR,
                              get_metrics_test_name)
@@ -84,14 +84,12 @@ def main():
     # 2. Identify historical test files
     # Note: These are expected in PREDICTION_DIR for the configured validation window.
     period = "historical" if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get("ssp", "ssp585")
-    pred_files = list(
-        PREDICTION_DIR.glob(
-            f"tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc"
-        )
+    pred_files = require_match(
+        PREDICTION_DIR,
+        f"tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc",
+        "prediction file",
+        allow_multiple=True,
     )
-    if not pred_files:
-        print(f"Error: No prediction files found for {args.exp}/{args.test_name} in historical period.")
-        sys.exit(1)
 
     if len(pred_files) == 1:
         ds_pred = xr.open_dataset(pred_files[0])
@@ -125,50 +123,48 @@ def main():
     print(f"Loading samples and predictions for {len(pred_dates)} dates...", flush=True)
     for index, date in enumerate(tqdm(pred_dates)):
         date_str = date.strftime("%Y%m%d")
-        sample_path = sample_dir / f"sample_{date_str}.npz"
+        sample_path = resolve_sample_file(sample_dir, date_str)
+        data = np.load(sample_path)
+        # Get target from sample
+        y = np.squeeze(data["y"]).astype(np.float64) # Squeeze to handle (64,64) or (1,64,64)
 
-        if sample_path.exists():
-            data = np.load(sample_path)
-            # Get target from sample
-            y = np.squeeze(data["y"]).astype(np.float64) # Squeeze to handle (64,64) or (1,64,64)
+        # Get prediction from netcdf for the same date
+        y_hat = np.asarray(ds_pred.tas.isel(time=index).values, dtype=np.float64)
+        valid = np.isfinite(y) & np.isfinite(y_hat)
+        if not np.any(valid):
+            continue
 
-            # Get prediction from netcdf for the same date
-            y_hat = np.asarray(ds_pred.tas.isel(time=index).values, dtype=np.float64)
-            valid = np.isfinite(y) & np.isfinite(y_hat)
-            if not np.any(valid):
-                continue
+        if obs_spatial_sum is None:
+            obs_spatial_sum = np.zeros_like(y, dtype=np.float64)
+            pred_spatial_sum = np.zeros_like(y, dtype=np.float64)
+            spatial_count = np.zeros_like(y, dtype=np.float64)
+            obs_lag1_sums = _empty_lag1_sums(y.shape)
+            pred_lag1_sums = _empty_lag1_sums(y.shape)
 
-            if obs_spatial_sum is None:
-                obs_spatial_sum = np.zeros_like(y, dtype=np.float64)
-                pred_spatial_sum = np.zeros_like(y, dtype=np.float64)
-                spatial_count = np.zeros_like(y, dtype=np.float64)
-                obs_lag1_sums = _empty_lag1_sums(y.shape)
-                pred_lag1_sums = _empty_lag1_sums(y.shape)
+        obs_values = y[valid]
+        pred_values = y_hat[valid]
+        obs_count += obs_values.size
+        pred_count += pred_values.size
+        obs_sum += float(obs_values.sum())
+        pred_sum += float(pred_values.sum())
+        obs_sum_sq += float(np.square(obs_values).sum())
+        pred_sum_sq += float(np.square(pred_values).sum())
 
-            obs_values = y[valid]
-            pred_values = y_hat[valid]
-            obs_count += obs_values.size
-            pred_count += pred_values.size
-            obs_sum += float(obs_values.sum())
-            pred_sum += float(pred_values.sum())
-            obs_sum_sq += float(np.square(obs_values).sum())
-            pred_sum_sq += float(np.square(pred_values).sum())
+        obs_spatial_sum[valid] += obs_values
+        pred_spatial_sum[valid] += pred_values
+        spatial_count[valid] += 1
 
-            obs_spatial_sum[valid] += obs_values
-            pred_spatial_sum[valid] += pred_values
-            spatial_count[valid] += 1
+        if prev_obs is not None:
+            _update_lag1_sums(prev_obs, y, obs_lag1_sums)
+            _update_lag1_sums(prev_pred, y_hat, pred_lag1_sums)
+        prev_obs = np.where(valid, y, np.nan)
+        prev_pred = np.where(valid, y_hat, np.nan)
 
-            if prev_obs is not None:
-                _update_lag1_sums(prev_obs, y, obs_lag1_sums)
-                _update_lag1_sums(prev_pred, y_hat, pred_lag1_sums)
-            prev_obs = np.where(valid, y, np.nan)
-            prev_pred = np.where(valid, y_hat, np.nan)
-
-            sample_count = min(samples_per_date, obs_values.size)
-            sample_indices = rng.choice(obs_values.size, size=sample_count, replace=False)
-            obs_distribution_samples.append(obs_values[sample_indices].astype(np.float32))
-            pred_distribution_samples.append(pred_values[sample_indices].astype(np.float32))
-            matched_dates += 1
+        sample_count = min(samples_per_date, obs_values.size)
+        sample_indices = rng.choice(obs_values.size, size=sample_count, replace=False)
+        obs_distribution_samples.append(obs_values[sample_indices].astype(np.float32))
+        pred_distribution_samples.append(pred_values[sample_indices].astype(np.float32))
+        matched_dates += 1
 
     ds_pred.close()
 

@@ -111,6 +111,8 @@ For checkpoint resolution:
 * if ``--checkpoint-bundle`` is passed, use the bundled checkpoint
 * otherwise load the best checkpoint from
   ``$IDOWNSCALE_OUTPUT_DIR/runs/<exp>/<test_name>/lightning_logs/version_best/checkpoints/``
+* if zero or multiple checkpoint matches are found, fail immediately with the
+  searched directory and pattern instead of picking one silently
 
 For sample-directory resolution:
 
@@ -126,6 +128,13 @@ For statistics resolution:
 
 * prefer ``statistics_dir`` from the checkpoint hyperparameters when present
 * otherwise use the resolved sample directory
+
+For sample-file access:
+
+* prediction and evaluation entrypoints now check that each requested
+  ``sample_<YYYYMMDD>.npz`` file exists before loading it
+* shape-bootstrap logic such as perfect-model target discovery also fails
+  clearly when a sample directory is empty
 
 This shared resolution order reduces drift between prediction and evaluation
 scripts and makes provenance easier to interpret.

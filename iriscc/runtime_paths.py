@@ -9,6 +9,48 @@ from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoin
 from iriscc.settings import CONFIG, RUNS_DIR, get_evaluation_sample_dir
 
 
+def require_existing_file(path: str | Path, description: str) -> Path:
+    resolved = Path(path)
+    if not resolved.exists():
+        message = f"Missing {description}: {resolved}"
+        raise FileNotFoundError(message)
+    if not resolved.is_file():
+        message = f"Expected {description} to be a file, found: {resolved}"
+        raise FileNotFoundError(message)
+    return resolved
+
+
+def require_match(
+    root: str | Path,
+    pattern: str,
+    description: str,
+    *,
+    allow_multiple: bool = False,
+) -> Path | list[Path]:
+    root_path = Path(root)
+    matches = sorted(root_path.glob(pattern))
+    if not matches:
+        message = f"No {description} found under {root_path} matching {pattern}"
+        raise FileNotFoundError(message)
+    if allow_multiple:
+        return matches
+    if len(matches) > 1:
+        joined = ", ".join(str(path.name) for path in matches)
+        message = (
+            f"Expected exactly one {description} under {root_path} matching {pattern}, "
+            f"found {len(matches)}: {joined}"
+        )
+        raise FileExistsError(message)
+    return matches[0]
+
+
+def resolve_sample_file(sample_dir: str | Path, date_token: str) -> Path:
+    return require_existing_file(
+        Path(sample_dir) / f"sample_{date_token}.npz",
+        f"sample file for date {date_token}",
+    )
+
+
 def resolve_checkpoint_path(
     exp: str,
     test_name: str,
@@ -18,7 +60,7 @@ def resolve_checkpoint_path(
         activate_bundle_contract(checkpoint_bundle)
         return resolve_checkpoint_from_bundle(checkpoint_bundle)
     run_dir = RUNS_DIR / exp / test_name / "lightning_logs" / "version_best"
-    return next((run_dir / "checkpoints").glob("best-checkpoint*.ckpt"))
+    return require_match(run_dir / "checkpoints", "best-checkpoint*.ckpt", "best checkpoint")
 
 
 def resolve_statistics_dir(hparams: dict[str, Any]) -> Path:

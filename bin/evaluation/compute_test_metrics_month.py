@@ -22,7 +22,12 @@ from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
 from iriscc.inference import load_trained_module, predict_tensor
-from iriscc.runtime_paths import resolve_checkpoint_path, resolve_runtime_sample_dir, resolve_statistics_dir
+from iriscc.runtime_paths import (
+    resolve_checkpoint_path,
+    resolve_runtime_sample_dir,
+    resolve_sample_file,
+    resolve_statistics_dir,
+)
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
 from iriscc.settings import (CONFIG,
                              DATES_BC_TEST_HIST,
@@ -89,7 +94,7 @@ def preprocess(year:int,
     for day in group['day']:
         date_str = f'{year}{month:02d}{day:02d}'
         print(date_str)
-        sample = sample_dir / f'sample_{date_str}.npz'
+        sample = resolve_sample_file(sample_dir, date_str)
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])

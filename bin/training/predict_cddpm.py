@@ -16,7 +16,12 @@ import matplotlib.pyplot as plt
 
 from iriscc.diffusionutils import generate
 from iriscc.inference import load_trained_module
-from iriscc.runtime_paths import resolve_checkpoint_path, resolve_runtime_sample_dir, resolve_statistics_dir
+from iriscc.runtime_paths import (
+    resolve_checkpoint_path,
+    resolve_runtime_sample_dir,
+    resolve_sample_file,
+    resolve_statistics_dir,
+)
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
 from iriscc.settings import GRAPHS_DIR, CONFIG
 
@@ -88,7 +93,7 @@ if __name__=='__main__':
         hparams=hparams,
     )
 
-    sample = sample_dir / f'sample_{args.date}.npz'
+    sample = resolve_sample_file(sample_dir, args.date)
     data = dict(np.load(sample), allow_pickle=True)
     conditioning_image_init, y = data['x'], data['y']
 
