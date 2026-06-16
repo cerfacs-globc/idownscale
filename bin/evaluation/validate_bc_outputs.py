@@ -36,6 +36,7 @@ from iriscc.settings import (
     GRAPHS_DIR,
     METRICS_DIR,
     get_bc_bundle_path,
+    get_bias_corrected_sample_dir,
     get_bias_corrected_netcdf_path,
 )
 
@@ -387,8 +388,8 @@ def main() -> int:
     parity_df.to_csv(parity_csv, index=False)
     print(f"archive_parity={parity_csv}")
 
-    candidate_corrected_dir = DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu}_bc"
-    archive_corrected_dir = archive_dataset_bc_dir / f"dataset_{args.exp}_test_{args.simu}_bc"
+    candidate_corrected_dir = get_bias_corrected_sample_dir(args.exp, args.simu)
+    archive_corrected_dir = archive_dataset_bc_dir / get_bias_corrected_sample_dir(args.exp, args.simu).name
     if candidate_corrected_dir.exists() and archive_corrected_dir.exists():
         sample_parity_df = pd.DataFrame(compare_corrected_samples(candidate_corrected_dir, archive_corrected_dir))
         sample_parity_csv = metrics_dir / f"bc_archive_corrected_sample_parity_{args.exp}_{args.simu}.csv"
