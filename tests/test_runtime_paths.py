@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from iriscc import runtime_paths
+from iriscc.settings import CONFIG, get_bias_corrected_sample_dir, get_dataset_variant_dir, get_evaluation_sample_dir
 
 
 def test_resolve_statistics_dir_prefers_hparams_override(tmp_path):
@@ -49,6 +50,38 @@ def test_resolve_runtime_sample_dir_falls_back_to_hparams(tmp_path):
 def test_resolve_runtime_sample_dir_falls_back_to_config_dataset():
     resolved = runtime_paths.resolve_runtime_sample_dir("exp5", "unet_all")
     assert resolved == Path(runtime_paths.CONFIG["exp5"]["dataset"])
+
+
+def test_bcml_runtime_resolution_keeps_training_stats_and_bc_eval_samples_separate():
+    training_sample_dir = Path(CONFIG["exp5"]["dataset"])
+    hparams = {
+        "sample_dir": training_sample_dir,
+        "statistics_dir": training_sample_dir,
+    }
+
+    prediction_sample_dir = runtime_paths.resolve_runtime_sample_dir(
+        "exp5",
+        "unet_all",
+        simu_test="gcm_bc",
+        hparams=hparams,
+    )
+    evaluation_sample_dir = get_evaluation_sample_dir("exp5", "unet_all", "gcm_bc")
+
+    assert prediction_sample_dir == get_bias_corrected_sample_dir("exp5", "gcm")
+    assert prediction_sample_dir == evaluation_sample_dir
+    assert runtime_paths.resolve_statistics_dir(hparams) == training_sample_dir
+
+
+def test_raw_variant_runtime_resolution_matches_evaluation_mapping():
+    resolved = runtime_paths.resolve_runtime_sample_dir("exp5", "gcm_raw", simu_test="gcm")
+    assert resolved == get_dataset_variant_dir("exp5", "gcm")
+    assert resolved == get_evaluation_sample_dir("exp5", "gcm_raw", "gcm")
+
+
+def test_perfect_model_runtime_resolution_prefers_dedicated_evaluation_dataset():
+    resolved = runtime_paths.resolve_runtime_sample_dir("perfect_model_rcm", "unet_all", simu_test="rcm_bc")
+    assert resolved == Path(CONFIG["perfect_model_rcm"]["evaluation_dataset"])
+    assert resolved != Path(CONFIG["perfect_model_rcm"]["dataset"])
 
 
 def test_resolve_checkpoint_path_uses_run_directory(tmp_path, monkeypatch):

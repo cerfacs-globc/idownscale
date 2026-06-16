@@ -66,6 +66,16 @@ are configured correctly, the main scripts should agree on which checkpoint,
 sample tree, and ``statistics.json`` belong to a given ``(exp, test_name,
 simu_test)`` combination.
 
+This behavior is now locked by regression tests covering:
+
+* BC+ML evaluation runs, where inference must use the corrected evaluation
+  sample tree while normalization keeps using the training statistics tree
+* raw comparison runs, where prediction and evaluation must agree on the same
+  raw packaged sample directory
+* perfect-model evaluation runs, where runtime resolution must use the
+  dedicated evaluation dataset instead of silently falling back to the
+  training dataset
+
 The workflow now resolves explicit training and prediction frequencies for each
 experiment:
 

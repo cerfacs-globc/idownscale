@@ -26,3 +26,16 @@ def test_prediction_output_path_accepts_fixed_step_mixed_cadence(monkeypatch):
     monkeypatch.setitem(settings.CONFIG["exp5"], "prediction_frequency", "3h")
     path = settings.get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "test_run")
     assert "_3h_" in path.name
+
+
+def test_prediction_output_path_matches_metrics_default_naming():
+    metrics_test_name = settings.get_metrics_test_name("unet_all", "gcm_bc")
+    path = settings.get_prediction_output_path(
+        "exp5",
+        "gcm_bc",
+        "tas",
+        "20000101",
+        "20141231",
+        metrics_test_name,
+    )
+    assert path.name.endswith("_20000101_20141231_exp5_unet_all_gcm_bc.nc")
