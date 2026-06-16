@@ -8,7 +8,6 @@ author : Zoé GARCIA
 import sys
 sys.path.append(".")
 
-import glob
 from pathlib import Path
 import xarray as xr
 import pandas as pd
@@ -17,16 +16,13 @@ import argparse
 import numpy as np
 from torchvision.transforms import v2
 
-from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
 from iriscc.inference import load_trained_module, predict_tensor
 from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+from iriscc.runtime_paths import resolve_checkpoint_path, resolve_runtime_sample_dir, resolve_statistics_dir
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import (RUNS_DIR,
-	                             DATASET_BC_DIR,
-	                             CONFIG,
+from iriscc.settings import (CONFIG,
 	                             get_bc_test_future_dates,
 	                             get_bc_test_hist_dates,
-	                             get_evaluation_sample_dir,
 	                             get_prediction_output_path)
 from iriscc.datautils import (remove_countries,
                               Data)
@@ -147,17 +143,12 @@ if __name__=="__main__":
     args = parser.parse_args()
 
 
-    if args.checkpoint_bundle:
-        activate_bundle_contract(args.checkpoint_bundle)
-        checkpoint_dir = resolve_checkpoint_from_bundle(args.checkpoint_bundle)
-    else:
-        run_dir = RUNS_DIR/f"{args.exp}/{args.test_name}/lightning_logs/version_best"
-        checkpoint_dir = glob.glob(str(run_dir/"checkpoints/best-checkpoint*.ckpt"))[0]
+    checkpoint_dir = resolve_checkpoint_path(args.exp, args.test_name, args.checkpoint_bundle)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model, hparams = load_trained_module(checkpoint_dir, device=device)
 
-    statistics_dir = hparams.get("statistics_dir", hparams["sample_dir"])
+    statistics_dir = resolve_statistics_dir(hparams)
     transforms = v2.Compose([
                 MinMaxNormalisation(statistics_dir, hparams["output_norm"], hparams.get("output_range", "zero_one")),
                 LandSeaMask(hparams["mask"], hparams["fill_value"]),
@@ -167,14 +158,17 @@ if __name__=="__main__":
     output_range = hparams.get("output_range", "zero_one")
     denorm = DeMinMaxNormalisation(statistics_dir, hparams["output_norm"], output_range)
 
-    sample_dir = hparams["sample_dir"]
     if args.simu_test is not None:
         test_name = f"{args.test_name}_{args.simu_test}"
-        sample_dir = get_evaluation_sample_dir(args.exp, args.test_name, args.simu_test) or DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu_test}" # bc or not
     else:
         test_name = args.test_name
-    if args.sample_dir:
-        sample_dir = Path(args.sample_dir)
+    sample_dir = resolve_runtime_sample_dir(
+        args.exp,
+        args.test_name,
+        simu_test=args.simu_test,
+        hparams=hparams,
+        explicit_sample_dir=args.sample_dir,
+    )
 
 
     startdate = args.startdate or get_bc_test_hist_dates(args.exp)[0].strftime("%Y%m%d")
@@ -233,7 +227,7 @@ if __name__=="__main__":
         target_shapes = []
         for date in batch_dates:
             date_str = date.date().strftime("%Y%m%d")
-            sample = glob.glob(str(sample_dir/f"sample_{date_str}.npz"))[0]
+            sample = str(sample_dir / f"sample_{date_str}.npz")
             data = dict(np.load(sample, allow_pickle=True))
 
             x = data["x"]

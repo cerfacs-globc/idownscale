@@ -17,6 +17,29 @@ To run evaluation for a specific experiment and model:
 
    python3 bin/evaluation/compute_test_metrics_day.py --exp exp5 --test-name unet --startdate <STARTDATE> --enddate <ENDDATE>
 
+Runtime Input Resolution
+------------------------
+
+The main day, month, and VALUE evaluation entrypoints now share the same
+runtime-path resolution logic used by the prediction tools.
+
+For trained-model evaluation, the scripts resolve:
+
+* the checkpoint from ``--checkpoint-bundle`` when provided, otherwise from the
+  standard ``runs/<exp>/<test_name>/.../checkpoints`` location
+* the statistics directory from checkpoint hyperparameters, preferring
+  ``statistics_dir`` over ``sample_dir``
+* the sample directory from the evaluation dataset mapping for
+  ``(exp, test_name, simu_test)``, falling back to the training sample
+  directory only when no evaluation mapping applies
+
+For baseline and raw comparisons, the same sample-directory mapping is used
+without requiring a checkpointed model.
+
+This matters operationally because prediction and evaluation now resolve the
+same sample roots by construction instead of duplicating slightly different
+logic in each script.
+
 Score Visualization
 -------------------
 
