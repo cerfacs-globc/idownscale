@@ -2,6 +2,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pytest
+from iriscc import settings
 
 
 def load_workflow_module():
@@ -22,8 +23,6 @@ def test_list_phase1_outputs_requires_daily_frequency(monkeypatch, tmp_path):
 
 
 def test_prediction_output_path_rejects_mixed_cadence(monkeypatch):
-    import iriscc.settings as settings
-
     monkeypatch.setitem(settings.CONFIG["exp5"], "prediction_frequency", "3h")
     with pytest.raises(ValueError, match="mixed-cadence prediction is not implemented yet"):
         settings.get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "test_run")
