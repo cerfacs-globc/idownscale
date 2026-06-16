@@ -284,6 +284,113 @@ def get_source_grid_label(source_name: str) -> str:
     return get_source_spec(source_name).get("grid_label", "gr")
 
 
+def normalize_frequency_label(frequency: str | None) -> str:
+    if frequency is None:
+        return "daily"
+    value = str(frequency).strip().lower()
+    aliases = {
+        "d": "daily",
+        "1d": "daily",
+        "day": "daily",
+        "daily": "daily",
+        "h": "hourly",
+        "1h": "hourly",
+        "hr": "hourly",
+        "hour": "hourly",
+        "hourly": "hourly",
+        "3hr": "3h",
+        "3hrs": "3h",
+        "3hour": "3h",
+        "3hourly": "3h",
+    }
+    return aliases.get(value, value)
+
+
+def get_frequency_pandas_rule(frequency: str | None) -> str:
+    normalized = normalize_frequency_label(frequency)
+    rules = {
+        "daily": "1D",
+        "hourly": "1H",
+        "3h": "3H",
+        "6h": "6H",
+        "12h": "12H",
+    }
+    if normalized not in rules:
+        raise ValueError(
+            f"Unsupported frequency '{frequency}'. Add a pandas rule mapping in iriscc/settings.py."
+        )
+    return rules[normalized]
+
+
+def get_frequency_filename_token(frequency: str | None) -> str:
+    normalized = normalize_frequency_label(frequency)
+    tokens = {
+        "daily": "day",
+        "hourly": "1h",
+        "3h": "3h",
+        "6h": "6h",
+        "12h": "12h",
+    }
+    if normalized not in tokens:
+        raise ValueError(
+            f"Unsupported frequency '{frequency}'. Add an output token mapping in iriscc/settings.py."
+        )
+    return tokens[normalized]
+
+
+def get_source_native_frequency(source_name: str) -> str:
+    spec = get_source_spec(source_name)
+    return normalize_frequency_label(spec.get("native_frequency", "daily"))
+
+
+def get_source_default_frequency(source_name: str) -> str:
+    spec = get_source_spec(source_name)
+    return normalize_frequency_label(spec.get("default_frequency", get_source_native_frequency(source_name)))
+
+
+def get_source_aggregation_method(source_name: str, output_frequency: str | None = None) -> str:
+    normalized_output = normalize_frequency_label(output_frequency or get_source_default_frequency(source_name))
+    if normalized_output == "daily":
+        return str(get_source_spec(source_name).get("daily_aggregation", "mean"))
+    return str(get_source_spec(source_name).get("aggregation", "mean"))
+
+
+def get_experiment_training_frequency(exp: str) -> str:
+    cfg = CONFIG[exp]
+    configured = cfg.get("training_frequency")
+    if configured is None:
+        configured = cfg.get("output_frequency")
+    if configured is not None:
+        return normalize_frequency_label(configured)
+    target_source = cfg.get("target_source")
+    if target_source is not None:
+        return get_source_default_frequency(target_source)
+    return "daily"
+
+
+def get_experiment_prediction_frequency(exp: str) -> str:
+    cfg = CONFIG[exp]
+    configured = cfg.get("prediction_frequency")
+    if configured is not None:
+        return normalize_frequency_label(configured)
+    return get_experiment_training_frequency(exp)
+
+
+def require_matching_experiment_frequencies(exp: str) -> str:
+    training_frequency = get_experiment_training_frequency(exp)
+    prediction_frequency = get_experiment_prediction_frequency(exp)
+    if prediction_frequency != training_frequency:
+        raise ValueError(
+            f"Experiment '{exp}' requests training frequency '{training_frequency}' and prediction "
+            f"frequency '{prediction_frequency}', but mixed-cadence prediction is not implemented yet."
+        )
+    return training_frequency
+
+
+def get_experiment_output_frequency(exp: str) -> str:
+    return get_experiment_prediction_frequency(exp)
+
+
 def get_source_scenario_start(source_name: str) -> pd.Timestamp:
     env_override = {
         "gcm_cnrm_cm6_1": "IDOWNSCALE_GCM_SCENARIO_START",
@@ -360,6 +467,7 @@ def get_bias_corrected_netcdf_path(
     bc_tag: str | None = None,
 ) -> Path:
     source_name = get_simu_source(exp, simu)
+    frequency_token = get_frequency_filename_token(get_experiment_training_frequency(exp))
     scenario = "historical"
     if period == "train_hist":
         dates = get_bc_train_hist_dates(exp)
@@ -375,7 +483,7 @@ def get_bias_corrected_netcdf_path(
         raise ValueError(f"Unsupported BC period '{period}'.")
     tag_suffix = f"_{normalize_bc_tag(bc_tag)}" if normalize_bc_tag(bc_tag) else ""
     return get_bias_corrected_root(exp, simu) / (
-        f"{var}_day_{get_source_output_label(source_name)}_{scenario}_"
+        f"{var}_{frequency_token}_{get_source_output_label(source_name)}_{scenario}_"
         f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_{date_range}_bc{tag_suffix}.nc"
     )
 
@@ -395,10 +503,11 @@ def get_prediction_output_path(
     ssp: str | None = None,
 ) -> Path:
     source_name = get_variant_source(exp, simu_variant)
+    frequency_token = get_frequency_filename_token(require_matching_experiment_frequencies(exp))
     scenario_start = get_source_scenario_start(source_name)
     period = "historical" if pd.Timestamp(enddate) < scenario_start else (ssp or CONFIG[exp].get("ssp", "ssp585"))
     return PREDICTION_DIR / (
-        f"{var}_day_{get_source_output_label(source_name)}_{period}_"
+        f"{var}_{frequency_token}_{get_source_output_label(source_name)}_{period}_"
         f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_"
         f"{startdate}_{enddate}_{exp}_{test_name}.nc"
     )

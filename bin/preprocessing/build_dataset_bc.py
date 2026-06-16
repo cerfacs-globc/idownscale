@@ -17,8 +17,13 @@ from iriscc.settings import (ALADIN_PROJ_PYPROJ,
                              get_bc_test_future_dates,
                              get_bc_test_hist_dates,
                              get_bc_train_hist_dates,
+                             get_frequency_pandas_rule,
+                             get_experiment_training_frequency,
                              get_simu_family,
-                             get_simu_source)
+                             get_simu_source,
+                             get_source_aggregation_method,
+                             get_source_default_frequency,
+                             get_source_native_frequency)
 
 ERA5_BC_DOMAIN_MARGIN = float(os.getenv("IDOWNSCALE_ERA5_BC_DOMAIN_MARGIN", "0.0"))
 
@@ -64,25 +69,46 @@ if __name__=="__main__":
             groups.append((current_file, pd.DatetimeIndex(current_dates)))
         return groups
 
-    def select_daily_window(ds, dates):
+    workflow_frequency = get_experiment_training_frequency(args.exp)
+
+    def select_frequency_window(ds, dates, source_name):
         dates = pd.DatetimeIndex(dates).sort_values()
         if "time" not in ds.dims:
             return ds.expand_dims(time=dates[:1])
-        stop = dates[-1] + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+        source_frequency = get_source_native_frequency(source_name)
+        expected_frequency = get_source_default_frequency(source_name)
+        if expected_frequency != workflow_frequency:
+            raise ValueError(
+                f"Workflow output frequency '{workflow_frequency}' does not match the configured default "
+                f"frequency '{expected_frequency}' for source '{source_name}'."
+            )
+        stop = dates[-1] + pd.Timedelta(get_frequency_pandas_rule(workflow_frequency)) - pd.Timedelta(seconds=1)
         ds = ds.sel(time=slice(dates[0], stop))
         if ds.sizes.get("time", 0) == 0:
             raise ValueError(f"No time values found for requested window {dates[0]} -> {dates[-1]}")
-        ds = ds.resample(time="1D").mean()
+        if source_frequency != workflow_frequency:
+            aggregation_method = get_source_aggregation_method(source_name, workflow_frequency)
+            resampler = ds.resample(time=get_frequency_pandas_rule(workflow_frequency))
+            if aggregation_method == "mean":
+                ds = resampler.mean()
+            elif aggregation_method == "sum":
+                ds = resampler.sum()
+            else:
+                raise ValueError(
+                    f"Unsupported aggregation method '{aggregation_method}' for source '{source_name}'."
+                )
         common = pd.Index(dates).intersection(pd.Index(pd.DatetimeIndex(ds.time.values)))
         if len(common) == 0:
-            raise ValueError(f"No overlapping daily values found for requested window {dates[0]} -> {dates[-1]}")
+            raise ValueError(
+                f"No overlapping {workflow_frequency} values found for requested window {dates[0]} -> {dates[-1]}"
+            )
         ds = ds.sel(time=common)
         return ds
 
     def load_batch_dataset(source_name, dates, *, domain_override=None):
         spec = get_bc_data.get_source_spec(source_name)
         ds = get_bc_data._open_source_dataset(source_name, args.var, date=dates[0], ssp=args.ssp)
-        ds = select_daily_window(ds, dates)
+        ds = select_frequency_window(ds, dates, source_name)
         if spec.get("geometry") != "rcm":
             ds = crop_domain_from_ds(ds, domain_override if domain_override is not None else get_bc_data.domain)
         ds[args.var].values = get_bc_data.clean_data(ds[args.var].values, args.var, data_type=spec.get("data_type"))
@@ -168,7 +194,11 @@ if __name__=="__main__":
     # Apply CLI Overrides for 31-Day Certification Benchmarking
     if args.start_date and args.end_date:
         print(f"--- Applying Benchmark Date Overrides: {args.start_date} to {args.end_date} ---", flush=True)
-        dates_bc_train_hist = pd.date_range(start=args.start_date, end=args.end_date, freq="D")
+        dates_bc_train_hist = pd.date_range(
+            start=args.start_date,
+            end=args.end_date,
+            freq=get_frequency_pandas_rule(workflow_frequency),
+        )
         dates_bc_test_hist = pd.Index([])
         dates_bc_test_future = pd.Index([])
 
