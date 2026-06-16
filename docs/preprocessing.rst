@@ -11,11 +11,25 @@ The pipeline utilizes an **Isolated Volume Protocol** to manage distinct geograp
 * **Phase 1 (Reconstruction)**: France domain for historical reanalysis (ERA5).
 * **Phase 2 (Bias Correction)**: European domain (29x28 at 1.4°) for GCM synthesis.
 
+Source cadence and workflow cadence are now treated separately:
+
+* each upstream source advertises its native frequency in ``SOURCE_CATALOG``
+* each experiment resolves a workflow training frequency and prediction
+  frequency from its configuration or the target source defaults
+* preprocessing can therefore distinguish "native 3-hourly CERRA" from
+  "daily samples derived from CERRA"
+
 The primary script is ``bin/preprocessing/build_dataset.py``. It performs:
 
 * Spatial cropping to the specific experiment domain.
 * Archival predictor reconstruction for exp5 via ``ERA5 -> GCM -> E-OBS``.
 * Packaging into ``.npz`` daily snapshot volumes.
+
+The current sample-packaging layout is still daily for the active workflows.
+That is intentional: this branch makes the cadence explicit and validated, but
+does not yet convert the full sample serialization stack to sub-daily outputs.
+For now, the active production runner also requires prediction cadence to match
+training cadence.
 
 France Target Preparation
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -92,5 +106,6 @@ The most useful preprocessing provenance fields are:
 
 * ``inputs``: source files and source roles
 * ``outputs``: dataset directory and statistics path
-* ``settings``: resolved output roots, target source, and grid configuration
+* ``settings``: resolved output roots, target source, grid configuration, and
+  resolved training/prediction frequencies
 * ``parameters``: explicit dates, channels, and step flags

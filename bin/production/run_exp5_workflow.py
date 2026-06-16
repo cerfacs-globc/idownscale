@@ -33,9 +33,14 @@ from iriscc.settings import (
     get_bc_test_hist_dates,
     get_bias_corrected_sample_dir,
     get_dataset_variant_dir,
+    get_experiment_prediction_frequency,
+    get_experiment_training_frequency,
+    get_frequency_pandas_rule,
     get_bias_corrected_netcdf_path,
     get_phase1_dates,
     get_prediction_output_path,
+    require_matching_experiment_frequencies,
+    get_source_default_frequency,
 )
 from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 
@@ -164,8 +169,17 @@ def resolve_steps(raw_steps: str) -> list[str]:
 
 
 def list_phase1_outputs(exp: str, dataset_dir: Path, start: str | None, end: str | None) -> list[Path]:
+    training_frequency = get_experiment_training_frequency(exp)
+    if training_frequency != "daily":
+        raise ValueError(
+            f"Phase-1 sample packaging currently expects daily outputs, got '{training_frequency}' for experiment '{exp}'."
+        )
     if start and end:
-        dates = pd.date_range(start=pd.Timestamp(start), end=pd.Timestamp(end), freq="D")
+        dates = pd.date_range(
+            start=pd.Timestamp(start),
+            end=pd.Timestamp(end),
+            freq=get_frequency_pandas_rule(training_frequency),
+        )
     else:
         dates = get_phase1_dates(exp)
     return [dataset_dir / f"sample_{date.strftime('%Y%m%d')}.npz" for date in dates]
@@ -215,6 +229,7 @@ def main() -> int:
         raise ValueError("phase1 date window requires both --phase1-start-date and --phase1-end-date")
     steps = resolve_steps(args.steps)
     exp = args.exp
+    matched_frequency = require_matching_experiment_frequencies(exp)
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
     bc_method = args.bc_method or exp_cfg.get("bias_correction_method", "ibicus_cdft")
@@ -241,6 +256,9 @@ def main() -> int:
         "ssp": ssp,
         "bc_method": bc_method,
         "simu": args.simu,
+        "training_frequency": matched_frequency,
+        "prediction_frequency": get_experiment_prediction_frequency(exp),
+        "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
     print_resolved_context(
         script_name="run_exp5_workflow.py",

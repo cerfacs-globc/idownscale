@@ -66,6 +66,24 @@ are configured correctly, the main scripts should agree on which checkpoint,
 sample tree, and ``statistics.json`` belong to a given ``(exp, test_name,
 simu_test)`` combination.
 
+The workflow now resolves explicit training and prediction frequencies for each
+experiment:
+
+* ``training_frequency`` controls the sample and BC cadence used to build
+  learning-ready volumes
+* ``prediction_frequency`` controls the intended prediction-file cadence
+* if these are not set explicitly, the workflow inherits the
+  ``default_frequency`` from the experiment target source in
+  ``SOURCE_CATALOG``
+
+For the current temperature workflows both still resolve to daily. The choice is
+now explicit in startup provenance and output naming instead of being an
+untracked hard-coded assumption.
+
+Current limitation: mixed training and prediction cadence is not implemented
+yet. If ``prediction_frequency`` differs from ``training_frequency``, the active
+workflow runner must fail loudly rather than proceed with misleading outputs.
+
 The same runtime helpers now also enforce file-discovery rules:
 
 * checkpoint discovery must yield exactly one best checkpoint
@@ -98,6 +116,13 @@ Examples:
 This separation matters because two experiments can share the same simulation
 family label while still using different date windows, observational targets,
 or downstream sample materialization rules.
+
+BC dataset preparation is also frequency-aware at the source level:
+
+* native-time source cadence comes from ``SOURCE_CATALOG``
+* workflow training cadence comes from the experiment configuration
+* aggregation from native to workflow cadence is resolved explicitly rather
+  than assuming daily means for every source
 
 Monitoring & Logging
 --------------------
