@@ -31,6 +31,8 @@ from iriscc.settings import (
     get_bc_train_hist_dates,
     get_bc_test_future_dates,
     get_bc_test_hist_dates,
+    get_bias_corrected_sample_dir,
+    get_dataset_variant_dir,
     get_bias_corrected_netcdf_path,
     get_phase1_dates,
     get_prediction_output_path,
@@ -264,8 +266,8 @@ def main() -> int:
         get_bc_bundle_path(exp, args.simu, "test_hist"),
         get_bc_bundle_path(exp, args.simu, "test_future"),
     ]
-    raw_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{args.simu}"
-    bc_dataset_dir = DATASET_BC_DIR / f"dataset_{exp}_test_{args.simu}_bc"
+    raw_dataset_dir = get_dataset_variant_dir(exp, args.simu)
+    bc_dataset_dir = get_bias_corrected_sample_dir(exp, args.simu)
     bc_apply_outputs = [
         get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
         get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),

@@ -84,6 +84,21 @@ If you need to force a different sample tree for a one-off rerun, prefer the
 explicit CLI override (for example ``--sample-dir`` where supported) rather
 than editing code or moving files in place.
 
+BC artifact naming
+------------------
+
+Bias-correction artifacts are expected to be experiment-specific at the path
+level.
+
+Examples:
+
+* bundle volumes: ``bc_train_hist_exp5_gcm.npz`` vs ``bc_train_hist_expc_gcm.npz``
+* corrected sample trees: ``dataset_exp5_test_gcm_bc`` vs ``dataset_expc_test_gcm_bc``
+
+This separation matters because two experiments can share the same simulation
+family label while still using different date windows, observational targets,
+or downstream sample materialization rules.
+
 Monitoring & Logging
 --------------------
 
