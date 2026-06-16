@@ -9,7 +9,6 @@ import sys
 sys.path.append('.')
 
 import os
-import glob
 import torch
 import numpy as np
 import argparse
@@ -22,17 +21,15 @@ from typing import Optional
 from torchvision.transforms import v2
 from torchmetrics import MeanSquaredError, PearsonCorrCoef
 
-from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
 from iriscc.inference import load_trained_module, predict_tensor
+from iriscc.runtime_paths import resolve_checkpoint_path, resolve_runtime_sample_dir, resolve_statistics_dir
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad, Log10Transform
 from iriscc.settings import (CONFIG,
                              DATES_BC_TEST_HIST,
                              GRAPHS_DIR,
-                             RUNS_DIR,
                              METRICS_DIR,
-                             DATASET_BC_DIR,
                              DATASET_DIR,
-                             get_evaluation_sample_dir)
+                             )
 
 
 def get_config(exp: str,
@@ -52,24 +49,15 @@ def get_config(exp: str,
     """
     model, transforms = None, None
 
-    if test_name.startswith('baseline'):
-        sample_dir = DATASET_DIR / f'dataset_{exp}_baseline'
-    elif test_name == 'gcm_raw':
-        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_gcm'
-    elif test_name == 'rcm_raw':
-        sample_dir = DATASET_BC_DIR / f'dataset_{exp}_test_rcm'
-    elif test_name == 'era5_raw':
+    if test_name == 'era5_raw':
         sample_dir = DATASET_DIR / f'dataset_{exp}_30y'
+    elif test_name.startswith('baseline') or test_name.endswith('_raw'):
+        sample_dir = resolve_runtime_sample_dir(exp, test_name, simu_test=simu_test)
     else:
-        if checkpoint_bundle:
-            activate_bundle_contract(checkpoint_bundle)
-            checkpoint_dir = resolve_checkpoint_from_bundle(checkpoint_bundle)
-        else:
-            run_dir = RUNS_DIR / f'{exp}/{test_name}/lightning_logs/version_best'
-            checkpoint_dir = glob.glob(str(run_dir / 'checkpoints/best-checkpoint*.ckpt'))[0]
+        checkpoint_dir = resolve_checkpoint_path(exp, test_name, checkpoint_bundle)
         model, hparams = load_trained_module(checkpoint_dir, device=device)
 
-        statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+        statistics_dir = resolve_statistics_dir(hparams)
         transforms = v2.Compose([
             Log10Transform(hparams.get('channels', CONFIG[exp]['channels'])),
             MinMaxNormalisation(statistics_dir, hparams['output_norm']),
@@ -78,10 +66,7 @@ def get_config(exp: str,
             Pad(hparams['fill_value'])
         ])
 
-        if simu_test:
-            sample_dir = get_evaluation_sample_dir(exp, test_name, simu_test) or DATASET_BC_DIR / f'dataset_{exp}_test_{simu_test}'
-        else:
-            sample_dir = hparams['sample_dir']
+        sample_dir = resolve_runtime_sample_dir(exp, test_name, simu_test=simu_test, hparams=hparams)
     return model, transforms, sample_dir
 
 def preprocess(year:int,
@@ -104,7 +89,7 @@ def preprocess(year:int,
     for day in group['day']:
         date_str = f'{year}{month:02d}{day:02d}'
         print(date_str)
-        sample = glob.glob(str(sample_dir/f'sample_{date_str}.npz'))[0]
+        sample = sample_dir / f'sample_{date_str}.npz'
         data = dict(np.load(sample, allow_pickle=True))
         x, y = data['x'], data['y']
         condition = np.isnan(y[0])
@@ -118,7 +103,7 @@ def preprocess(year:int,
             y, y_hat = unpad_func(y)[0].numpy(), unpad_func(y_hat[0])[0].numpy()
             hparams = model.hparams['hparams']
             if hparams.get('output_norm'):
-                statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+                statistics_dir = resolve_statistics_dir(hparams)
                 denorm = DeMinMaxNormalisation(statistics_dir, hparams['output_norm'])
                 y = denorm((False, np.expand_dims(y, axis=0))).numpy()[0]
                 y_hat = denorm((False, np.expand_dims(y_hat, axis=0))).numpy()[0]

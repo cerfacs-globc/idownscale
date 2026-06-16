@@ -16,9 +16,10 @@ import xarray as xr
 from scipy.stats import wasserstein_distance
 from tqdm import tqdm
 
-from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR,
+from iriscc.runtime_paths import resolve_runtime_sample_dir
+from iriscc.settings import (CONFIG, PREDICTION_DIR,
                              DATES_BC_TEST_HIST, METRICS_DIR,
-                             get_evaluation_sample_dir, get_metrics_test_name)
+                             get_metrics_test_name)
 from iriscc.value_metrics import get_spatial_metrics
 
 
@@ -101,7 +102,7 @@ def main():
     # The ERA5 target data is saved in the sample files or we can load it from raw if easier.
     # However, 'compute_test_metrics_day.py' loads it from the BC test dataset samples.
     # We'll do the same for consistency.
-    sample_dir = get_evaluation_sample_dir(args.exp, args.test_name, args.simu_test) or DATASET_BC_DIR / f"dataset_{args.exp}_test_{args.simu_test}"
+    sample_dir = resolve_runtime_sample_dir(args.exp, args.test_name, simu_test=args.simu_test)
 
     # 3. Load Target Data (ERA5)
     # We only load samples that match the prediction time range

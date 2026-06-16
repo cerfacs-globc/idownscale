@@ -51,6 +51,32 @@ The clean branch allows path-level overrides through environment variables such 
 and ``IDOWNSCALE_REGRID_WEIGHTS_DIR``. This is useful when prediction checkpoints
 live somewhere other than the main ``OUTPUT_DIR`` tree.
 
+Runtime path consistency
+------------------------
+
+The actively used prediction and evaluation entrypoints now share one runtime
+resolution policy for:
+
+* checkpoint discovery
+* evaluation sample-directory lookup
+* statistics-directory lookup
+
+Operationally, this means that once ``RUNS_DIR`` and the runtime output roots
+are configured correctly, the main scripts should agree on which checkpoint,
+sample tree, and ``statistics.json`` belong to a given ``(exp, test_name,
+simu_test)`` combination.
+
+When debugging a run, check these in order:
+
+* the resolved-context block printed to stdout at startup
+* the resolved checkpoint path
+* the resolved sample directory
+* the resolved statistics directory
+
+If you need to force a different sample tree for a one-off rerun, prefer the
+explicit CLI override (for example ``--sample-dir`` where supported) rather
+than editing code or moving files in place.
+
 Monitoring & Logging
 --------------------
 

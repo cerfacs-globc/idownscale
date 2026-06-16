@@ -100,6 +100,36 @@ To generate predictions for specific dates or long loops:
 provenance attributes so downstream diagnostics can recover experiment, sample,
 and source-role context from the prediction NetCDF itself.
 
+Runtime Resolution Order
+------------------------
+
+Prediction entrypoints now use the same shared runtime-path resolution logic as
+the main evaluation scripts.
+
+For checkpoint resolution:
+
+* if ``--checkpoint-bundle`` is passed, use the bundled checkpoint
+* otherwise load the best checkpoint from
+  ``$IDOWNSCALE_OUTPUT_DIR/runs/<exp>/<test_name>/lightning_logs/version_best/checkpoints/``
+
+For sample-directory resolution:
+
+* if an explicit ``--sample-dir`` is passed, use it
+* otherwise, if ``test_name`` / ``simu_test`` map to an evaluation dataset
+  variant, use that evaluation sample directory
+* otherwise fall back to the training ``sample_dir`` stored in the checkpoint
+  hyperparameters
+* if no checkpoint-backed value exists, fall back to the experiment dataset in
+  ``settings.py``
+
+For statistics resolution:
+
+* prefer ``statistics_dir`` from the checkpoint hyperparameters when present
+* otherwise use the resolved sample directory
+
+This shared resolution order reduces drift between prediction and evaluation
+scripts and makes provenance easier to interpret.
+
 For perfect-model reruns, pass explicit windows all the way through the
 standalone launcher:
 

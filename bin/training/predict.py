@@ -8,17 +8,16 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
-import glob
 import torch
 import numpy as np
 import argparse
 from torchvision.transforms import v2
 import matplotlib.pyplot as plt
 
-from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
 from iriscc.inference import load_trained_module, predict_tensor
+from iriscc.runtime_paths import resolve_checkpoint_path, resolve_runtime_sample_dir, resolve_statistics_dir
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import GRAPHS_DIR, RUNS_DIR, DATASET_BC_DIR, CONFIG
+from iriscc.settings import GRAPHS_DIR, CONFIG
 
 def compare_4_subplots(x, y, y_hat, pixel, title, save_dir):
     diff_y = y_hat-y
@@ -64,17 +63,12 @@ if __name__=='__main__':
     parser.add_argument('--checkpoint-bundle', type=str, default=None, help='Optional portable checkpoint bundle directory.')
     args = parser.parse_args()
 
-    if args.checkpoint_bundle:
-        activate_bundle_contract(args.checkpoint_bundle)
-        checkpoint_dir = resolve_checkpoint_from_bundle(args.checkpoint_bundle)
-    else:
-        run_dir = RUNS_DIR/f'{args.exp}/{args.test_name}/lightning_logs/version_best'
-        checkpoint_dir = glob.glob(str(run_dir/f'checkpoints/best-checkpoint*.ckpt'))[0]
+    checkpoint_dir = resolve_checkpoint_path(args.exp, args.test_name, args.checkpoint_bundle)
 
     device = 'cpu'
     model, hparams = load_trained_module(checkpoint_dir, device=device)
 
-    statistics_dir = hparams.get('statistics_dir', hparams['sample_dir'])
+    statistics_dir = resolve_statistics_dir(hparams)
     transforms = v2.Compose([
                 MinMaxNormalisation(statistics_dir, hparams['output_norm'], hparams.get('output_range', 'zero_one')),
                 LandSeaMask(hparams['mask'], hparams['fill_value']),
@@ -84,14 +78,18 @@ if __name__=='__main__':
     output_range = hparams.get('output_range', 'zero_one')
     denorm = DeMinMaxNormalisation(statistics_dir, hparams['output_norm'], output_range)
 
-    sample_dir = hparams['sample_dir']
     if args.simu_test is not None:
         test_name = f'{args.test_name}_{args.simu_test}'
-        sample_dir = DATASET_BC_DIR / f'dataset_{args.exp}_test_{args.simu_test}' # bc or not
     else :
         test_name = args.test_name
+    sample_dir = resolve_runtime_sample_dir(
+        args.exp,
+        args.test_name,
+        simu_test=args.simu_test,
+        hparams=hparams,
+    )
 
-    sample = glob.glob(str(sample_dir/f'sample_{args.date}.npz'))[0]
+    sample = sample_dir / f'sample_{args.date}.npz'
     data = dict(np.load(sample), allow_pickle=True)
     x_init, y = data['x'], data['y']
 
