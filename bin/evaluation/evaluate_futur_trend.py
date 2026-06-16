@@ -7,10 +7,8 @@ author : Zoé GARCIA
 
 import argparse
 import datetime
-import glob
 import sys
 
-# noqa: E402
 sys.path.append(".")
 
 import cartopy.crs as ccrs
@@ -24,7 +22,7 @@ import xarray as xr
 
 
 from iriscc.datautils import crop_domain_from_ds, return_unit, standardize_longitudes
-from iriscc.plotutils import plot_histogram
+from iriscc.plotutils import plot_histogram, resolve_plot_extent
 from iriscc.settings import (
     COLORS,
     CONFIG,
@@ -219,7 +217,7 @@ if __name__=='__main__':
                 levels=np.linspace(0, 6, 13),
             )
             
-            ax1.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
+            ax1.set_extent(resolve_plot_extent(domain[col]), crs=ccrs.PlateCarree())
             ax1.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
             ax1.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
             cbar = plt.colorbar(cs, ax=ax1, pad=0.05, shrink=0.8)
@@ -272,9 +270,7 @@ if __name__=='__main__':
     df_var_temporal = pd.DataFrame(var_temporal)
 
     fig4, axes4 = plt.subplots(2, 1, figsize=(10, 6))
-    fig4, axes4 =  plot_variability(fig4, axes4, df_var_temporal, periods, labels, colors, unit)
+    fig4, axes4 = plot_variability(fig4, axes4, df_var_temporal, periods, labels, colors, unit)
     fig4.suptitle(f'Daily temperature variability for {ssp}', fontsize=16)
     fig4.tight_layout()
     fig4.savefig(GRAPHS_DIR/f'metrics/{exp}/{exp}_variability_futur_trend_{ssp}_{simu}.png')
-
-

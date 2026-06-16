@@ -10,17 +10,43 @@ import pandas as pd
 
 sys.path.append('.')
 
+DEFAULT_FRANCE_EXTENT = [-5.0, 11.0, 41.0, 51.0]
+
+
+def looks_like_geographic_extent(domain: list | tuple | None) -> bool:
+    if domain is None or len(domain) != 4:
+        return False
+    lon_min, lon_max, lat_min, lat_max = [float(value) for value in domain]
+    return (
+        -180.0 <= lon_min <= 180.0
+        and -180.0 <= lon_max <= 180.0
+        and -90.0 <= lat_min <= 90.0
+        and -90.0 <= lat_max <= 90.0
+    )
+
+
+def resolve_plot_extent(
+    domain: list | tuple | None = None,
+    plot_extent: list | tuple | None = None,
+) -> list[float]:
+    if plot_extent is not None:
+        return [float(value) for value in plot_extent]
+    if looks_like_geographic_extent(domain):
+        return [float(value) for value in domain]
+    return DEFAULT_FRANCE_EXTENT.copy()
+
 def plot_map_image(var,
                     var_desc: str | None = None,
                     cmap: str = 'OrRd',
                     vmin: float | None = None,
                     vmax: float | None = None,
                     domain: list | None = None,
+                    plot_extent: list | None = None,
                     fig_projection: ccrs.Projection | None = None,
                     data_projection: ccrs.Projection | None = None,
                     title: str | None = None,
                     save_dir: str | None = None
-                ):
+                   ):
     """Plots a 2D map image using the provided data and configurations.
 
     Args:
@@ -29,7 +55,10 @@ def plot_map_image(var,
         cmap (str, optional): Colormap to be used for the plot. Defaults to 'OrRd'.
         vmin (float, optional): Minimum value for the color scale. Defaults to None.
         vmax (float, optional): Maximum value for the color scale. Defaults to None.
-        domain (list, optional): List defining the spatial extent of the plot in the format [min_lon, max_lon, min_lat, max_lat]. Defaults to None.
+        domain (list, optional): Data extent passed to imshow in the input data projection.
+        plot_extent (list, optional): Geographic map view extent in the format
+            [min_lon, max_lon, min_lat, max_lat]. Defaults to the geographic
+            domain when available, otherwise the named France fallback extent.
         fig_projection (Any, optional): Cartopy projection for the figure. Defaults to ccrs.PlateCarree().
         data_projection (Any, optional): Cartopy projection for the data. Defaults to ccrs.PlateCarree().
         title (str, optional): Title of the plot. Defaults to None.
@@ -58,8 +87,7 @@ def plot_map_image(var,
         vmin=vmin,
         vmax=vmax
     )
-    ax.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
-    #ax.set_extent(domain, crs=fig_projection)
+    ax.set_extent(resolve_plot_extent(domain, plot_extent), crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.OCEAN, facecolor='white', zorder=100, edgecolor='black')
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
@@ -82,6 +110,7 @@ def plot_map_contour(var,
                      data_projection: ccrs.Projection | None = None,
                      levels: list | None = None,
                      domain: list | None = None,
+                     plot_extent: list | None = None,
                      title: str | None = None,
                      save_dir: str | None = None
                      ):
@@ -94,7 +123,10 @@ def plot_map_contour(var,
         fig_projection (ccrs.Projection, optional): The map projection for the figure. Defaults to PlateCarree.
         data_projection (ccrs.Projection, optional): The projection of the input data. Defaults to PlateCarree.
         levels (list, optional): Contour levels for the plot. If None, levels are automatically determined.
-        domain (list, optional): The geographical extent of the plot in the format [min_lon, max_lon, min_lat, max_lat].
+        domain (list, optional): Data extent passed to contourf in the input data projection.
+        plot_extent (list, optional): Geographic map view extent in the format
+            [min_lon, max_lon, min_lat, max_lat]. Defaults to the geographic
+            domain when available, otherwise the named France fallback extent.
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): File path to save the plot. If None, the function returns the figure and axis objects.
 
@@ -116,9 +148,8 @@ def plot_map_contour(var,
                      levels=levels,
                      extent=domain,
                      transform=data_projection
-                    )
-    ax.set_extent([-5., 11., 41., 51.], crs=ccrs.PlateCarree())
-    #ax.set_extent(domain, crs=fig_projection)
+                     )
+    ax.set_extent(resolve_plot_extent(domain, plot_extent), crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.OCEAN, facecolor='white', zorder=100, edgecolor='black')
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
@@ -168,7 +199,7 @@ def plot_monthly_var_seasonal_cycle(
     title: str,
     var_desc: str,
     save_dir: str
-    ) -> None:
+) -> None:
     """Plots the seasonal cycle of a variable.
 
     Shows the mean monthly values and individual yearly trends,
@@ -207,9 +238,11 @@ def plot_monthly_var_seasonal_cycle(
     plt.plot(var_monthly_mean.index, var_monthly_mean.values, label='Mean', color='red', linewidth=2)
     for year in var_per_year.columns:
         plt.plot(var_per_year.index, var_per_year[year], label=str(year), alpha=0.3, linestyle='--')
-    plt.xticks(ticks=np.arange(1, 13), labels=[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], fontsize=12)
+    plt.xticks(
+        ticks=np.arange(1, 13),
+        labels=["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        fontsize=12,
+    )
     plt.ylabel(f'{var_desc}')
     plt.xlabel('Month')
     plt.grid(axis='y', linestyle='--', alpha=0.7)
@@ -228,4 +261,3 @@ def plot_histogram(data, ax, labels, colors, xlabel):
     ax.set_ylim(0, 0.07)
     ax.set_xlabel(xlabel)
     ax.legend()
-
