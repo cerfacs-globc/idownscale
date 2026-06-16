@@ -64,6 +64,10 @@ domain directly for the map view. For projected extents such as SAFRAN
 ``domain_xy``, the helper keeps the explicit France fallback viewport instead of
 silently treating projected coordinates as lon/lat.
 
+When that projected-domain fallback is used without an explicit
+``plot_extent``, the helper now emits a warning so the chosen map viewport is
+visible in logs and notebooks.
+
 Future Trend Analysis
 ---------------------
 

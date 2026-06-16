@@ -1,6 +1,7 @@
 """Useful plot functions."""
 
 import sys
+import warnings
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -33,6 +34,13 @@ def resolve_plot_extent(
         return [float(value) for value in plot_extent]
     if looks_like_geographic_extent(domain):
         return [float(value) for value in domain]
+    if domain is not None:
+        warnings.warn(
+            "Falling back to the default France map extent because the provided "
+            "domain does not look like a geographic lon/lat extent. Pass "
+            "`plot_extent` explicitly to control the map viewport.",
+            stacklevel=2,
+        )
     return DEFAULT_FRANCE_EXTENT.copy()
 
 def plot_map_image(var,

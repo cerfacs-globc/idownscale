@@ -1,3 +1,5 @@
+import pytest
+
 from iriscc import plotutils
 
 
@@ -16,6 +18,12 @@ def test_resolve_plot_extent_uses_geographic_domain():
 
 def test_resolve_plot_extent_falls_back_for_projected_domain():
     resolved = plotutils.resolve_plot_extent(domain=[60000.0, 1196000.0, 1617000.0, 2681000.0])
+    assert resolved == plotutils.DEFAULT_FRANCE_EXTENT
+
+
+def test_resolve_plot_extent_warns_on_projected_fallback():
+    with pytest.warns(UserWarning, match="Falling back to the default France map extent"):
+        resolved = plotutils.resolve_plot_extent(domain=[60000.0, 1196000.0, 1617000.0, 2681000.0])
     assert resolved == plotutils.DEFAULT_FRANCE_EXTENT
 
 
