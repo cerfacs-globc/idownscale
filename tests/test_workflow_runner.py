@@ -22,7 +22,7 @@ def test_list_phase1_outputs_requires_daily_frequency(monkeypatch, tmp_path):
         workflow.list_phase1_outputs("exp5", tmp_path, "20000101", "20000102")
 
 
-def test_prediction_output_path_rejects_mixed_cadence(monkeypatch):
+def test_prediction_output_path_accepts_fixed_step_mixed_cadence(monkeypatch):
     monkeypatch.setitem(settings.CONFIG["exp5"], "prediction_frequency", "3h")
-    with pytest.raises(ValueError, match="mixed-cadence prediction is not implemented yet"):
-        settings.get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "test_run")
+    path = settings.get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "test_run")
+    assert "_3h_" in path.name

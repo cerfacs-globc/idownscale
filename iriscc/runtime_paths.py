@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
-from iriscc.settings import CONFIG, RUNS_DIR, get_evaluation_sample_dir
+from iriscc.settings import CONFIG, RUNS_DIR, format_sample_time_token, get_evaluation_sample_dir
 
 
 def require_existing_file(path: str | Path, description: str) -> Path:
@@ -49,6 +49,10 @@ def resolve_sample_file(sample_dir: str | Path, date_token: str) -> Path:
         Path(sample_dir) / f"sample_{date_token}.npz",
         f"sample file for date {date_token}",
     )
+
+
+def resolve_sample_file_for_timestamp(sample_dir: str | Path, timestamp, frequency: str) -> Path:
+    return resolve_sample_file(sample_dir, format_sample_time_token(timestamp, frequency))
 
 
 def resolve_checkpoint_path(

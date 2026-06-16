@@ -22,11 +22,19 @@ from iriscc.settings import (
     ALADIN_PROJ_PYPROJ,
     CONFIG,
     DATASET_BC_DIR,
+    build_time_range,
+    format_sample_time_token,
     get_bc_test_future_dates,
     get_bc_test_hist_dates,
     get_bc_train_hist_dates,
     get_bias_corrected_netcdf_path,
+    get_experiment_prediction_frequency,
+    get_experiment_training_frequency,
+    get_frequency_pandas_rule,
+    get_frequency_timedelta,
     get_simu_source,
+    get_source_aggregation_method,
+    get_source_native_frequency,
     normalize_bc_tag,
 )
 from iriscc.datautils import Data, crop_domain_from_ds, interpolation_target_grid, reformat_as_target
@@ -44,6 +52,10 @@ def source_period_date(exp: str, period: str):
     if period == "test_future":
         return get_bc_test_future_dates(exp)[0]
     raise ValueError(f"Unsupported period: {period}")
+
+
+def current_frequency_minutes(frequency: str) -> int:
+    return int(get_frequency_timedelta(frequency).total_seconds() // 60)
 
 
 def grouped_dates_for_source(get_data: Data, source_name: str, var: str, dates, ssp: str):
@@ -79,8 +91,10 @@ def simu_netcdf_path(
 
 
 def select_date(ds: xr.Dataset, date) -> xr.Dataset:
-    ds_i = ds.sel(time=ds.time.dt.date == date.date())
-    return ds_i.isel(time=0, drop=True)
+    matches = ds.sel(time=ds.time == pd.Timestamp(date))
+    if matches.sizes.get("time", 0) == 0:
+        raise ValueError(f"Missing exact timestamp {pd.Timestamp(date)} in prepared batch.")
+    return matches.isel(time=0, drop=True)
 
 
 def filter_dates(dates, startdate: str | None, enddate: str | None):
@@ -89,6 +103,96 @@ def filter_dates(dates, startdate: str | None, enddate: str | None):
     start = pd.to_datetime(startdate) if startdate else dates[0]
     end = pd.to_datetime(enddate) if enddate else dates[-1]
     return [date for date in dates if start <= date <= end]
+
+
+def resample_batch_frequency(
+    ds: xr.Dataset,
+    *,
+    label: str,
+    current_frequency: str,
+    target_frequency: str,
+    aggregation_method: str,
+) -> xr.Dataset:
+    if current_frequency == target_frequency:
+        return ds
+    current_minutes = current_frequency_minutes(current_frequency)
+    target_minutes = current_frequency_minutes(target_frequency)
+    if target_minutes < current_minutes:
+        raise ValueError(
+            f"{label} currently available at '{current_frequency}' cannot be expanded to finer "
+            f"prediction frequency '{target_frequency}'."
+        )
+    resampler = ds.resample(time=get_frequency_pandas_rule(target_frequency))
+    if aggregation_method == "mean":
+        return resampler.mean()
+    if aggregation_method == "sum":
+        return resampler.sum()
+    raise ValueError(f"Unsupported aggregation method '{aggregation_method}' for {label}.")
+
+
+def select_batch_window(ds: xr.Dataset, dates, *, current_frequency: str, target_frequency: str) -> xr.Dataset:
+    start = pd.Timestamp(dates[0])
+    end = pd.Timestamp(dates[-1]) + get_frequency_timedelta(target_frequency) - get_frequency_timedelta(current_frequency)
+    return ds.sel(time=slice(start, end))
+
+
+def prepare_native_target_batches(
+    get_data: Data,
+    source_name: str,
+    var: str,
+    batch_dates,
+    ssp: str,
+    target_file,
+    domain,
+    target_method: str,
+    prediction_frequency: str,
+) -> dict[pd.Timestamp, np.ndarray]:
+    prepared: dict[pd.Timestamp, np.ndarray] = {}
+    target_groups = grouped_dates_for_source(get_data, source_name, var, batch_dates, ssp)
+    native_frequency = get_source_native_frequency(source_name)
+    aggregation_method = get_source_aggregation_method(source_name, prediction_frequency)
+
+    for target_file_path, target_dates in target_groups:
+        ds_target = xr.open_dataset(target_file_path)
+        try:
+            ds_target = get_data._standardize_source_geometry(
+                ds_target,
+                get_data.get_source_spec(source_name).get("geometry", "none"),
+            )
+            ds_target = select_batch_window(
+                ds_target,
+                target_dates,
+                current_frequency=native_frequency,
+                target_frequency=prediction_frequency,
+            )
+            ds_target = resample_batch_frequency(
+                ds_target,
+                label=f"target source '{source_name}'",
+                current_frequency=native_frequency,
+                target_frequency=prediction_frequency,
+                aggregation_method=aggregation_method,
+            )
+            ds_target = ds_target.sel(time=pd.DatetimeIndex(target_dates))
+            ds_target[var].values = get_data.clean_data(
+                ds_target[var].values,
+                var,
+                data_type=get_data.get_source_spec(source_name).get("data_type"),
+            )
+            ds_target = reformat_as_target(
+                ds_target,
+                target_file=target_file,
+                domain=domain,
+                method=target_method,
+                mask=True,
+                input_projection=projection_for_source(source_name),
+                reuse_weights=True,
+            )
+            for timestamp in pd.DatetimeIndex(target_dates):
+                prepared[pd.Timestamp(timestamp)] = select_date(ds_target, timestamp)[var].values.astype(np.float32)
+        finally:
+            ds_target.close()
+
+    return prepared
 
 
 def projection_for_source(source_name: str):
@@ -284,12 +388,17 @@ if __name__ == "__main__":
     variant = f"{args.simu}_bc" if args.corrected else args.simu
     output_dir = Path(args.output_dir) if args.output_dir else dataset_variant_dir(exp, variant)
     output_dir.mkdir(parents=True, exist_ok=True)
+    training_frequency = get_experiment_training_frequency(exp)
+    prediction_frequency = get_experiment_prediction_frequency(exp)
+
     resolved_settings = {
         "exp": exp,
         "var": var,
         "simu": args.simu,
         "ssp": ssp,
         "output_dir": output_dir,
+        "training_frequency": training_frequency,
+        "prediction_frequency": prediction_frequency,
         "perfect_model_target_source": perfect_model_target_source,
         "perfect_model_condition_on_bc": perfect_model_condition_on_bc,
         "conditioning_bc_tag": conditioning_bc_tag,
@@ -311,9 +420,12 @@ if __name__ == "__main__":
 
     get_data = Data(domain=domain)
     source_name = get_simu_source(exp, args.simu)
-    dates_bc_train_hist = get_bc_train_hist_dates(exp)
-    dates_bc_test_hist = get_bc_test_hist_dates(exp)
-    dates_bc_test_future = get_bc_test_future_dates(exp)
+    train_hist_window = get_bc_train_hist_dates(exp)
+    test_hist_window = get_bc_test_hist_dates(exp)
+    test_future_window = get_bc_test_future_dates(exp)
+    dates_bc_train_hist = build_time_range(train_hist_window[0], train_hist_window[-1], prediction_frequency)
+    dates_bc_test_hist = build_time_range(test_hist_window[0], test_hist_window[-1], prediction_frequency)
+    dates_bc_test_future = build_time_range(test_future_window[0], test_future_window[-1], prediction_frequency)
     ds_orog = xr.open_dataset(orog_file)
     orog = ds_orog["elevation"].values if "elevation" in ds_orog else ds_orog["z"].values
     ds_orog.close()
@@ -348,6 +460,19 @@ if __name__ == "__main__":
                         ds_batch,
                         get_data.get_source_spec(source_name).get("geometry", "none"),
                     )
+                    ds_batch = select_batch_window(
+                        ds_batch,
+                        batch_dates,
+                        current_frequency=get_source_native_frequency(source_name),
+                        target_frequency=prediction_frequency,
+                    )
+                    ds_batch = resample_batch_frequency(
+                        ds_batch,
+                        label=f"source '{source_name}'",
+                        current_frequency=get_source_native_frequency(source_name),
+                        target_frequency=prediction_frequency,
+                        aggregation_method=get_source_aggregation_method(source_name, prediction_frequency),
+                    )
                     if perfect_model_target_source:
                         ds_input_batch = prepare_input_batch(
                             get_data,
@@ -365,6 +490,31 @@ if __name__ == "__main__":
                         )
                     else:
                         ds_input_batch = None
+                    target_map = {}
+                    if perfect_model_target_source:
+                        target_map = prepare_native_target_batches(
+                            get_data,
+                            perfect_model_target_source,
+                            var,
+                            batch_dates,
+                            ssp,
+                            target_file,
+                            domain,
+                            perfect_model_target_method,
+                            prediction_frequency,
+                        )
+                    elif batch_dates[-1] <= dates_bc_test_hist[-1]:
+                        target_map = prepare_native_target_batches(
+                            get_data,
+                            CONFIG[exp].get("target_source"),
+                            var,
+                            batch_dates,
+                            ssp,
+                            target_file,
+                            domain,
+                            CONFIG[exp].get("perfect_model_target_method", "conservative_normed"),
+                            prediction_frequency,
+                        )
                     if perfect_model_target_source and perfect_model_condition_on_bc:
                         ds_bc_batch = prepare_bc_batch(
                             exp=exp,
@@ -378,10 +528,43 @@ if __name__ == "__main__":
                             target_file=target_file,
                             domain=domain,
                         )
+                        ds_bc_batch = resample_batch_frequency(
+                            ds_bc_batch,
+                            label=f"bias-corrected source '{args.simu}'",
+                            current_frequency=training_frequency,
+                            target_frequency=prediction_frequency,
+                            aggregation_method=get_source_aggregation_method(source_name, prediction_frequency),
+                        )
                 else:
                     ds_input_batch = None
+                    target_map = {}
+                    ds_batch = select_batch_window(
+                        ds_batch,
+                        batch_dates,
+                        current_frequency=training_frequency,
+                        target_frequency=prediction_frequency,
+                    )
+                    ds_batch = resample_batch_frequency(
+                        ds_batch,
+                        label=f"bias-corrected source '{args.simu}'",
+                        current_frequency=training_frequency,
+                        target_frequency=prediction_frequency,
+                        aggregation_method=get_source_aggregation_method(source_name, prediction_frequency),
+                    )
+                    if batch_dates[-1] <= dates_bc_test_hist[-1]:
+                        target_map = prepare_native_target_batches(
+                            get_data,
+                            CONFIG[exp].get("target_source"),
+                            var,
+                            batch_dates,
+                            ssp,
+                            target_file,
+                            domain,
+                            CONFIG[exp].get("perfect_model_target_method", "conservative_normed"),
+                            prediction_frequency,
+                        )
                 for date in batch_dates:
-                    sample_path = output_dir / f"sample_{date.strftime('%Y%m%d')}.npz"
+                    sample_path = output_dir / f"sample_{format_sample_time_token(date, prediction_frequency)}.npz"
                     if args.skip_existing and sample_path.exists():
                         print(f"{date} exists")
                         continue
@@ -408,27 +591,11 @@ if __name__ == "__main__":
                     sample = {"x": x.astype(np.float32)}
 
                     if perfect_model_target_source:
-                        y = build_perfect_model_target(
-                            get_data,
-                            perfect_model_target_source,
-                            var,
-                            date,
-                            ssp,
-                            target_file,
-                            domain,
-                            perfect_model_target_method,
-                        )
-                        sample["y"] = np.expand_dims(y, axis=0).astype(np.float32)
+                        y = target_map[pd.Timestamp(date)]
+                        sample["y"] = np.expand_dims(y, axis=0)
                     elif date <= dates_bc_test_hist[-1]:
-                        ds_target = get_data.get_target_dataset(
-                            target=CONFIG[exp]["target"],
-                            var=var,
-                            date=date,
-                            source_name=CONFIG[exp].get("target_source"),
-                            skip_domain_crop=bool(CONFIG[exp].get("target_source_pregridded", False)),
-                        )
-                        y = ds_target[var].values
-                        sample["y"] = np.expand_dims(y, axis=0).astype(np.float32)
+                        y = target_map[pd.Timestamp(date)]
+                        sample["y"] = np.expand_dims(y, axis=0)
 
                     np.savez(sample_path, **sample)
             finally:

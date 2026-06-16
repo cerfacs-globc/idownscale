@@ -125,6 +125,15 @@ def test_resolve_sample_file_returns_existing_path(tmp_path):
     assert runtime_paths.resolve_sample_file(sample_dir, "20200101") == sample
 
 
+def test_resolve_sample_file_for_timestamp_supports_subdaily_tokens(tmp_path):
+    sample_dir = tmp_path / "samples"
+    sample_dir.mkdir()
+    sample = sample_dir / "sample_2020010106.npz"
+    sample.write_text("sample")
+
+    assert runtime_paths.resolve_sample_file_for_timestamp(sample_dir, "2020-01-01 06:00:00", "3h") == sample
+
+
 def test_resolve_sample_file_raises_when_missing(tmp_path):
     sample_dir = tmp_path / "samples"
     sample_dir.mkdir()
