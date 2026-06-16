@@ -1,10 +1,7 @@
-"""
-Shared runtime path resolution helpers for training, prediction, and evaluation.
-"""
+"""Shared runtime path resolution helpers for training, prediction, and evaluation."""
 
 from __future__ import annotations
 
-import glob
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +18,7 @@ def resolve_checkpoint_path(
         activate_bundle_contract(checkpoint_bundle)
         return resolve_checkpoint_from_bundle(checkpoint_bundle)
     run_dir = RUNS_DIR / exp / test_name / "lightning_logs" / "version_best"
-    return Path(glob.glob(str(run_dir / "checkpoints" / "best-checkpoint*.ckpt"))[0])
+    return next((run_dir / "checkpoints").glob("best-checkpoint*.ckpt"))
 
 
 def resolve_statistics_dir(hparams: dict[str, Any]) -> Path:

@@ -3,17 +3,20 @@ from pathlib import Path
 from iriscc import runtime_paths
 
 
-def test_resolve_statistics_dir_prefers_hparams_override():
+def test_resolve_statistics_dir_prefers_hparams_override(tmp_path):
+    sample_dir = tmp_path / "sample_dir"
+    statistics_dir = tmp_path / "statistics_dir"
     hparams = {
-        "sample_dir": "/tmp/sample_dir",
-        "statistics_dir": "/tmp/statistics_dir",
+        "sample_dir": sample_dir,
+        "statistics_dir": statistics_dir,
     }
-    assert runtime_paths.resolve_statistics_dir(hparams) == Path("/tmp/statistics_dir")
+    assert runtime_paths.resolve_statistics_dir(hparams) == statistics_dir
 
 
-def test_resolve_statistics_dir_falls_back_to_sample_dir():
-    hparams = {"sample_dir": "/tmp/sample_dir"}
-    assert runtime_paths.resolve_statistics_dir(hparams) == Path("/tmp/sample_dir")
+def test_resolve_statistics_dir_falls_back_to_sample_dir(tmp_path):
+    sample_dir = tmp_path / "sample_dir"
+    hparams = {"sample_dir": sample_dir}
+    assert runtime_paths.resolve_statistics_dir(hparams) == sample_dir
 
 
 def test_resolve_runtime_sample_dir_prefers_explicit_override(tmp_path):
@@ -31,13 +34,14 @@ def test_resolve_runtime_sample_dir_uses_evaluation_mapping():
     assert resolved.name == "dataset_exp5_test_gcm"
 
 
-def test_resolve_runtime_sample_dir_falls_back_to_hparams():
+def test_resolve_runtime_sample_dir_falls_back_to_hparams(tmp_path):
+    sample_dir = tmp_path / "training_samples"
     resolved = runtime_paths.resolve_runtime_sample_dir(
         "exp5",
         "unet_all",
-        hparams={"sample_dir": "/tmp/training_samples"},
+        hparams={"sample_dir": sample_dir},
     )
-    assert resolved == Path("/tmp/training_samples")
+    assert resolved == sample_dir
 
 
 def test_resolve_runtime_sample_dir_falls_back_to_config_dataset():
