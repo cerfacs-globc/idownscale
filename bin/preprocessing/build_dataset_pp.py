@@ -17,7 +17,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+from iriscc.provenance import build_prov_bundle, inventory_paths, print_resolved_context, utc_now_iso, write_provjson
 from iriscc.settings import (
     ALADIN_PROJ_PYPROJ,
     CONFIG,
@@ -407,10 +407,17 @@ if __name__ == "__main__":
         "perfect_model_input_target_method": perfect_model_input_target_method,
         "perfect_model_target_method": perfect_model_target_method,
     }
+    path_inventory = inventory_paths(
+        {
+            "output_dir": output_dir,
+            "orog_file": orog_file,
+            "target_file": target_file,
+        }
+    )
     print_resolved_context(
         script_name="build_dataset_pp.py",
         parameters=vars(args),
-        settings=resolved_settings,
+        settings={**resolved_settings, "path_inventory": path_inventory},
         inputs={
             "orog_file": orog_file,
             "target_file": target_file,
@@ -612,7 +619,7 @@ if __name__ == "__main__":
             start_time=start_time,
             end_time=utc_now_iso(),
             parameters=vars(args),
-            settings=resolved_settings,
+            settings={**resolved_settings, "path_inventory": path_inventory},
             inputs={
                 "orog_file": orog_file,
                 "target_file": target_file,
