@@ -8,6 +8,8 @@ from iriscc.settings import (
     DATASET_DIR,
     OUTPUT_DIR,
     REPO_DIR,
+    build_time_range,
+    format_sample_time_token,
     get_bc_bundle_path,
     get_bias_corrected_netcdf_path,
     get_bias_corrected_sample_dir,
@@ -16,10 +18,10 @@ from iriscc.settings import (
     get_experiment_prediction_frequency,
     get_experiment_training_frequency,
     get_frequency_filename_token,
-    require_matching_experiment_frequencies,
     get_source_aggregation_method,
     get_source_default_frequency,
     get_source_native_frequency,
+    get_prediction_output_path,
 )
 
 def test_repo_dir_exists():
@@ -58,8 +60,18 @@ def test_active_temperature_workflows_resolve_daily_training_and_prediction_freq
     assert get_frequency_filename_token(get_experiment_prediction_frequency("exp5")) == "day"
 
 
-def test_matching_frequencies_are_required_for_current_runtime():
-    assert require_matching_experiment_frequencies("exp5") == "daily"
+def test_time_helpers_support_fixed_step_prediction_tokens():
+    assert format_sample_time_token("2000-01-01", "daily") == "20000101"
+    assert format_sample_time_token("2000-01-01 06:00:00", "3h") == "2000010106"
+    dates = build_time_range("20000101", "20000101", "3h")
+    assert dates[0].strftime("%Y%m%d%H") == "2000010100"
+    assert dates[-1].strftime("%Y%m%d%H") == "2000010121"
+
+
+def test_prediction_path_uses_prediction_frequency_token(monkeypatch):
+    monkeypatch.setitem(CONFIG["exp5"], "prediction_frequency", "3h")
+    path = get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "demo")
+    assert "_3h_" in path.name
 
 
 def test_bc_bundle_paths_are_experiment_specific():

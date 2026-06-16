@@ -100,6 +100,11 @@ To generate predictions for specific dates or long loops:
 provenance attributes so downstream diagnostics can recover experiment, sample,
 and source-role context from the prediction NetCDF itself.
 
+Its time stepping now follows the experiment ``prediction_frequency`` setting.
+For fixed-step sub-daily prediction, this means inference resolves
+``sample_<YYYYMMDDHH>.npz`` inputs and emits a matching ``3h``/``6h``/``12h``
+token in the prediction NetCDF filename instead of assuming daily timestamps.
+
 Runtime Resolution Order
 ------------------------
 

@@ -26,10 +26,16 @@ The primary script is ``bin/preprocessing/build_dataset.py``. It performs:
 * Packaging into ``.npz`` daily snapshot volumes.
 
 The current sample-packaging layout is still daily for the active workflows.
-That is intentional: this branch makes the cadence explicit and validated, but
-does not yet convert the full sample serialization stack to sub-daily outputs.
-For now, the active production runner also requires prediction cadence to match
-training cadence.
+That is no longer a universal assumption for inference packaging. The active
+workflow can now package fixed-step prediction samples at cadences such as
+``3h``, ``6h``, or ``12h`` when the upstream source and requested experiment
+settings support that conversion safely.
+
+Two boundaries still apply:
+
+* monthly prediction packaging is not implemented in this branch
+* prediction packaging will fail loudly if it would need to invent finer-time
+  BC or target variability than the available source cadence provides
 
 France Target Preparation
 ^^^^^^^^^^^^^^^^^^^^^^^^^

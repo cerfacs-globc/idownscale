@@ -80,9 +80,19 @@ For the current temperature workflows both still resolve to daily. The choice is
 now explicit in startup provenance and output naming instead of being an
 untracked hard-coded assumption.
 
-Current limitation: mixed training and prediction cadence is not implemented
-yet. If ``prediction_frequency`` differs from ``training_frequency``, the active
-workflow runner must fail loudly rather than proceed with misleading outputs.
+Current limitation: only fixed-step prediction cadences are supported in this
+branch, such as ``hourly``, ``3h``, ``6h``, ``12h``, and ``daily``. Monthly
+prediction packaging is intentionally left for a later branch.
+
+Mixed training and prediction cadence is now allowed only when the runtime can
+derive the requested prediction cadence from available source data without
+inventing finer variability. In practice this means:
+
+* prediction cadence may match training cadence
+* prediction cadence may be coarser than training cadence when aggregation is
+  well-defined
+* prediction cadence must not be finer than the cadence available in the source
+  or corrected input data
 
 The same runtime helpers now also enforce file-discovery rules:
 

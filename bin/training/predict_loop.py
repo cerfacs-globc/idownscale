@@ -22,14 +22,18 @@ from iriscc.runtime_paths import (
     require_match,
     resolve_checkpoint_path,
     resolve_runtime_sample_dir,
-    resolve_sample_file,
+    resolve_sample_file_for_timestamp,
     resolve_statistics_dir,
 )
 from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, UnPad
-from iriscc.settings import (CONFIG,
-	                             get_bc_test_future_dates,
-	                             get_bc_test_hist_dates,
-	                             get_prediction_output_path)
+from iriscc.settings import (
+    CONFIG,
+    build_time_range,
+    get_bc_test_future_dates,
+    get_bc_test_hist_dates,
+    get_experiment_prediction_frequency,
+    get_prediction_output_path,
+)
 from iriscc.datautils import (remove_countries,
                               Data)
 
@@ -181,7 +185,8 @@ if __name__=="__main__":
     startdate = args.startdate or get_bc_test_hist_dates(args.exp)[0].strftime("%Y%m%d")
     enddate = args.enddate or get_bc_test_future_dates(args.exp)[-1].strftime("%Y%m%d")
     var = args.var or CONFIG[args.exp]["target_vars"][0]
-    dates = pd.date_range(start=startdate, end=enddate, freq="D")
+    prediction_frequency = get_experiment_prediction_frequency(args.exp)
+    dates = build_time_range(startdate, enddate, prediction_frequency)
     ds, y = get_target_format(args.exp, dates=dates, var=var, sample_dir=Path(sample_dir))
     diffusion_num_samples = args.num_samples if hparams.get("model") == "cddpm" else 1
     prediction_path = get_prediction_output_path(
@@ -217,6 +222,7 @@ if __name__=="__main__":
             "diffusion_num_samples": diffusion_num_samples,
             "output_range": output_range,
             "model": hparams.get("model"),
+            "prediction_frequency": prediction_frequency,
         },
         inputs={
             "checkpoint_dir": checkpoint_dir,
@@ -233,8 +239,7 @@ if __name__=="__main__":
         masks = []
         target_shapes = []
         for date in batch_dates:
-            date_str = date.date().strftime("%Y%m%d")
-            sample = resolve_sample_file(sample_dir, date_str)
+            sample = resolve_sample_file_for_timestamp(sample_dir, date, prediction_frequency)
             data = dict(np.load(sample, allow_pickle=True))
 
             x = data["x"]
@@ -276,6 +281,7 @@ if __name__=="__main__":
                 "diffusion_num_samples": diffusion_num_samples,
                 "output_range": output_range,
                 "model": hparams.get("model"),
+                "prediction_frequency": prediction_frequency,
             },
             inputs={
                 "checkpoint_dir": checkpoint_dir,

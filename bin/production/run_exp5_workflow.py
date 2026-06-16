@@ -39,8 +39,8 @@ from iriscc.settings import (
     get_bias_corrected_netcdf_path,
     get_phase1_dates,
     get_prediction_output_path,
-    require_matching_experiment_frequencies,
     get_source_default_frequency,
+    format_sample_time_token,
 )
 from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
 
@@ -88,16 +88,6 @@ def default_value_window(exp: str) -> tuple[str, str]:
 
 def first_hist_train_day(exp: str) -> str:
     dates = get_bc_train_hist_dates(exp)
-    return yyyymmdd(dates[0])
-
-
-def first_hist_test_day(exp: str) -> str:
-    dates = get_bc_test_hist_dates(exp)
-    return yyyymmdd(dates[0])
-
-
-def first_future_test_day(exp: str) -> str:
-    dates = get_bc_test_future_dates(exp)
     return yyyymmdd(dates[0])
 
 
@@ -229,7 +219,6 @@ def main() -> int:
         raise ValueError("phase1 date window requires both --phase1-start-date and --phase1-end-date")
     steps = resolve_steps(args.steps)
     exp = args.exp
-    matched_frequency = require_matching_experiment_frequencies(exp)
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
     bc_method = args.bc_method or exp_cfg.get("bias_correction_method", "ibicus_cdft")
@@ -256,7 +245,7 @@ def main() -> int:
         "ssp": ssp,
         "bc_method": bc_method,
         "simu": args.simu,
-        "training_frequency": matched_frequency,
+        "training_frequency": get_experiment_training_frequency(exp),
         "prediction_frequency": get_experiment_prediction_frequency(exp),
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
@@ -292,10 +281,15 @@ def main() -> int:
         get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
         bc_dataset_dir / f"sample_{first_hist_train_day(exp)}.npz",
     ]
-    pp_outputs = [bc_dataset_dir / f"sample_{first_hist_test_day(exp)}.npz"]
+    pp_outputs = [
+        bc_dataset_dir
+        / f"sample_{format_sample_time_token(get_bc_test_hist_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz"
+    ]
     raw_outputs = [
-        raw_dataset_dir / f"sample_{first_hist_test_day(exp)}.npz",
-        raw_dataset_dir / f"sample_{first_future_test_day(exp)}.npz",
+        raw_dataset_dir
+        / f"sample_{format_sample_time_token(get_bc_test_hist_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz",
+        raw_dataset_dir
+        / f"sample_{format_sample_time_token(get_bc_test_future_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz",
     ]
     prediction_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
     prediction_outputs = []

@@ -310,16 +310,20 @@ def get_frequency_pandas_rule(frequency: str | None) -> str:
     normalized = normalize_frequency_label(frequency)
     rules = {
         "daily": "1D",
-        "hourly": "1H",
-        "3h": "3H",
-        "6h": "6H",
-        "12h": "12H",
+        "hourly": "1h",
+        "3h": "3h",
+        "6h": "6h",
+        "12h": "12h",
     }
     if normalized not in rules:
         raise ValueError(
             f"Unsupported frequency '{frequency}'. Add a pandas rule mapping in iriscc/settings.py."
         )
     return rules[normalized]
+
+
+def get_frequency_timedelta(frequency: str | None) -> pd.Timedelta:
+    return pd.Timedelta(get_frequency_pandas_rule(frequency))
 
 
 def get_frequency_filename_token(frequency: str | None) -> str:
@@ -336,6 +340,24 @@ def get_frequency_filename_token(frequency: str | None) -> str:
             f"Unsupported frequency '{frequency}'. Add an output token mapping in iriscc/settings.py."
         )
     return tokens[normalized]
+
+
+def format_sample_time_token(timestamp, frequency: str | None) -> str:
+    ts = pd.Timestamp(timestamp)
+    normalized = normalize_frequency_label(frequency)
+    if normalized == "daily":
+        return ts.strftime("%Y%m%d")
+    if normalized in {"hourly", "3h", "6h", "12h"}:
+        return ts.strftime("%Y%m%d%H")
+    raise ValueError(f"Unsupported sample-token frequency '{frequency}'.")
+
+
+def build_time_range(start, end, frequency: str | None) -> pd.DatetimeIndex:
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    step = get_frequency_timedelta(frequency)
+    stop = end_ts + pd.Timedelta(days=1) - step
+    return pd.date_range(start=start_ts, end=stop, freq=get_frequency_pandas_rule(frequency))
 
 
 def get_source_native_frequency(source_name: str) -> str:
@@ -374,17 +396,6 @@ def get_experiment_prediction_frequency(exp: str) -> str:
     if configured is not None:
         return normalize_frequency_label(configured)
     return get_experiment_training_frequency(exp)
-
-
-def require_matching_experiment_frequencies(exp: str) -> str:
-    training_frequency = get_experiment_training_frequency(exp)
-    prediction_frequency = get_experiment_prediction_frequency(exp)
-    if prediction_frequency != training_frequency:
-        raise ValueError(
-            f"Experiment '{exp}' requests training frequency '{training_frequency}' and prediction "
-            f"frequency '{prediction_frequency}', but mixed-cadence prediction is not implemented yet."
-        )
-    return training_frequency
 
 
 def get_experiment_output_frequency(exp: str) -> str:
@@ -503,7 +514,7 @@ def get_prediction_output_path(
     ssp: str | None = None,
 ) -> Path:
     source_name = get_variant_source(exp, simu_variant)
-    frequency_token = get_frequency_filename_token(require_matching_experiment_frequencies(exp))
+    frequency_token = get_frequency_filename_token(get_experiment_prediction_frequency(exp))
     scenario_start = get_source_scenario_start(source_name)
     period = "historical" if pd.Timestamp(enddate) < scenario_start else (ssp or CONFIG[exp].get("ssp", "ssp585"))
     return PREDICTION_DIR / (
