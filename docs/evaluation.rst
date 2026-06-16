@@ -54,6 +54,20 @@ You can compare multiple models or simulations using boxplots:
 
    python3 bin/evaluation/compare_test_metrics.py --exp exp5 --test-list unet_gcm,unet_gcm_bc --scale monthly
 
+Map plotting now distinguishes between:
+
+* the data extent used to draw projected arrays
+* the geographic plot extent used for the visible map window
+
+When a plotting helper receives a geographic lon/lat domain, it now uses that
+domain directly for the map view. For projected extents such as SAFRAN
+``domain_xy``, the helper keeps the explicit France fallback viewport instead of
+silently treating projected coordinates as lon/lat.
+
+When that projected-domain fallback is used without an explicit
+``plot_extent``, the helper now emits a warning so the chosen map viewport is
+visible in logs and notebooks.
+
 Future Trend Analysis
 ---------------------
 
