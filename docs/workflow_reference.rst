@@ -9,9 +9,9 @@ Observation-Target Workflow
 ---------------------------
 
 The current master-script entrypoint for the observation-target workflow is
-``bin/production/run_exp5_workflow.py``. Despite the historical filename, it
-is the orchestration script used for the actively maintained observation-target
-workflows such as ``exp5`` and ``expc``.
+``bin/production/run_obs_workflow.py``. It is the orchestration script used
+for the actively maintained observation-target workflows such as ``exp5`` and
+``expc``.
 
 The typical step order is:
 
