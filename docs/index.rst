@@ -7,6 +7,10 @@ Welcome to idownscale's documentation!
 
    getting_started
    management
+   settings_reference
+   hyperparameters_reference
+   workflow_reference
+   notebooks
    preprocessing
    training
    evaluation
