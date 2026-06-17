@@ -58,12 +58,17 @@ def test_resolve_runtime_sample_dir_falls_back_to_config_dataset():
     assert resolved == Path(runtime_paths.CONFIG["exp5"]["dataset"])
 
 
-def test_bcml_runtime_resolution_keeps_training_stats_and_bc_eval_samples_separate():
+def test_bcml_runtime_resolution_keeps_training_stats_and_bc_eval_samples_separate(monkeypatch, tmp_path):
     training_sample_dir = Path(CONFIG["exp5"]["dataset"])
+    training_statistics_dir = tmp_path / "training_statistics"
+    training_statistics_dir.mkdir()
+    (training_statistics_dir / "statistics.json").write_text("{}")
     hparams = {
         "sample_dir": training_sample_dir,
-        "statistics_dir": training_sample_dir,
+        "statistics_dir": training_statistics_dir,
     }
+
+    monkeypatch.setattr(runtime_paths, "resolve_statistics_sample_dir", lambda sample_dir: Path(sample_dir))
 
     prediction_sample_dir = runtime_paths.resolve_runtime_sample_dir(
         "exp5",
@@ -75,7 +80,7 @@ def test_bcml_runtime_resolution_keeps_training_stats_and_bc_eval_samples_separa
 
     assert prediction_sample_dir == get_bias_corrected_sample_dir("exp5", "gcm")
     assert prediction_sample_dir == evaluation_sample_dir
-    assert runtime_paths.resolve_statistics_dir(hparams) == runtime_paths.resolve_statistics_sample_dir(training_sample_dir)
+    assert runtime_paths.resolve_statistics_dir(hparams) == training_statistics_dir
 
 
 def test_raw_variant_runtime_resolution_matches_evaluation_mapping():
