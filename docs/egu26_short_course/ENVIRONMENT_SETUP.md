@@ -83,7 +83,7 @@ For the recommended order of operations, see:
 Once the environment and data are in place, the first lightweight command is:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps prep_phase1
 ```
@@ -92,7 +92,7 @@ If the France-specific E-OBS target files already exist locally, you can skip th
 step and continue with:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps phase1,stats \
   --test-name unet_course_demo

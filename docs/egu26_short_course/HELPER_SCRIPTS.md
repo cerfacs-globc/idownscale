@@ -81,15 +81,15 @@ scientific and technical explanation before the command and output checks after 
 
 ## 3. Main workflow runner
 
-Use [bin/production/run_exp5_workflow.py](../../bin/production/run_exp5_workflow.py) as the main phase-by-phase entrypoint.
+Use [bin/production/run_obs_workflow.py](../../bin/production/run_obs_workflow.py) as the main phase-by-phase entrypoint.
 
 Useful examples:
 
 ```bash
-python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats
-python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
-python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
-python bin/production/run_exp5_workflow.py --exp exp5 --steps predict_loop,metrics_day,metrics_month,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --metrics-start-date <STARTDATE> --metrics-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
+python bin/production/run_obs_workflow.py --exp exp5 --steps phase1,stats
+python bin/production/run_obs_workflow.py --exp exp5 --steps phase1,stats,train --test-name unet_all
+python bin/production/run_obs_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
+python bin/production/run_obs_workflow.py --exp exp5 --steps predict_loop,metrics_day,metrics_month,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --metrics-start-date <STARTDATE> --metrics-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 ```
 
 Useful options:
@@ -121,7 +121,7 @@ keeps phase ordering and output locations consistent.
 For Slurm batch usage, the existing site-specific wrapper can be used as an
 example to adapt for the target cluster:
 
-- [bin/production/run_exp5_workflow_grace.sh](../../bin/production/run_exp5_workflow_grace.sh)
+- [bin/production/run_obs_workflow_grace.sh](../../bin/production/run_obs_workflow_grace.sh)
 
 That wrapper is useful as a template when attendees move the same workflow from
 a local machine to a supercomputer environment.

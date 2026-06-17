@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generic Calypso Grace submitter for exp5 workflow phases.
+# Generic Calypso Grace submitter for observation-target workflow phases.
 
 #SBATCH --job-name=exp5_workflow
 #SBATCH --partition=grace
@@ -84,7 +84,7 @@ SAMPLE_END_DATE="${SAMPLE_END_DATE:-}"
 
 CMD=(
   bash
-  bin/production/run_exp5_workflow_grace.sh
+  bin/production/run_obs_workflow_grace.sh
   --exp "${EXP}"
   --steps "${STEPS}"
   --if-exists "${IF_EXISTS}"

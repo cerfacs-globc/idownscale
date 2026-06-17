@@ -105,7 +105,7 @@ Copy the mirrored raw files from Mercure into:
 If the France-specific E-OBS target files are not already present locally:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps prep_phase1
 ```

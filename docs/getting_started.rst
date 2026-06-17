@@ -73,7 +73,7 @@ The cleaned exp5 entrypoint is:
 
 .. code-block:: bash
 
-   python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850103
+   python bin/production/run_obs_workflow.py --exp exp5 --steps phase1,stats --phase1-start-date 19850101 --phase1-end-date 19850103
 
 If you are working on an HPC system and maintain local wrapper scripts, use
 those wrappers instead of calling the Python entrypoint directly.

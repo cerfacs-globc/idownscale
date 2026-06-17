@@ -91,7 +91,7 @@ Notebook role:
 
 Main script:
 
-- [bin/production/run_exp5_workflow.py](../../bin/production/run_exp5_workflow.py) with `--steps phase1`
+- [bin/production/run_obs_workflow.py](../../bin/production/run_obs_workflow.py) with `--steps phase1`
 
 Direct lower-level script:
 
@@ -100,7 +100,7 @@ Direct lower-level script:
 Laptop-friendly reduced example:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps phase1 \
   --phase1-start-date 19850101 \
@@ -126,7 +126,7 @@ Notebook role:
 
 Main script:
 
-- [bin/production/run_exp5_workflow.py](../../bin/production/run_exp5_workflow.py) with `--steps stats`
+- [bin/production/run_obs_workflow.py](../../bin/production/run_obs_workflow.py) with `--steps stats`
 
 Direct lower-level script:
 

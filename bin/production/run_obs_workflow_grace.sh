@@ -69,4 +69,4 @@ echo "output_dir=${IDOWNSCALE_OUTPUT_DIR}"
 echo "python=$(command -v python3)"
 
 cd "${REPO_ROOT}"
-python3 bin/production/run_exp5_workflow.py "$@"
+python3 bin/production/run_obs_workflow.py "$@"

@@ -201,7 +201,7 @@ If the Europe-scale source files are already present locally, the same step is a
 available through the workflow runner:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps prep_phase1
 ```

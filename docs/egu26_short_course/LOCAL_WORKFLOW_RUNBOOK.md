@@ -43,7 +43,7 @@ all-in-one command.
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps prep_phase1
 ```
@@ -84,7 +84,7 @@ python bin/preprocessing/prepare_exp5_france_targets.py --include-mask
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps phase1 \
   --test-name unet_course_demo
@@ -105,7 +105,7 @@ Quick checks:
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps stats \
   --test-name unet_course_demo
@@ -125,7 +125,7 @@ Quick checks:
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps train \
   --test-name unet_course_demo
@@ -148,7 +148,7 @@ Quick checks:
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps predict_loop \
   --test-name unet_all \
@@ -174,7 +174,7 @@ Quick checks:
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps metrics_day,metrics_month,value_metrics \
   --test-name unet_all \
@@ -198,7 +198,7 @@ Quick checks:
 Command:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps plot_metrics_day,plot_metrics_month \
   --test-name unet_all \
