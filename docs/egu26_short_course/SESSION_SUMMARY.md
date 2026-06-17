@@ -1,5 +1,7 @@
 # EGU26 Short Course Session Summary
 
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+
 This short course introduces robust machine-learning methods for statistical downscaling of coarse-resolution climate model scenarios.
 
 Using daily near-surface temperature as a case study, the session follows the full workflow from pre-Phase-1 France target preparation and data cropping through bias correction, training, inference, and evaluation. The emphasis is practical and climate-oriented: how to prepare consistent predictor and target datasets, when retraining is required, how bias correction interacts with machine learning, and how to evaluate downscaling results beyond a single scalar score.
@@ -10,6 +12,10 @@ The practical material is organized so that students can return to it after the
 session and recover the full workflow, data paths, and validation logic from the
 GitHub pages and notebook alone. The notebook is the main hands-on experience,
 while the companion Markdown pages provide more detailed reference material.
+
+For reproducibility, students should use the repository at tag `v1.4.0` when
+following these notes. The short course is maintained against that release even
+though the repository may continue to evolve afterward.
 
 ## Start here
 

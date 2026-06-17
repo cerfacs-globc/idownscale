@@ -37,10 +37,10 @@ cd /scratch/globc/page/idownscale_rerun
 The master script is:
 
 ```bash
-bin/production/run_exp5_workflow.py
+bin/production/run_obs_workflow.py
 ```
 
-That script orchestrates the cleaned `exp5` workflow phases.
+That script orchestrates the cleaned observation-target workflow phases.
 
 Supported phases:
 
@@ -302,7 +302,7 @@ For phase orchestration on Grace GPU, use:
 
 ```bash
 sbatch --export=ALL \
-bin/production/submit_exp5_workflow_grace.sh
+bin/production/submit_obs_workflow_grace.sh
 ```
 
 That helper defaults to:
@@ -328,7 +328,7 @@ TEST_NAME=unet_all,\
 IF_EXISTS=overwrite,\
 IDOWNSCALE_FORCE_CSV_LOGGER=1,\
 IDOWNSCALE_SKIP_TEST_FIGURES=1 \
-bin/production/submit_exp5_workflow_grace.sh
+bin/production/submit_obs_workflow_grace.sh
 ```
 
 Example: rebuild only Phase 1 and statistics:
@@ -339,7 +339,7 @@ STEPS=phase1,stats,\
 IF_EXISTS=overwrite,\
 PHASE1_START_DATE=19800101,\
 PHASE1_END_DATE=19800131 \
-bin/production/submit_exp5_workflow_grace.sh
+bin/production/submit_obs_workflow_grace.sh
 ```
 
 Example: rebuild only coarse bias-correction phases:
@@ -348,7 +348,7 @@ Example: rebuild only coarse bias-correction phases:
 sbatch --export=ALL,\
 STEPS=bc_dataset,bc_apply,\
 IF_EXISTS=overwrite \
-bin/production/submit_exp5_workflow_grace.sh
+bin/production/submit_obs_workflow_grace.sh
 ```
 
 Example: long prediction + metrics from an existing checkpoint:
@@ -365,7 +365,7 @@ METRICS_END_DATE=<ENDDATE>,\
 VALUE_START_DATE=<STARTDATE>,\
 VALUE_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite \
-bin/production/submit_exp5_workflow_grace.sh
+bin/production/submit_obs_workflow_grace.sh
 ```
 
 ## 6. Specialized Grace GPU training
@@ -393,7 +393,7 @@ If Grace GPU is full and you want CPU-only workflow phases, use:
 
 ```bash
 sbatch --export=ALL \
-bin/production/submit_exp5_workflow_globc.sh
+bin/production/submit_obs_workflow_globc.sh
 ```
 
 This is intended for CPU phases such as:
@@ -419,7 +419,7 @@ Example: CPU fallback for preprocessing only:
 sbatch --export=ALL,\
 STEPS=phase1,stats,\
 IF_EXISTS=overwrite \
-bin/production/submit_exp5_workflow_globc.sh
+bin/production/submit_obs_workflow_globc.sh
 ```
 
 Example: CPU fallback for metrics only:
@@ -436,7 +436,7 @@ METRICS_END_DATE=<ENDDATE>,\
 VALUE_START_DATE=<STARTDATE>,\
 VALUE_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite \
-bin/production/submit_exp5_workflow_globc.sh
+bin/production/submit_obs_workflow_globc.sh
 ```
 
 Example mixed queue strategy:
@@ -447,7 +447,7 @@ Example mixed queue strategy:
 sbatch --export=ALL,\
 STEPS=phase1,stats,bc_dataset,bc_apply,raw_dataset,pp_dataset,\
 IF_EXISTS=overwrite \
-bin/production/submit_exp5_workflow_globc.sh
+bin/production/submit_obs_workflow_globc.sh
 ```
 
 2. Switch to GPU when Grace becomes available:
@@ -462,7 +462,7 @@ PREDICT_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite,\
 IDOWNSCALE_FORCE_CSV_LOGGER=1,\
 IDOWNSCALE_SKIP_TEST_FIGURES=1 \
-bin/production/submit_exp5_workflow_grace.sh
+bin/production/submit_obs_workflow_grace.sh
 ```
 
 3. Move back to CPU for evaluation and plotting:
@@ -479,7 +479,7 @@ METRICS_END_DATE=<ENDDATE>,\
 VALUE_START_DATE=<STARTDATE>,\
 VALUE_END_DATE=<ENDDATE>,\
 IF_EXISTS=overwrite \
-bin/production/submit_exp5_workflow_globc.sh
+bin/production/submit_obs_workflow_globc.sh
 ```
 
 Important note:
@@ -542,7 +542,7 @@ Important nuance:
 For direct shell runs on a Grace-capable environment:
 
 ```bash
-bash bin/production/run_exp5_workflow_grace.sh --exp exp5 --steps phase1,stats
+bash bin/production/run_obs_workflow_grace.sh --exp exp5 --steps phase1,stats
 ```
 
 The wrapper now checks that raw-data directories exist and fails with a layout
@@ -553,31 +553,31 @@ hint if they do not.
 Prepare France target files from Europe-scale E-OBS inputs:
 
 ```bash
-python bin/production/run_exp5_workflow.py --exp exp5 --steps prep_phase1
+python bin/production/run_obs_workflow.py --exp exp5 --steps prep_phase1
 ```
 
 Build Phase 1 samples:
 
 ```bash
-python bin/production/run_exp5_workflow.py --exp exp5 --steps phase1
+python bin/production/run_obs_workflow.py --exp exp5 --steps phase1
 ```
 
 Build statistics:
 
 ```bash
-python bin/production/run_exp5_workflow.py --exp exp5 --steps stats
+python bin/production/run_obs_workflow.py --exp exp5 --steps stats
 ```
 
 Build coarse bias-correction volumes and corrected products:
 
 ```bash
-python bin/production/run_exp5_workflow.py --exp exp5 --steps bc_dataset,bc_apply
+python bin/production/run_obs_workflow.py --exp exp5 --steps bc_dataset,bc_apply
 ```
 
 Build raw GCM test samples:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps raw_dataset \
   --simu gcm
@@ -586,7 +586,7 @@ python bin/production/run_exp5_workflow.py \
 Build corrected GCM test samples:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps pp_dataset \
   --simu gcm
@@ -595,7 +595,7 @@ python bin/production/run_exp5_workflow.py \
 Train a model:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps train \
   --test-name unet_all
@@ -604,7 +604,7 @@ python bin/production/run_exp5_workflow.py \
 Run prediction and evaluation:
 
 ```bash
-python bin/production/run_exp5_workflow.py \
+python bin/production/run_obs_workflow.py \
   --exp exp5 \
   --steps predict_loop,metrics_day,metrics_month,value_metrics,plot_metrics_day,plot_metrics_month \
   --test-name unet_all \
@@ -659,7 +659,7 @@ The most useful places to read are:
 The workflow orchestration logic lives in:
 
 ```bash
-bin/production/run_exp5_workflow.py
+bin/production/run_obs_workflow.py
 ```
 
 That is where the engineer should look to understand:
@@ -673,7 +673,7 @@ That is where the engineer should look to understand:
 For Calypso reruns, the practical contract is:
 
 1. ensure `rawdata` is visible to the repo
-2. use `run_exp5_workflow.py` as the master workflow script
-3. use `submit_exp5_workflow_grace.sh` for Grace GPU orchestration
-4. use `submit_exp5_workflow_globc.sh` for `globc` CPU fallback
+2. use `run_obs_workflow.py` as the master workflow script
+3. use `submit_obs_workflow_grace.sh` for Grace GPU orchestration
+4. use `submit_obs_workflow_globc.sh` for `globc` CPU fallback
 5. use `submit_exp5_train_grace.sh` for validated Grace GPU training

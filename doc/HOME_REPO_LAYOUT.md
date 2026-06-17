@@ -81,9 +81,9 @@ This means a repository in `home` will not silently create a large
 The main workflow wrappers were aligned with the same logic:
 
 - `bin/production/run_in_grace_env.sh`
-- `bin/production/run_exp5_workflow_grace.sh`
-- `bin/production/submit_exp5_workflow_grace.sh`
-- `bin/production/submit_exp5_workflow_globc.sh`
+- `bin/production/run_obs_workflow_grace.sh`
+- `bin/production/submit_obs_workflow_grace.sh`
+- `bin/production/submit_obs_workflow_globc.sh`
 - `bin/production/submit_exp5_perfect_model_grace.sh`
 - `bin/production/submit_exp5_perfect_model_kraken.sh`
 

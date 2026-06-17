@@ -1,5 +1,7 @@
 # Workflow Phases For The EGU26 Short Course
 
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+
 This page summarizes what attendees should do in each workflow phase and which
 script to use.
 
