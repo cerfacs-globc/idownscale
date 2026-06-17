@@ -9,64 +9,16 @@ author : Zoé GARCIA
 import sys
 sys.path.append('.')
 
-import os
-import numpy as np
 import json
-import torch
 import numpy as np
+import torch
 import xarray as xr
 import torch.nn.functional as F
-from typing import Tuple, Union, List, Optional
 from pathlib import Path
+from typing import List, Optional, Tuple, Union
 
-from iriscc.runtime_paths import require_existing_file
-from iriscc.settings import IMERG_MASK, DATASET_DIR, EXP5_ARCHIVE_DATASET_DIR
-
-
-def resolve_statistics_dir(sample_dir: Union[str, Path]) -> Path:
-    """
-    Resolve a usable directory containing statistics.json.
-
-    Archival checkpoints can carry stale absolute sample_dir values from older
-    filesystem layouts. For inference and evaluation we only need the matching
-    statistics file, so fall back through a small set of compatible locations.
-    """
-    sample_dir = Path(sample_dir)
-    if (sample_dir / 'statistics.json').exists():
-        return sample_dir
-
-    allow_fallback = os.getenv('IDOWNSCALE_ALLOW_STATISTICS_FALLBACK', '').lower() in {'1', 'true', 'yes', 'on'}
-    if not allow_fallback:
-        raise FileNotFoundError(
-            f"Missing statistics.json in {sample_dir}. "
-            "Compute dataset/run statistics first, or set IDOWNSCALE_ALLOW_STATISTICS_FALLBACK=1 "
-            "only for explicit archival compatibility."
-        )
-
-    candidates = [sample_dir]
-
-    # Optional explicit override from the environment.
-    env_override = os.getenv('IDOWNSCALE_SAMPLE_STATS_DIR')
-    if env_override:
-        candidates.append(Path(env_override))
-
-    # Current local dataset root with the same dataset basename.
-    candidates.append(DATASET_DIR / sample_dir.name)
-
-    # Dedicated archival override for exp5 parity work.
-    candidates.append(EXP5_ARCHIVE_DATASET_DIR)
-
-    seen = set()
-    for candidate in candidates:
-        candidate = candidate.expanduser()
-        if candidate in seen:
-            continue
-        seen.add(candidate)
-        if (candidate / 'statistics.json').exists():
-            print(f"[warn] using fallback statistics directory {candidate} for {sample_dir}", flush=True)
-            return candidate
-
-    raise FileNotFoundError(f"No statistics.json found for {sample_dir} or fallback candidates.")
+from iriscc.runtime_paths import require_existing_file, resolve_statistics_sample_dir as resolve_statistics_dir
+from iriscc.settings import IMERG_MASK
 
 class StandardNormalisation():
     """

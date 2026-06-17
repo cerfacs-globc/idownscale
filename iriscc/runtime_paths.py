@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 from iriscc.checkpoint_bundle import activate_bundle_contract, resolve_checkpoint_from_bundle
-from iriscc.settings import CONFIG, RUNS_DIR, format_sample_time_token, get_evaluation_sample_dir
+from iriscc.settings import (
+    CONFIG,
+    DATASET_DIR,
+    EXP5_ARCHIVE_DATASET_DIR,
+    RUNS_DIR,
+    format_sample_time_token,
+    get_evaluation_sample_dir,
+)
 
 
 def require_existing_file(path: str | Path, description: str) -> Path:
@@ -67,8 +75,55 @@ def resolve_checkpoint_path(
     return require_match(run_dir / "checkpoints", "best-checkpoint*.ckpt", "best checkpoint")
 
 
+def resolve_statistics_sample_dir(sample_dir: str | Path) -> Path:
+    """
+    Resolve a usable directory containing ``statistics.json``.
+
+    Archival checkpoints can carry stale absolute sample_dir values from older
+    filesystem layouts. For inference and evaluation we only need the matching
+    statistics file, so fall back through a small set of compatible locations.
+    """
+    sample_dir = Path(sample_dir)
+    if (sample_dir / "statistics.json").exists():
+        return sample_dir
+
+    allow_fallback = os.getenv("IDOWNSCALE_ALLOW_STATISTICS_FALLBACK", "").lower() in {"1", "true", "yes", "on"}
+    if not allow_fallback:
+        message = (
+            f"Missing statistics.json in {sample_dir}. "
+            "Compute dataset/run statistics first, or set IDOWNSCALE_ALLOW_STATISTICS_FALLBACK=1 "
+            "only for explicit archival compatibility."
+        )
+        raise FileNotFoundError(message)
+
+    candidates = [sample_dir]
+    env_override = os.getenv("IDOWNSCALE_SAMPLE_STATS_DIR")
+    if env_override:
+        candidates.append(Path(env_override))
+    candidates.append(DATASET_DIR / sample_dir.name)
+    candidates.append(EXP5_ARCHIVE_DATASET_DIR)
+
+    seen = set()
+    for candidate in candidates:
+        expanded_candidate = candidate.expanduser()
+        if expanded_candidate in seen:
+            continue
+        seen.add(expanded_candidate)
+        if (expanded_candidate / "statistics.json").exists():
+            print(f"[warn] using fallback statistics directory {expanded_candidate} for {sample_dir}", flush=True)
+            return expanded_candidate
+
+    message = f"No statistics.json found for {sample_dir} or fallback candidates."
+    raise FileNotFoundError(message)
+
+
 def resolve_statistics_dir(hparams: dict[str, Any]) -> Path:
-    return Path(hparams.get("statistics_dir", hparams["sample_dir"]))
+    return resolve_statistics_sample_dir(hparams.get("statistics_dir", hparams["sample_dir"]))
+
+
+def resolve_first_sample_file(sample_dir: str | Path) -> Path:
+    matches = require_match(sample_dir, "sample_*.npz", "sample file", allow_multiple=True)
+    return matches[0]
 
 
 def resolve_runtime_sample_dir(
