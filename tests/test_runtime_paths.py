@@ -9,6 +9,10 @@ from iriscc.settings import CONFIG, get_bias_corrected_sample_dir, get_dataset_v
 def test_resolve_statistics_dir_prefers_hparams_override(tmp_path):
     sample_dir = tmp_path / "sample_dir"
     statistics_dir = tmp_path / "statistics_dir"
+    sample_dir.mkdir()
+    statistics_dir.mkdir()
+    (sample_dir / "statistics.json").write_text("{}")
+    (statistics_dir / "statistics.json").write_text("{}")
     hparams = {
         "sample_dir": sample_dir,
         "statistics_dir": statistics_dir,
@@ -18,6 +22,8 @@ def test_resolve_statistics_dir_prefers_hparams_override(tmp_path):
 
 def test_resolve_statistics_dir_falls_back_to_sample_dir(tmp_path):
     sample_dir = tmp_path / "sample_dir"
+    sample_dir.mkdir()
+    (sample_dir / "statistics.json").write_text("{}")
     hparams = {"sample_dir": sample_dir}
     assert runtime_paths.resolve_statistics_dir(hparams) == sample_dir
 
@@ -69,7 +75,7 @@ def test_bcml_runtime_resolution_keeps_training_stats_and_bc_eval_samples_separa
 
     assert prediction_sample_dir == get_bias_corrected_sample_dir("exp5", "gcm")
     assert prediction_sample_dir == evaluation_sample_dir
-    assert runtime_paths.resolve_statistics_dir(hparams) == training_sample_dir
+    assert runtime_paths.resolve_statistics_dir(hparams) == runtime_paths.resolve_statistics_sample_dir(training_sample_dir)
 
 
 def test_raw_variant_runtime_resolution_matches_evaluation_mapping():

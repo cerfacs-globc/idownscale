@@ -37,10 +37,12 @@ def _grid_signature(ds: xr.Dataset) -> str:
 
 def _require_unique_path(candidates: list[str], description: str) -> str:
    if not candidates:
-      raise FileNotFoundError(f"Missing {description}")
+      message = f"Missing {description}"
+      raise FileNotFoundError(message)
    if len(candidates) > 1:
       joined = ", ".join(Path(candidate).name for candidate in candidates)
-      raise FileExistsError(f"Expected exactly one {description}, found {len(candidates)}: {joined}")
+      message = f"Expected exactly one {description}, found {len(candidates)}: {joined}"
+      raise FileExistsError(message)
    return candidates[0]
 
 def standardize_era5_geometry(ds):

@@ -89,11 +89,12 @@ def resolve_statistics_sample_dir(sample_dir: str | Path) -> Path:
 
     allow_fallback = os.getenv("IDOWNSCALE_ALLOW_STATISTICS_FALLBACK", "").lower() in {"1", "true", "yes", "on"}
     if not allow_fallback:
-        raise FileNotFoundError(
+        message = (
             f"Missing statistics.json in {sample_dir}. "
             "Compute dataset/run statistics first, or set IDOWNSCALE_ALLOW_STATISTICS_FALLBACK=1 "
             "only for explicit archival compatibility."
         )
+        raise FileNotFoundError(message)
 
     candidates = [sample_dir]
     env_override = os.getenv("IDOWNSCALE_SAMPLE_STATS_DIR")
@@ -104,15 +105,16 @@ def resolve_statistics_sample_dir(sample_dir: str | Path) -> Path:
 
     seen = set()
     for candidate in candidates:
-        candidate = candidate.expanduser()
-        if candidate in seen:
+        expanded_candidate = candidate.expanduser()
+        if expanded_candidate in seen:
             continue
-        seen.add(candidate)
-        if (candidate / "statistics.json").exists():
-            print(f"[warn] using fallback statistics directory {candidate} for {sample_dir}", flush=True)
-            return candidate
+        seen.add(expanded_candidate)
+        if (expanded_candidate / "statistics.json").exists():
+            print(f"[warn] using fallback statistics directory {expanded_candidate} for {sample_dir}", flush=True)
+            return expanded_candidate
 
-    raise FileNotFoundError(f"No statistics.json found for {sample_dir} or fallback candidates.")
+    message = f"No statistics.json found for {sample_dir} or fallback candidates."
+    raise FileNotFoundError(message)
 
 
 def resolve_statistics_dir(hparams: dict[str, Any]) -> Path:

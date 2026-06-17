@@ -37,11 +37,12 @@ def iter_active_doc_texts():
 
 
 def test_active_docs_do_not_reference_stale_runner_names():
-    stale_hits = []
-    for path, text in iter_active_doc_texts():
-        for token in STALE_RUNNER_TOKENS:
-            if token in text:
-                stale_hits.append(f"{path}: {token}")
+    stale_hits = [
+        f"{path}: {token}"
+        for path, text in iter_active_doc_texts()
+        for token in STALE_RUNNER_TOKENS
+        if token in text
+    ]
     assert not stale_hits, "\n".join(stale_hits)
 
 
