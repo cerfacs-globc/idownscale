@@ -115,3 +115,5 @@ The most useful preprocessing provenance fields are:
 * ``settings``: resolved output roots, target source, grid configuration, and
   resolved training/prediction frequencies
 * ``parameters``: explicit dates, channels, and step flags
+* ``settings.path_inventory``: resolved input/output paths with existence,
+  size, and modification time metadata

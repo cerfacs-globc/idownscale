@@ -151,6 +151,12 @@ Operationally important checks are:
 * the final ``provenance_provjson=...`` line for each finished phase
 * the presence of expected output files in the configured runtime roots
 
+Resolved context and PROV JSON now also include a ``path_inventory`` section
+for the main workflow, preprocessing, training, and prediction steps. Each
+entry records the resolved path plus existence, file/dir type, size, and mtime
+when available. This helps distinguish a wrong default path from a correct path
+that simply contains stale or missing artifacts.
+
 Customizing for Your Cluster
 ----------------------------
 

@@ -42,7 +42,7 @@ from iriscc.settings import (
     get_source_default_frequency,
     format_sample_time_token,
 )
-from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+from iriscc.provenance import build_prov_bundle, inventory_paths, print_resolved_context, utc_now_iso, write_provjson
 
 
 DEFAULT_STEPS = ["phase1", "stats", "bc_dataset", "bc_apply"]
@@ -249,10 +249,18 @@ def main() -> int:
         "prediction_frequency": get_experiment_prediction_frequency(exp),
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
+    path_inventory = inventory_paths(
+        {
+            "dataset_dir": dataset_dir,
+            "runs_dir": RUNS_DIR / exp,
+            "metrics_dir": METRICS_DIR / exp,
+            "graphs_dir": GRAPHS_DIR / exp,
+        }
+    )
     print_resolved_context(
         script_name="run_obs_workflow.py",
         parameters=vars(args),
-        settings=resolved_settings,
+        settings={**resolved_settings, "path_inventory": path_inventory},
         inputs={"dataset_dir": dataset_dir},
         outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
     )
@@ -597,7 +605,7 @@ def main() -> int:
             start_time=start_time,
             end_time=utc_now_iso(),
             parameters=vars(args),
-            settings=resolved_settings,
+            settings={**resolved_settings, "path_inventory": path_inventory},
             inputs={"dataset_dir": dataset_dir},
             outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
             cwd=PROJECT_ROOT,

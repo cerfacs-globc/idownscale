@@ -17,7 +17,7 @@ import numpy as np
 from torchvision.transforms import v2
 
 from iriscc.inference import load_trained_module, predict_tensor
-from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+from iriscc.provenance import build_prov_bundle, inventory_paths, print_resolved_context, utc_now_iso, write_provjson
 from iriscc.runtime_paths import (
     require_match,
     resolve_checkpoint_path,
@@ -211,6 +211,14 @@ if __name__=="__main__":
     target_template = np.expand_dims(y, axis=0)
     batch_size = args.batch_size or int(hparams.get("batch_size", 1)) or 1
     batch_size = max(1, batch_size)
+    path_inventory = inventory_paths(
+        {
+            "checkpoint_dir": checkpoint_dir,
+            "sample_dir": Path(sample_dir),
+            "statistics_json": Path(statistics_dir) / "statistics.json",
+            "prediction_netcdf": prediction_path,
+        }
+    )
     print_resolved_context(
         script_name="predict_loop.py",
         parameters=vars(args),
@@ -223,6 +231,7 @@ if __name__=="__main__":
             "output_range": output_range,
             "model": hparams.get("model"),
             "prediction_frequency": prediction_frequency,
+            "path_inventory": path_inventory,
         },
         inputs={
             "checkpoint_dir": checkpoint_dir,
@@ -282,6 +291,7 @@ if __name__=="__main__":
                 "output_range": output_range,
                 "model": hparams.get("model"),
                 "prediction_frequency": prediction_frequency,
+                "path_inventory": path_inventory,
             },
             inputs={
                 "checkpoint_dir": checkpoint_dir,

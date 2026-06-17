@@ -26,7 +26,7 @@ from iriscc.dataloaders import get_dataloaders
 from iriscc.hparams import IRISCCHyperParameters
 from iriscc.lightning_module import IRISCCLightningModule
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
-from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+from iriscc.provenance import build_prov_bundle, inventory_paths, print_resolved_context, utc_now_iso, write_provjson
 
 
 def prepare_normalization_statistics(hparams: IRISCCHyperParameters) -> None:
@@ -101,10 +101,17 @@ def main() -> int:
         "output_norm": hparams.output_norm,
         "output_range": hparams.output_range,
     }
+    path_inventory = inventory_paths(
+        {
+            "sample_dir": hparams.sample_dir,
+            "statistics_json": hparams.statistics_dir / "statistics.json",
+            "runs_dir": hparams.runs_dir,
+        }
+    )
     print_resolved_context(
         script_name="train.py",
         parameters=vars(args),
-        settings=resolved_settings,
+        settings={**resolved_settings, "path_inventory": path_inventory},
         inputs={
             "sample_dir": hparams.sample_dir,
             "statistics_json": hparams.statistics_dir / "statistics.json",
@@ -179,7 +186,7 @@ def main() -> int:
             start_time=start_time,
             end_time=utc_now_iso(),
             parameters=vars(args),
-            settings=resolved_settings,
+            settings={**resolved_settings, "path_inventory": path_inventory},
             inputs={
                 "sample_dir": hparams.sample_dir,
                 "statistics_json": hparams.statistics_dir / "statistics.json",

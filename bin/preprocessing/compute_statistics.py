@@ -17,7 +17,7 @@ sys.path.append(".")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from iriscc.provenance import build_prov_bundle, print_resolved_context, utc_now_iso, write_provjson
+from iriscc.provenance import build_prov_bundle, inventory_paths, print_resolved_context, utc_now_iso, write_provjson
 from iriscc.settings import CONFIG, get_train_split_dates
 
 def update_statistics(current_sum: float,
@@ -92,10 +92,16 @@ if __name__=="__main__":
         "val_start_date": args.val_start_date,
         "test_start_date": args.test_start_date,
     }
+    path_inventory = inventory_paths(
+        {
+            "dataset_dir": dataset_dir,
+            "statistics_json": dataset_dir / "statistics.json",
+        }
+    )
     print_resolved_context(
         script_name="compute_statistics.py",
         parameters=vars(args),
-        settings=resolved_settings,
+        settings={**resolved_settings, "path_inventory": path_inventory},
         inputs={"dataset_dir": dataset_dir},
         outputs={"statistics_json": dataset_dir / "statistics.json"},
     )
@@ -210,7 +216,7 @@ if __name__=="__main__":
             start_time=start_time,
             end_time=utc_now_iso(),
             parameters=vars(args),
-            settings=resolved_settings,
+            settings={**resolved_settings, "path_inventory": path_inventory},
             inputs={"dataset_dir": dataset_dir},
             outputs={
                 "statistics_json": dataset_dir / "statistics.json",
@@ -222,5 +228,4 @@ if __name__=="__main__":
         ),
     )
     print(f"provenance_provjson={prov_path}", flush=True)
-
 

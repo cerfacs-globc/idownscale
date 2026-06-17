@@ -38,6 +38,31 @@ def json_ready(value: object) -> JsonValue:
     return str(value)
 
 
+def describe_path(path: str | Path) -> dict[str, JsonValue]:
+    resolved = Path(path)
+    info: dict[str, JsonValue] = {
+        "path": str(resolved),
+        "exists": resolved.exists(),
+    }
+    if resolved.exists():
+        stat = resolved.stat()
+        info["is_file"] = resolved.is_file()
+        info["is_dir"] = resolved.is_dir()
+        info["size_bytes"] = int(stat.st_size)
+        info["mtime"] = datetime.fromtimestamp(stat.st_mtime, UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return info
+
+
+def inventory_paths(entries: dict[str, object]) -> dict[str, JsonValue]:
+    inventory: dict[str, JsonValue] = {}
+    for label, value in entries.items():
+        if isinstance(value, (list, tuple, set)):
+            inventory[label] = [describe_path(item) for item in value]
+        else:
+            inventory[label] = describe_path(value)
+    return inventory
+
+
 def git_commit(cwd: str | Path | None = None) -> str | None:
     git_bin = which("git")
     if git_bin is None:
