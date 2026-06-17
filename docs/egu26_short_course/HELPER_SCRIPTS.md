@@ -1,5 +1,7 @@
 # Helper Scripts For The EGU26 Short Course
 
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+
 This page lists the main helper scripts attendees can use to prepare directories,
 crop data, and run the workflow on a laptop, workstation, or supercomputer.
 

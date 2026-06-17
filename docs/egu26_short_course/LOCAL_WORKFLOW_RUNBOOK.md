@@ -1,5 +1,7 @@
 # Local Workflow Runbook For The EGU26 Short Course
 
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+
 This note assumes the required data are already available locally in the standard
 `idownscale` repo layout.
 

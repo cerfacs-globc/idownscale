@@ -1,5 +1,7 @@
 # EGU26 Short Course Environment Setup
 
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+
 This page gives the minimum environment setup needed to run the short-course
 workflow locally.
 
@@ -7,6 +9,20 @@ For the fuller project documentation, see:
 
 - `docs/getting_started.rst`
 - `docs/training.rst`
+
+## 0. Check out the course-compatible release
+
+The maintained short-course material matches `idownscale` release `v1.4.0`.
+For the cleanest student setup:
+
+```bash
+git clone https://github.com/cerfacs-globc/idownscale.git
+cd idownscale
+git checkout v1.4.0
+```
+
+If you use a newer branch or `master`, some commands, file names, or workflow
+details may differ from the teaching material.
 
 ## 1. Create the Python environment
 
@@ -116,6 +132,21 @@ This is the most common installation issue.
 - this is why the recommended route installs `esmpy` and `xesmf` through Conda first
 
 If `import xesmf` fails, recreate the environment with the Conda-based route above.
+
+## 8. What may differ from later code versions
+
+The short course focuses on the E-OBS/GCM daily temperature example and does
+not cover the full breadth of `v1.4.0`. Later or broader workflows in the
+release include:
+
+- the generic observation-target runner name `run_obs_workflow.py`
+- CERRA-based observation-target work
+- fixed-step mixed prediction cadences
+- perfect-model BC+CDDPM workflows
+- richer provenance inventories
+
+Those features are available in the release, but they are beyond the minimum
+student path described here.
 
 HPC note:
 

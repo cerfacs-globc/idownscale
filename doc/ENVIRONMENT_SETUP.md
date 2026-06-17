@@ -198,8 +198,8 @@ Repair note from 2026-06-01:
   - `ESMFMKFILE=/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk`
 - default wrapper validation now passes through:
   - `bin/production/run_in_grace_env.sh`
-  - `bin/production/run_exp5_workflow_grace.sh`
-  - `bin/production/submit_exp5_workflow_grace.sh`
+  - `bin/production/run_obs_workflow_grace.sh`
+  - `bin/production/submit_obs_workflow_grace.sh`
 - verified on-arm via default wrapper probe job `272675`
 
 The generic submitters in `bin/production/` no longer default to a personal
@@ -278,5 +278,5 @@ Inspect:
 
 - path discovery and defaults near the top of the file
 - `CONFIG['exp5']` for the experiment geometry and target files
-- `bin/production/run_exp5_workflow.py` for the phase orchestration and required
+- `bin/production/run_obs_workflow.py` for the phase orchestration and required
   arguments per phase

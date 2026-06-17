@@ -1,11 +1,53 @@
 # EGU26 Short Course Session Materials
 
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+
 This page gathers the published material for the EGU26 short course on
 machine-learning-based climate downscaling.
 
 This is the main entrypoint for students after the session. The practical reading
 path is: environment, data layout, upstream inputs, workflow phases, expected
 outputs, then the notebook.
+
+## Recommended code checkout
+
+Students who want the same code layout as the maintained course material should
+clone the tagged release directly:
+
+```bash
+git clone https://github.com/cerfacs-globc/idownscale.git
+cd idownscale
+git checkout v1.4.0
+```
+
+If you already cloned the repository, you can move to the course-compatible
+release with:
+
+```bash
+git fetch --tags
+git checkout v1.4.0
+```
+
+## Scope versus the full release
+
+The short-course material is narrower than the full `v1.4.0` release. In
+particular, the course mainly teaches:
+
+- the `exp5` temperature workflow
+- BC-only and BC+ML logic on the daily E-OBS/GCM route
+- phase-by-phase validation and interpretation
+
+The full `v1.4.0` release also includes capabilities that are not central to
+the short course:
+
+- the generic observation-target workflow runner `run_obs_workflow.py`
+- the CERRA observation-target workflow
+- frequency-aware workflow controls
+- stronger provenance path inventories
+- perfect-model BC+CDDPM support and related audit tooling
+
+So the course material is compatible with `v1.4.0`, but it does not try to
+teach every workflow that the release now supports.
 
 > **Material update:** The short-course material was updated after the live session
 > to clarify the data layout, Mercure packaging, and the optional France-target
