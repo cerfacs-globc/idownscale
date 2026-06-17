@@ -4,12 +4,7 @@ import pytest
 
 pytest.importorskip("esmpy")
 
-from iriscc.datautils import (
-    standardize_longitudes,
-    generate_bounds,
-    standardize_dims_and_coords,
-    crop_domain_from_ds,
-)
+from iriscc.datautils import standardize_longitudes, generate_bounds, standardize_dims_and_coords, crop_domain_from_ds
 
 def test_standardize_longitudes():
     # Test 1D lon

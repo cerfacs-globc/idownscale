@@ -1,6 +1,37 @@
 Release Notes
 =============
 
+v1.4.1 - Workflow Coherence And Documentation Alignment
+-------------------------------------------------------
+
+Summary
+~~~~~~~
+This follow-up update aligns the renamed observation-target workflow runner,
+runtime provenance, active operator documentation, and EGU26 teaching material
+so the maintained release behaves consistently across code, tests, and user
+guides.
+
+Workflow And Runtime Guards
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* **Runner rename completed**: the maintained observation-target entrypoint is
+  now ``bin/production/run_obs_workflow.py`` across active code paths and
+  current user-facing documentation.
+* **Provenance path inventories**: resolved context and PROV sidecars now
+  include inventories for critical paths with existence and file metadata.
+* **Workflow resolution regression tests**: prediction, evaluation, and
+  perfect-model artifact routing is now locked by targeted tests.
+* **Legacy RCM discovery hardened**: old RCM metric scripts now fail loudly on
+  missing or ambiguous checkpoint/sample/target-file matches.
+
+Documentation And Training Material
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* **Operator runbooks refreshed**: active ``doc/`` runbooks now match the
+  renamed workflow runner and wrapper scripts.
+* **EGU26 compatibility notes**: the short-course material now states that it
+  is maintained against ``v1.4.0`` and shows how to check out that exact tag.
+* **Course-scope clarification**: the EGU material now explains that it covers
+  only a subset of the broader capabilities available in the full release.
+
 v1.3.0 - Perfect-Model BC+ML and Provenance Hardening
 -----------------------------------------------------
 

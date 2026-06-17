@@ -34,6 +34,15 @@ def _grid_signature(ds: xr.Dataset) -> str:
       f"{float(np.nanmin(lat)):.6f}_{float(np.nanmax(lat)):.6f}"
    )
 
+
+def _require_unique_path(candidates: list[str], description: str) -> str:
+   if not candidates:
+      raise FileNotFoundError(f"Missing {description}")
+   if len(candidates) > 1:
+      joined = ", ".join(Path(candidate).name for candidate in candidates)
+      raise FileExistsError(f"Expected exactly one {description}, found {len(candidates)}: {joined}")
+   return candidates[0]
+
 def standardize_era5_geometry(ds):
     # v86.67 Native-First: Minimal Renaming for ESMF recognition
     rename_dict = {}
@@ -436,7 +445,10 @@ class Data:
                end_year = int(tail[9:13])
                if start_year <= date.year <= end_year:
                   return candidate
-      return candidates[0]
+      return _require_unique_path(
+         candidates,
+         f"source file for source='{source_name}', var='{var}', date='{date}', ssp='{ssp}'",
+      )
 
    def _open_source_dataset(self, source_name: str, var: str, date=None, ssp: str | None = None) -> xr.Dataset:
       spec = self.get_source_spec(source_name)
@@ -642,14 +654,23 @@ class Data:
             )
          return matches
 
+      def require_single_match(context: str, *pattern_keys: str) -> str:
+         return _require_unique_path(
+            require_matches(context, *pattern_keys),
+            (
+               f"RCM source file for source='{source_name}', var='{var}', date='{date}', "
+               f"ssp='{ssp}', root='{root}', context='{context}'"
+            ),
+         )
+
       if date is None:
-         file = require_matches("date=None", "scenario_pattern", "historical_pattern")[0]
+         file = require_single_match("date=None", "scenario_pattern", "historical_pattern")
          ds = xr.open_dataset(file).isel(time=0)
       else :
          if date < pd.Timestamp("2015-01-01"):
             # Some RCM layouts do not ship scenario files next to historical ones,
             # so bootstrap coordinates from whichever native file exists first.
-            file_for_xy = require_matches("coordinate bootstrap", "scenario_pattern", "historical_pattern")[0]
+            file_for_xy = require_single_match("coordinate bootstrap", "scenario_pattern", "historical_pattern")
             ds_for_xy = xr.open_dataset(file_for_xy).isel(time=0)
             xref = ds_for_xy["x"].values if "x" in ds_for_xy.coords else ds_for_xy["x"].values
             yref = ds_for_xy["y"].values if "y" in ds_for_xy.coords else ds_for_xy["y"].values

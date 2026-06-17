@@ -158,6 +158,17 @@ def test_resolve_sample_file_returns_existing_path(tmp_path):
     assert runtime_paths.resolve_sample_file(sample_dir, "20200101") == sample
 
 
+def test_resolve_first_sample_file_returns_earliest_sorted_match(tmp_path):
+    sample_dir = tmp_path / "samples"
+    sample_dir.mkdir()
+    later = sample_dir / "sample_20200102.npz"
+    earlier = sample_dir / "sample_20200101.npz"
+    later.write_text("later")
+    earlier.write_text("earlier")
+
+    assert runtime_paths.resolve_first_sample_file(sample_dir) == earlier
+
+
 def test_resolve_sample_file_for_timestamp_supports_subdaily_tokens(tmp_path):
     sample_dir = tmp_path / "samples"
     sample_dir.mkdir()
