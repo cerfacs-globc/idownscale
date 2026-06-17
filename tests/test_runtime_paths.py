@@ -68,7 +68,10 @@ def test_bcml_runtime_resolution_keeps_training_stats_and_bc_eval_samples_separa
         "statistics_dir": training_statistics_dir,
     }
 
-    monkeypatch.setattr(runtime_paths, "resolve_statistics_sample_dir", lambda sample_dir: Path(sample_dir))
+    def passthrough_statistics_dir(sample_dir):
+        return Path(sample_dir)
+
+    monkeypatch.setattr(runtime_paths, "resolve_statistics_sample_dir", passthrough_statistics_dir)
 
     prediction_sample_dir = runtime_paths.resolve_runtime_sample_dir(
         "exp5",
