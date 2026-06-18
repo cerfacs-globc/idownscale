@@ -26,6 +26,13 @@ def resolve_checkpoint_from_bundle(bundle_dir: str | Path) -> Path:
         return Path(copied)
     if original and Path(original).exists():
         return Path(original)
+    local_matches = sorted((bundle_dir / "checkpoint").glob("*.ckpt"))
+    if len(local_matches) == 1:
+        return local_matches[0]
+    if len(local_matches) > 1:
+        joined = ", ".join(path.name for path in local_matches)
+        message = f"Expected exactly one bundled checkpoint under {bundle_dir / 'checkpoint'}, found {len(local_matches)}: {joined}"
+        raise FileExistsError(message)
     message = f"No usable checkpoint found for bundle {bundle_dir}"
     raise FileNotFoundError(message)
 
