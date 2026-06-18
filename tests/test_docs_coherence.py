@@ -47,14 +47,14 @@ def test_active_docs_do_not_reference_stale_runner_names():
 
 
 def test_egu_markdown_pages_include_release_compatibility_note():
-    required_note = "Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`."
+    required_note = "Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.1`."
     for path in EGU_RELEASE_MARKDOWN:
         text = path.read_text(encoding="utf-8")
         assert required_note in text, str(path)
-        assert "git checkout v1.4.0" in text or path.name not in {"SESSION_MATERIALS.md", "ENVIRONMENT_SETUP.md"}
+        assert "git checkout v1.4.1" in text or path.name not in {"SESSION_MATERIALS.md", "ENVIRONMENT_SETUP.md"}
 
 
 def test_egu_notebook_includes_release_compatibility_and_checkout_guidance():
     text = Path("docs/egu26_short_course/egu26_short_course_notebook.ipynb").read_text(encoding="utf-8")
-    assert "Release compatibility: this notebook is maintained against `idownscale` `v1.4.0`." in text
-    assert "git checkout v1.4.0" in text
+    assert "Release compatibility: this notebook is maintained against `idownscale` `v1.4.1`." in text
+    assert "git checkout v1.4.1" in text

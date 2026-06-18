@@ -1,6 +1,6 @@
 # EGU26 Short Course Environment Setup
 
-> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.1`. Students who started from the original early-May 2026 material may still see older workflow runner names such as `run_exp5_workflow.py`; for the maintained repository path, follow the `v1.4.1` commands below.
 
 This page gives the minimum environment setup needed to run the short-course
 workflow locally.
@@ -12,17 +12,24 @@ For the fuller project documentation, see:
 
 ## 0. Check out the course-compatible release
 
-The maintained short-course material matches `idownscale` release `v1.4.0`.
+The maintained short-course material matches `idownscale` release `v1.4.1`.
 For the cleanest student setup:
 
 ```bash
 git clone https://github.com/cerfacs-globc/idownscale.git
 cd idownscale
-git checkout v1.4.0
+git checkout v1.4.1
 ```
 
 If you use a newer branch or `master`, some commands, file names, or workflow
 details may differ from the teaching material.
+
+If you started working with the early-May 2026 material and want to keep your
+existing workflow unchanged, you can stay on your historical command set.
+If instead you want to move to the maintained path, update to `v1.4.1` and use
+the current runner names from these docs. This is recommended because `v1.4.1`
+keeps the workflow names, active runbooks, provenance guidance, and regression
+checks aligned.
 
 ## 1. Create the Python environment
 
@@ -136,7 +143,7 @@ If `import xesmf` fails, recreate the environment with the Conda-based route abo
 ## 8. What may differ from later code versions
 
 The short course focuses on the E-OBS/GCM daily temperature example and does
-not cover the full breadth of `v1.4.0`. Later or broader workflows in the
+not cover the full breadth of `v1.4.1`. Later or broader workflows in the
 release include:
 
 - the generic observation-target runner name `run_obs_workflow.py`
