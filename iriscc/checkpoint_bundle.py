@@ -49,11 +49,14 @@ def activate_bundle_contract(bundle_dir: str | Path) -> dict[str, Any]:
     stats_entry = stats_catalog.get("statistics.json", {})
     copied_stats = stats_entry.get("copied_path")
     resolved_stats = stats_entry.get("resolved_source")
+    local_stats = bundle_dir / "data_contract" / "statistics.json"
     stats_dir = None
     if copied_stats and Path(copied_stats).exists():
         stats_dir = str(Path(copied_stats).parent)
     elif resolved_stats and Path(resolved_stats).exists():
         stats_dir = str(Path(resolved_stats).parent)
+    elif local_stats.exists():
+        stats_dir = str(local_stats.parent)
     if stats_dir:
         os.environ["IDOWNSCALE_SAMPLE_STATS_DIR"] = stats_dir
         os.environ["IDOWNSCALE_ALLOW_STATISTICS_FALLBACK"] = "1"
