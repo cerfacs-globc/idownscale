@@ -15,6 +15,12 @@ STALE_RUNNER_TOKENS = [
     "submit_exp5_workflow_globc.sh",
 ]
 
+HISTORICAL_REFERENCE_ALLOWLIST = {
+    Path("docs/egu26_short_course/ENVIRONMENT_SETUP.md"): {"run_exp5_workflow.py"},
+    Path("docs/egu26_short_course/SESSION_MATERIALS.md"): {"run_exp5_workflow.py"},
+    Path("docs/egu26_short_course/egu26_short_course_notebook.ipynb"): {"run_exp5_workflow.py"},
+}
+
 EGU_RELEASE_MARKDOWN = [
     Path("docs/egu26_short_course/SESSION_MATERIALS.md"),
     Path("docs/egu26_short_course/SESSION_SUMMARY.md"),
@@ -42,6 +48,7 @@ def test_active_docs_do_not_reference_stale_runner_names():
         for path, text in iter_active_doc_texts()
         for token in STALE_RUNNER_TOKENS
         if token in text
+        if token not in HISTORICAL_REFERENCE_ALLOWLIST.get(path, set())
     ]
     assert not stale_hits, "\n".join(stale_hits)
 
