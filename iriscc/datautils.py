@@ -447,7 +447,7 @@ class Data:
                end_year = int(tail[9:13])
                if start_year <= date.year <= end_year:
                   return candidate
-      if self.domain == "france" and source_name == "eobs" and len(candidates) > 1:
+      if self.domain == [-6.0, 10.0, 38.0, 54.0] and source_name == "eobs" and len(candidates) > 1:
          france_candidates = [candidate for candidate in candidates if "_france" in Path(candidate).name]
          if len(france_candidates) == 1:
             return france_candidates[0]
