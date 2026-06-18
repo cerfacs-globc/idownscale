@@ -1,6 +1,6 @@
 # EGU26 Short Course Session Materials
 
-> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.1`. Students who started from the original early-May 2026 material may still see older workflow runner names such as `run_exp5_workflow.py`; see the update notes below before changing commands.
 
 This page gathers the published material for the EGU26 short course on
 machine-learning-based climate downscaling.
@@ -17,7 +17,7 @@ clone the tagged release directly:
 ```bash
 git clone https://github.com/cerfacs-globc/idownscale.git
 cd idownscale
-git checkout v1.4.0
+git checkout v1.4.1
 ```
 
 If you already cloned the repository, you can move to the course-compatible
@@ -25,19 +25,41 @@ release with:
 
 ```bash
 git fetch --tags
-git checkout v1.4.0
+git checkout v1.4.1
 ```
+
+## If you started with the early-May 2026 material
+
+There are now two valid paths:
+
+- Keep the historical course flow unchanged:
+  stay on the older early-May command set and do not rename workflow commands in
+  your notes or scripts. This is the safest option if you already began runs and
+  do not want to touch your working setup.
+- Move to the maintained repository path:
+  update to `v1.4.1` and use the current runner names such as
+  `bin/production/run_obs_workflow.py`.
+
+If you choose to update from the older material, the most visible changes are:
+
+- `run_exp5_workflow.py` became `run_obs_workflow.py`
+- related wrapper names were aligned to the generic observation-target workflow
+- active docs and runbooks now match the maintained code paths and outputs
+
+`v1.4.1` is the better maintained path because it keeps the workflow runner
+names, runtime/provenance guidance, active runbooks, and regression checks
+aligned in one release.
 
 ## Scope versus the full release
 
-The short-course material is narrower than the full `v1.4.0` release. In
+The short-course material is narrower than the full `v1.4.1` release. In
 particular, the course mainly teaches:
 
 - the `exp5` temperature workflow
 - BC-only and BC+ML logic on the daily E-OBS/GCM route
 - phase-by-phase validation and interpretation
 
-The full `v1.4.0` release also includes capabilities that are not central to
+The full `v1.4.1` release also includes capabilities that are not central to
 the short course:
 
 - the generic observation-target workflow runner `run_obs_workflow.py`
@@ -46,7 +68,7 @@ the short course:
 - stronger provenance path inventories
 - perfect-model BC+CDDPM support and related audit tooling
 
-So the course material is compatible with `v1.4.0`, but it does not try to
+So the course material is compatible with `v1.4.1`, but it does not try to
 teach every workflow that the release now supports.
 
 > **Material update:** The short-course material was updated after the live session

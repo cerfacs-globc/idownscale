@@ -1,6 +1,6 @@
 # EGU26 Short Course Session Summary
 
-> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.0`. If you are using another release, check that workflow runner names, paths, and expected outputs still match that version.
+> Release compatibility: this EGU26 short-course material is maintained against `idownscale` release `v1.4.1`. Students who started from the original early-May 2026 material may still have older command names in their notes; the maintained repository path now follows `v1.4.1`.
 
 This short course introduces robust machine-learning methods for statistical downscaling of coarse-resolution climate model scenarios.
 
@@ -13,9 +13,10 @@ session and recover the full workflow, data paths, and validation logic from the
 GitHub pages and notebook alone. The notebook is the main hands-on experience,
 while the companion Markdown pages provide more detailed reference material.
 
-For reproducibility, students should use the repository at tag `v1.4.0` when
-following these notes. The short course is maintained against that release even
-though the repository may continue to evolve afterward.
+For reproducibility, new users should use the repository at tag `v1.4.1` when
+following these notes. Students who began in early May 2026 and do not want to
+change their existing workflow can keep their historical command set, but the
+maintained repository documentation now follows `v1.4.1`.
 
 ## Start here
 
