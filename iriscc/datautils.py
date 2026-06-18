@@ -447,6 +447,10 @@ class Data:
                end_year = int(tail[9:13])
                if start_year <= date.year <= end_year:
                   return candidate
+      if self.domain == "france" and source_name == "eobs" and len(candidates) > 1:
+         france_candidates = [candidate for candidate in candidates if "_france" in Path(candidate).name]
+         if len(france_candidates) == 1:
+            return france_candidates[0]
       return _require_unique_path(
          candidates,
          f"source file for source='{source_name}', var='{var}', date='{date}', ssp='{ssp}'",
