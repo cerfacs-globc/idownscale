@@ -97,18 +97,7 @@ if __name__=="__main__":
                 raise ValueError(
                     f"Unsupported aggregation method '{aggregation_method}' for source '{source_name}'."
                 )
-        ds_times = pd.DatetimeIndex(ds.time.values)
-        if workflow_frequency == "daily":
-            common = pd.Index(dates.normalize()).intersection(pd.Index(ds_times.normalize()))
-            if len(common) == 0:
-                raise ValueError(
-                    f"No overlapping {workflow_frequency} values found for requested window {dates[0]} -> {dates[-1]}"
-                )
-            keep = ds_times.normalize().isin(common)
-            ds = ds.isel(time=keep)
-            ds = ds.assign_coords(time=("time", common.values))
-            return ds
-        common = pd.Index(dates).intersection(pd.Index(ds_times))
+        common = pd.Index(dates).intersection(pd.Index(pd.DatetimeIndex(ds.time.values)))
         if len(common) == 0:
             raise ValueError(
                 f"No overlapping {workflow_frequency} values found for requested window {dates[0]} -> {dates[-1]}"

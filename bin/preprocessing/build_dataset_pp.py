@@ -63,7 +63,7 @@ def grouped_dates_for_source(get_data: Data, source_name: str, var: str, dates, 
     current_file = None
     current_dates = []
     for date in dates:
-        resolved = tuple(get_data._resolve_source_files(source_name, var, date=date, ssp=ssp))
+        resolved = get_data._resolve_source_file(source_name, var, date=date, ssp=ssp)
         if resolved != current_file and current_dates:
             groups.append((current_file, current_dates))
             current_dates = []
@@ -93,12 +93,7 @@ def simu_netcdf_path(
 def select_date(ds: xr.Dataset, date) -> xr.Dataset:
     matches = ds.sel(time=ds.time == pd.Timestamp(date))
     if matches.sizes.get("time", 0) == 0:
-        normalized = pd.Timestamp(date).normalize()
-        ds_times = pd.DatetimeIndex(ds.time.values)
-        keep = ds_times.normalize() == normalized
-        if int(np.sum(keep)) == 0:
-            raise ValueError(f"Missing exact timestamp {pd.Timestamp(date)} in prepared batch.")
-        matches = ds.isel(time=keep)
+        raise ValueError(f"Missing exact timestamp {pd.Timestamp(date)} in prepared batch.")
     return matches.isel(time=0, drop=True)
 
 
@@ -137,10 +132,7 @@ def resample_batch_frequency(
 
 def select_batch_window(ds: xr.Dataset, dates, *, current_frequency: str, target_frequency: str) -> xr.Dataset:
     start = pd.Timestamp(dates[0])
-    if current_frequency == target_frequency == "daily":
-        end = pd.Timestamp(dates[-1]) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
-    else:
-        end = pd.Timestamp(dates[-1]) + get_frequency_timedelta(target_frequency) - get_frequency_timedelta(current_frequency)
+    end = pd.Timestamp(dates[-1]) + get_frequency_timedelta(target_frequency) - get_frequency_timedelta(current_frequency)
     return ds.sel(time=slice(start, end))
 
 
@@ -160,17 +152,13 @@ def prepare_native_target_batches(
     native_frequency = get_source_native_frequency(source_name)
     aggregation_method = get_source_aggregation_method(source_name, prediction_frequency)
 
-    for target_files, target_dates in target_groups:
-        datasets = []
-        for path in target_files:
-            ds_i = xr.open_dataset(path)
-            ds_i = get_data._standardize_source_geometry(
-                ds_i,
+    for target_file_path, target_dates in target_groups:
+        ds_target = xr.open_dataset(target_file_path)
+        try:
+            ds_target = get_data._standardize_source_geometry(
+                ds_target,
                 get_data.get_source_spec(source_name).get("geometry", "none"),
             )
-            datasets.append(ds_i)
-        ds_target = xr.concat(datasets, dim="time").sortby("time")
-        try:
             ds_target = select_batch_window(
                 ds_target,
                 target_dates,
@@ -202,8 +190,6 @@ def prepare_native_target_batches(
             for timestamp in pd.DatetimeIndex(target_dates):
                 prepared[pd.Timestamp(timestamp)] = select_date(ds_target, timestamp)[var].values.astype(np.float32)
         finally:
-            for ds_i in datasets:
-                ds_i.close()
             ds_target.close()
 
     return prepared
@@ -211,33 +197,6 @@ def prepare_native_target_batches(
 
 def projection_for_source(source_name: str):
     return ALADIN_PROJ_PYPROJ if source_name == "rcm_aladin" else None
-
-
-def open_grouped_source_batch(
-    get_data: Data,
-    source_name: str,
-    batch_file,
-    *,
-    var: str,
-    date,
-    ssp: str,
-) -> xr.Dataset:
-    if isinstance(batch_file, (tuple, list)):
-        datasets = []
-        for path in batch_file:
-            ds_i = xr.open_dataset(path)
-            ds_i = get_data._standardize_source_geometry(
-                ds_i,
-                get_data.get_source_spec(source_name).get("geometry", "none"),
-            )
-            datasets.append(ds_i)
-        try:
-            return xr.concat(datasets, dim="time").sortby("time")
-        finally:
-            for ds_i in datasets:
-                ds_i.close()
-    ds = xr.open_dataset(batch_file)
-    return ds
 
 
 def build_perfect_model_target(
@@ -499,14 +458,7 @@ if __name__ == "__main__":
         else:
             date_batches = grouped_dates_for_source(get_data, source_name, var, dates, ssp)
         for batch_file, batch_dates in date_batches:
-            ds_batch = open_grouped_source_batch(
-                get_data,
-                source_name,
-                batch_file,
-                var=var,
-                date=batch_dates[0],
-                ssp=ssp,
-            )
+            ds_batch = xr.open_dataset(batch_file)
             ds_input_batch = None
             ds_bc_batch = None
             try:
