@@ -122,10 +122,12 @@ TARGET_SAFRAN_FILE = SAFRAN_REFORMAT_DIR / "tas_day_SAFRAN_1959_reformat.nc"
 TARGET_EOBS_EUROPE_FILE = EOBS_RAW_DIR / "tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231.nc"
 TARGET_EOBS_FRANCE_FILE = EOBS_RAW_DIR / "tas_ens_mean_1d_025deg_reg_v29_0e_19500101-20231231_france.nc"
 TARGET_CERRA_FRANCE_FILE = CERRA_WORK_DIR / "tas_day_CERRA_19840901_20210910_france_reference.nc"
+TARGET_CERRA_GERMANY_FILE = CERRA_WORK_DIR / "tas_day_CERRA_19840901_20210910_germany_reference.nc"
 TARGET_GCM_FILE = GCM_RAW_DIR / "CNRM-CM6-1/tas_day_CNRM-CM6-1_historical_r1i1p1f2_gr_18500101-20141231.nc"
 OROG_EOBS_EUROPE_FILE = EOBS_RAW_DIR / "elevation_ens_025deg_reg_v29_0e.nc"
 OROG_EOBS_FRANCE_FILE = EOBS_RAW_DIR / "elevation_ens_025deg_reg_v29_0e_france.nc"
 OROG_CERRA_FRANCE_FILE = CERRA_WORK_DIR / "elevation_CERRA_france.nc"
+OROG_CERRA_GERMANY_FILE = CERRA_WORK_DIR / "elevation_CERRA_germany.nc"
 OROG_SAFRAN_FILE = RAW_DIR / "topography/topography_safran2.nc"
 IMERG_MASK = RAW_DIR / "landseamask/IMERG_land_sea_mask_regrid.nc" # only continents
 LANDSEAMASK_GCM = GCM_RAW_DIR / "CNRM-CM6-1/sftlf_fx_CNRM-CM6-1_historical_r1i1p1f2_gr.nc"
@@ -495,7 +497,7 @@ def get_bias_corrected_netcdf_path(
     tag_suffix = f"_{normalize_bc_tag(bc_tag)}" if normalize_bc_tag(bc_tag) else ""
     return get_bias_corrected_root(exp, simu) / (
         f"{var}_{frequency_token}_{get_source_output_label(source_name)}_{scenario}_"
-        f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_{date_range}_bc{tag_suffix}.nc"
+        f"{get_source_member_id(source_name)}_{get_source_grid_label(source_name)}_{date_range}_{exp}_bc{tag_suffix}.nc"
     )
 
 
@@ -595,6 +597,7 @@ DATASET_EXP4_30Y_DIR = DATASET_DIR / "dataset_exp4_30y"
 DATASET_EXP4_BASELINE_DIR = DATASET_DIR / "dataset_exp4_baseline"
 DATASET_EXP5_30Y_DIR = DATASET_DIR / "dataset_exp5_30y"
 DATASET_EXPC_30Y_DIR = DATASET_DIR / "dataset_expc_37y"
+DATASET_EXPG_30Y_DIR = DATASET_DIR / "dataset_expg_37y"
 DATASET_EXP6_30Y_DIR = DATASET_DIR / "dataset_exp6_30y"
 DATASET_EXP6_BASELINE_DIR = DATASET_DIR / "dataset_exp6_baseline"
 DATASET_EXP7_30Y_DIR = DATASET_DIR / "dataset_exp7_30y"
@@ -726,6 +729,47 @@ CONFIG = {
             "target_file" : TARGET_CERRA_FRANCE_FILE,
             "orog_file" : OROG_CERRA_FRANCE_FILE,
             "dataset" : DATASET_EXPC_30Y_DIR,
+            "target_vars": ["tas"],
+            "input_vars": ["elevation", "tas"],
+            "channels": ["elevation", "tas input", "tas target"],
+            "ssp": "ssp585",
+            "model": "unet",
+            "lapse_rate_correction": False,
+            "fill_value": 0.0,
+            "target_source_pregridded": False,
+            "phase1_bridge_method": "conservative_normed",
+            "phase1_target_method": "bilinear",
+            "phase1_crop_target": False,
+            "perfect_model_input_coarse_method": "conservative_normed",
+            "perfect_model_input_target_method": "bilinear",
+            "perfect_model_target_method": "bilinear",
+            "phase1_start_date": "1984-09-01",
+            "phase1_end_date": "2021-09-10",
+            "train_split_dates": ["19840901", "20170101", "20200101"],
+            "bc_train_hist_start_date": "1984-09-01",
+            "bc_train_hist_end_date": "1999-12-31",
+            "bc_test_hist_start_date": "2000-01-01",
+            "bc_test_hist_end_date": "2021-09-10",
+            "bc_test_future_start_date": "2021-09-11",
+            "bc_test_future_end_date": "2100-12-31",
+            },
+    "expg":
+        {"target":"cerra",
+            "domain": [5.5, 15.5, 47.0, 55.5],
+            "bc_domain": [-12.5, 27.5, 31.0, 71.0],
+            "bias_correction_method": "ibicus_cdft",
+            "phase1_reanalysis_source": "era5",
+            "bc_reanalysis_source": "era5",
+            "gcm_source": "gcm_cnrm_cm6_1",
+            "rcm_source": "rcm_aladin",
+            "target_source": "cerra",
+            "data_projection" : plate_carree(),
+            "fig_projection" : lambert_conformal(central_latitude=51.0, central_longitude=10.5),
+            "pyproj_projection" : None,
+            "shape": (358,202),
+            "target_file" : TARGET_CERRA_GERMANY_FILE,
+            "orog_file" : OROG_CERRA_GERMANY_FILE,
+            "dataset" : DATASET_EXPG_30Y_DIR,
             "target_vars": ["tas"],
             "input_vars": ["elevation", "tas"],
             "channels": ["elevation", "tas input", "tas target"],
