@@ -64,7 +64,8 @@ def grouped_dates_for_source(get_data: Data, source_name: str, var: str, dates, 
     current_dates = []
     for date in dates:
         resolved = tuple(get_data._resolve_source_files(source_name, var, date=date, ssp=ssp))
-        if resolved != current_file and current_dates:
+        split_year = bool(current_dates) and pd.Timestamp(current_dates[-1]).year != pd.Timestamp(date).year
+        if (resolved != current_file or split_year) and current_dates:
             groups.append((current_file, current_dates))
             current_dates = []
         current_file = resolved
