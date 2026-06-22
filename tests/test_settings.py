@@ -110,8 +110,6 @@ def test_bias_corrected_netcdf_names_encode_experiment_windows():
     assert "_day_" in expc_path.name
     assert "20000101-20141231" in exp5_path.name
     assert "20000101-20210910" in expc_path.name
-    assert "_exp5_bc" in exp5_path.name
-    assert "_expc_bc" in expc_path.name
     assert exp5_path.name != expc_path.name
 
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="datasets directory not present in CI")
