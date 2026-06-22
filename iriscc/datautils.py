@@ -347,22 +347,31 @@ def remove_countries(array:np.ndarray) -> np.ndarray:
 
 
 def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> xr.Dataset:
+   def is_gcm_sea(data):
+      return data < 2
+
+   def is_era5_sea(data):
+      return data < 0.1
+
+   def is_eobs_land(data):
+      return data == 1.0
+
    if mask_type == "gcm":
       mask = xr.open_dataset(LANDSEAMASK_GCM, engine="netcdf4")
       mask = standardize_longitudes(mask)
       mask_var = mask["sftlf"]
-      condition_value = lambda data: data < 2
+      condition_value = is_gcm_sea
    elif mask_type == "era5":
       mask = xr.open_dataset(LANDSEAMASK_ERA5, engine="netcdf4").isel(time=0)
       mask = standardize_era5_geometry(mask)
       mask = standardize_longitudes(mask)
       mask_var = mask["lsm"]
-      condition_value = lambda data: data < 0.1
+      condition_value = is_era5_sea
    elif mask_type == "eobs":
       mask = xr.open_dataset(LANDSEAMASK_EOBS, engine="netcdf4")
       mask = standardize_eobs_geometry(mask)
       mask_var = mask["landseamask"]
-      condition_value = lambda data: data == 1.0
+      condition_value = is_eobs_land
    else:
       raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'.")
 
