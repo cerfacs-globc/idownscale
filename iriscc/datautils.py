@@ -347,28 +347,39 @@ def remove_countries(array:np.ndarray) -> np.ndarray:
 
 
 def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> xr.Dataset:
+   def is_gcm_sea(data):
+      return data < 2
+
+   def is_era5_sea(data):
+      return data < 0.1
+
+   def is_eobs_land(data):
+      return data == 1.0
+
    if mask_type == "gcm":
       mask = xr.open_dataset(LANDSEAMASK_GCM, engine="netcdf4")
       mask = standardize_longitudes(mask)
-      condition = mask["sftlf"].values < 2
+      mask_var = mask["sftlf"]
+      condition_value = is_gcm_sea
    elif mask_type == "era5":
       mask = xr.open_dataset(LANDSEAMASK_ERA5, engine="netcdf4").isel(time=0)
       mask = standardize_era5_geometry(mask)
       mask = standardize_longitudes(mask)
-      condition = mask["lsm"].values < 0.1
+      mask_var = mask["lsm"]
+      condition_value = is_era5_sea
    elif mask_type == "eobs":
       mask = xr.open_dataset(LANDSEAMASK_EOBS, engine="netcdf4")
       mask = standardize_eobs_geometry(mask)
-      condition = mask["landseamask"].values == 1.
+      mask_var = mask["landseamask"]
+      condition_value = is_eobs_land
    else:
       raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'.")
 
    mask = mask.sel(lon=slice(ds["lon"].values.min(), ds["lon"].values.max()),
                    lat=slice(ds["lat"].values.min(), ds["lat"].values.max()))
+   condition = condition_value(mask_var.sel(lon=mask["lon"], lat=mask["lat"]))
    for var in variables:
-      data = ds[var].values
-      data[condition] = np.nan
-      ds[var].values = data
+      ds[var] = ds[var].where(~condition)
       ds["mask"] = xr.where(~np.isnan(ds[var]), 1, 0)
    return ds
 

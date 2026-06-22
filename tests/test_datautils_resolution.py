@@ -1,6 +1,7 @@
 import pytest
+import xarray as xr
 
-from iriscc.datautils import Data
+from iriscc.datautils import Data, apply_landseamask
 
 
 def test_resolve_source_file_raises_when_non_rcm_match_is_ambiguous(monkeypatch):
@@ -27,3 +28,32 @@ def test_resolve_source_file_prefers_france_eobs_target_when_available(monkeypat
     resolved = data._resolve_source_file("eobs", "tas")
 
     assert resolved.endswith("_france.nc")
+
+
+def test_apply_landseamask_uses_cropped_eobs_mask(monkeypatch):
+    ds = xr.Dataset(
+        {"tas": (("lat", "lon"), [[1.0, 2.0], [3.0, 4.0]])},
+        coords={"lat": [45.0, 46.0], "lon": [3.0, 4.0]},
+    )
+    full_mask = xr.Dataset(
+        {
+            "landseamask": (
+                ("lat", "lon"),
+                [
+                    [0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0],
+                ],
+            )
+        },
+        coords={"lat": [44.0, 45.0, 46.0], "lon": [2.0, 3.0, 4.0]},
+    )
+
+    monkeypatch.setattr("iriscc.datautils.LANDSEAMASK_EOBS", "/mock/fake_mask.nc")
+    monkeypatch.setattr("iriscc.datautils.standardize_eobs_geometry", lambda dataset: dataset)
+    monkeypatch.setattr("iriscc.datautils.xr.open_dataset", lambda *args, **kwargs: full_mask)
+
+    masked = apply_landseamask(ds, "eobs", variables=["tas"])
+
+    assert float(masked["tas"].sel(lat=45.0, lon=3.0)) != float(masked["tas"].sel(lat=45.0, lon=3.0))
+    assert float(masked["tas"].sel(lat=45.0, lon=4.0)) == 2.0
