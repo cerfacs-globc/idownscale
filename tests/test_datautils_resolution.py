@@ -49,7 +49,7 @@ def test_apply_landseamask_uses_cropped_eobs_mask(monkeypatch):
         coords={"lat": [44.0, 45.0, 46.0], "lon": [2.0, 3.0, 4.0]},
     )
 
-    monkeypatch.setattr("iriscc.datautils.LANDSEAMASK_EOBS", "/tmp/fake_mask.nc")
+    monkeypatch.setattr("iriscc.datautils.LANDSEAMASK_EOBS", "/mock/fake_mask.nc")
     monkeypatch.setattr("iriscc.datautils.standardize_eobs_geometry", lambda dataset: dataset)
     monkeypatch.setattr("iriscc.datautils.xr.open_dataset", lambda *args, **kwargs: full_mask)
 
