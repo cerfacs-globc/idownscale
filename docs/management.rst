@@ -20,6 +20,21 @@ Optional downstream steps extend the same runner to Phase 3 and Phase 4 style ta
    python bin/production/run_obs_workflow.py --exp exp5 --steps bc_dataset,bc_apply,raw_dataset
    python bin/production/run_obs_workflow.py --exp exp5 --steps predict_loop,value_metrics --test-name unet_all --simu-test gcm_bc --predict-start-date <STARTDATE> --predict-end-date <ENDDATE> --value-start-date <STARTDATE> --value-end-date <ENDDATE>
 
+When evaluation steps are requested, the workflow now adds a default
+``compare_suite`` unless ``--skip-default-comparisons`` is set. That suite
+regenerates:
+
+* raw-model metrics and VALUE diagnostics
+* BC baseline metrics and VALUE diagnostics
+* a distribution comparison plot with the target/reference, raw model, BC
+  baseline, and one or more selected ML methods
+
+Use ``--compare-models model_a,model_b`` to choose which ML methods appear on
+the comparison curve. If omitted, the workflow uses ``--test-name`` as the
+single ML method. BC-only workflows are also supported: the suite still
+produces raw/BC diagnostics and a target/raw/BC comparison curve when no ML
+model is selected.
+
 **Workload Manager (Slurm):**
 
 .. code-block:: bash

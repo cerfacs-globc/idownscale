@@ -38,6 +38,18 @@ For trained-model evaluation, the scripts resolve:
 For baseline and raw comparisons, the same sample-directory mapping is used
 without requiring a checkpointed model.
 
+For observation-target workflows, the default comparison suite now evaluates at
+least three model-side methods whenever evaluation steps are requested:
+
+* the raw driving model
+* the bias-corrected baseline
+* one or more selected ML methods
+
+The corresponding comparison plot also includes the target/reference curve, so
+the figure shows target + raw + BC + selected ML methods. This is configurable
+through ``run_obs_workflow.py --compare-models ...`` and also works for BC-only
+cases where no ML method is selected.
+
 Requested daily sample files are also validated explicitly, so a missing
 ``sample_<YYYYMMDD>.npz`` now stops the run with the exact missing path.
 

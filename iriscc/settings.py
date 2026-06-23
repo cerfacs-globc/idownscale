@@ -550,6 +550,8 @@ def get_evaluation_sample_dir(exp: str, test_name: str, simu_test: str | None = 
             return get_dataset_variant_dir(exp, simu_test)
         return Path(CONFIG[exp]["dataset"])
     if test_name.startswith("baseline"):
+        if simu_test:
+            return get_dataset_variant_dir(exp, simu_test)
         return DATASET_DIR / f"dataset_{exp}_baseline"
     if test_name == "era5_raw":
         return DATASET_DIR / f"dataset_{exp}_30y"
@@ -755,7 +757,7 @@ CONFIG = {
             },
     "expg":
         {"target":"cerra",
-            "domain": [5.5, 15.5, 47.0, 55.5],
+            "domain": [6.0, 14.8, 48.1, 55.2],
             "bc_domain": [-12.5, 27.5, 31.0, 71.0],
             "bias_correction_method": "ibicus_cdft",
             "phase1_reanalysis_source": "era5",
@@ -766,7 +768,7 @@ CONFIG = {
             "data_projection" : plate_carree(),
             "fig_projection" : lambert_conformal(central_latitude=51.0, central_longitude=10.5),
             "pyproj_projection" : None,
-            "shape": (358,202),
+            "shape": (328,178),
             "target_file" : TARGET_CERRA_GERMANY_FILE,
             "orog_file" : OROG_CERRA_GERMANY_FILE,
             "dataset" : DATASET_EXPG_30Y_DIR,
