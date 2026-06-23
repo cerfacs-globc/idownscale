@@ -47,8 +47,12 @@ if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
   if [[ ! -x "${IDOWNSCALE_VENV_PATH}/bin/python" ]]; then
     fail_with_layout_help "IDOWNSCALE_VENV_PATH does not contain a usable python: ${IDOWNSCALE_VENV_PATH}"
   fi
-  # shellcheck disable=SC1090
-  source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+  if [[ -x "${IDOWNSCALE_VENV_PATH}/bin/activate" ]]; then
+    # shellcheck disable=SC1090
+    source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+  else
+    export PATH="${IDOWNSCALE_VENV_PATH}/bin:${PATH}"
+  fi
   if [[ -n "${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}" ]]; then
     python -m pip install ${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}
   fi

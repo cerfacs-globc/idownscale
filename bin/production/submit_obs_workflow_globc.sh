@@ -1,8 +1,8 @@
 #!/bin/bash
-# Generic Calypso globc CPU submitter for observation-target workflow phases.
+# Generic Calypso CPU submitter for observation-target workflow phases.
 
 #SBATCH --job-name=exp5_workflow_cpu
-#SBATCH --partition=globc
+#SBATCH --partition=prodshared
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -33,9 +33,16 @@ export IDOWNSCALE_PYTHON_BIN="${IDOWNSCALE_PYTHON_BIN:-python3}"
 export IDOWNSCALE_EXTRA_PYTHONPATH="${IDOWNSCALE_EXTRA_PYTHONPATH:-}"
 
 if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
-  # shellcheck disable=SC1090
-  source "${IDOWNSCALE_VENV_PATH}/bin/activate"
-  IDOWNSCALE_PYTHON_BIN="python"
+  if [[ -x "${IDOWNSCALE_VENV_PATH}/bin/activate" ]]; then
+    # shellcheck disable=SC1090
+    source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+    IDOWNSCALE_PYTHON_BIN="python"
+  elif [[ -x "${IDOWNSCALE_VENV_PATH}/bin/python" ]]; then
+    IDOWNSCALE_PYTHON_BIN="${IDOWNSCALE_VENV_PATH}/bin/python"
+  else
+    echo "ERROR: IDOWNSCALE_VENV_PATH has neither bin/activate nor bin/python: ${IDOWNSCALE_VENV_PATH}" >&2
+    exit 1
+  fi
 fi
 
 if [[ -n "${IDOWNSCALE_EXTRA_PYTHONPATH}" ]]; then
@@ -125,11 +132,11 @@ if [[ -n "${SAMPLE_END_DATE}" ]]; then
   CMD+=(--sample-end-date "${SAMPLE_END_DATE}")
 fi
 
-echo "--- observation-target globc CPU workflow start: $(date) ---"
+echo "--- observation-target CPU workflow start: $(date) ---"
 echo "repo_root=${REPO_ROOT}"
 echo "steps=${STEPS}"
 echo "python=${IDOWNSCALE_PYTHON_BIN}"
 echo "venv=${IDOWNSCALE_VENV_PATH:-<none>}"
 echo "command: ${CMD[*]}"
 "${CMD[@]}"
-echo "--- observation-target globc CPU workflow end: $(date) ---"
+echo "--- observation-target CPU workflow end: $(date) ---"

@@ -39,8 +39,15 @@ export IDOWNSCALE_FORCE_VENV_SITEPACKAGES="${IDOWNSCALE_FORCE_VENV_SITEPACKAGES:
 export ESMFMKFILE="${ESMFMKFILE:-/softs/local_arm/Anaconda/2024.02-1/envs/gloenv_py3.11_arm/lib/esmf.mk}"
 
 if [[ -n "${IDOWNSCALE_VENV_PATH}" ]]; then
-  # shellcheck disable=SC1090
-  source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+  if [[ -x "${IDOWNSCALE_VENV_PATH}/bin/activate" ]]; then
+    # shellcheck disable=SC1090
+    source "${IDOWNSCALE_VENV_PATH}/bin/activate"
+  elif [[ -x "${IDOWNSCALE_VENV_PATH}/bin/python" ]]; then
+    export PATH="${IDOWNSCALE_VENV_PATH}/bin:${PATH}"
+  else
+    echo "ERROR: IDOWNSCALE_VENV_PATH has neither bin/activate nor bin/python: ${IDOWNSCALE_VENV_PATH}" >&2
+    exit 1
+  fi
   if [[ -n "${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}" ]]; then
     python -m pip install ${IDOWNSCALE_VENV_BOOTSTRAP_PACKAGES}
   fi
