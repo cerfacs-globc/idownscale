@@ -39,3 +39,23 @@ def test_prediction_output_path_matches_metrics_default_naming():
         metrics_test_name,
     )
     assert path.name.endswith("_20000101_20141231_exp5_unet_all_gcm_bc.nc")
+
+
+def test_default_comparison_step_is_added_for_evaluation_steps():
+    workflow = load_workflow_module()
+
+    class Args:
+        skip_default_comparisons = False
+
+    resolved = workflow.maybe_add_default_comparison_step(["predict_loop", "metrics_day"], Args())
+    assert resolved[-1] == "compare_suite"
+
+
+def test_default_comparison_step_can_be_disabled():
+    workflow = load_workflow_module()
+
+    class Args:
+        skip_default_comparisons = True
+
+    resolved = workflow.maybe_add_default_comparison_step(["predict_loop", "metrics_day"], Args())
+    assert "compare_suite" not in resolved

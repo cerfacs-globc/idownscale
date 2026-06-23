@@ -57,6 +57,7 @@ OPTIONAL_STEPS = [
     "value_metrics",
     "plot_metrics_day",
     "plot_metrics_month",
+    "compare_suite",
 ]
 ALL_STEPS = DEFAULT_STEPS + OPTIONAL_STEPS
 
@@ -143,6 +144,22 @@ def parse_args() -> argparse.Namespace:
         default="gcm_bc",
         help="Inference sample variant, e.g. gcm, gcm_bc, cordex, or cordex_bc.",
     )
+    parser.add_argument(
+        "--compare-models",
+        default=None,
+        help="Comma-separated ML test names to include in default raw/BC/ML comparison diagnostics. Defaults to --test-name.",
+    )
+    parser.add_argument(
+        "--skip-default-comparisons",
+        action="store_true",
+        help="Disable the default raw/BC/ML comparison suite when evaluation steps are requested.",
+    )
+    parser.add_argument(
+        "--compare-stride-days",
+        type=int,
+        default=7,
+        help="Sampling stride in days for the comparison distribution plot.",
+    )
     parser.add_argument("--python-bin", default=sys.executable, help="Python executable to use for subprocess steps.")
     parser.add_argument("--dry-run", action="store_true", help="Print decisions without executing commands.")
     return parser.parse_args()
@@ -155,6 +172,30 @@ def resolve_steps(raw_steps: str) -> list[str]:
     unknown = [step for step in steps if step not in ALL_STEPS]
     if unknown:
         raise ValueError(f"Unknown steps: {', '.join(unknown)}")
+    return steps
+
+
+def resolve_compare_models(test_name: str | None, raw_value: str | None) -> list[str]:
+    if raw_value:
+        return [item.strip() for item in raw_value.split(",") if item.strip()]
+    if test_name:
+        return [test_name]
+    return []
+
+
+def maybe_add_default_comparison_step(steps: list[str], args: argparse.Namespace) -> list[str]:
+    if args.skip_default_comparisons:
+        return steps
+    evaluation_steps = {
+        "predict_loop",
+        "metrics_day",
+        "metrics_month",
+        "value_metrics",
+        "plot_metrics_day",
+        "plot_metrics_month",
+    }
+    if any(step in steps for step in evaluation_steps) and "compare_suite" not in steps:
+        return steps + ["compare_suite"]
     return steps
 
 
@@ -218,6 +259,7 @@ def main() -> int:
     if bool(args.phase1_start_date) != bool(args.phase1_end_date):
         raise ValueError("phase1 date window requires both --phase1-start-date and --phase1-end-date")
     steps = resolve_steps(args.steps)
+    steps = maybe_add_default_comparison_step(steps, args)
     exp = args.exp
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
@@ -241,6 +283,7 @@ def main() -> int:
     resolved_settings = {
         "exp": exp,
         "steps": steps,
+        "compare_models": resolve_compare_models(args.test_name, args.compare_models),
         "dataset_dir": dataset_dir,
         "ssp": ssp,
         "bc_method": bc_method,
@@ -564,6 +607,36 @@ def main() -> int:
             ],
             "expected": plot_month_outputs,
             "cleanup": plot_month_outputs,
+        },
+        "compare_suite": {
+            "command": [
+                args.python_bin,
+                "bin/evaluation/run_obs_comparison_suite.py",
+                "--exp",
+                exp,
+                "--simu",
+                args.simu,
+                "--simu-test",
+                args.simu_test,
+                "--var",
+                args.var,
+                "--startdate",
+                metrics_start_date,
+                "--enddate",
+                metrics_end_date,
+                "--value-startdate",
+                value_start_date,
+                "--value-enddate",
+                value_end_date,
+                "--ml-models",
+                ",".join(resolve_compare_models(args.test_name, args.compare_models)),
+                "--python-bin",
+                args.python_bin,
+                "--stride-days",
+                str(args.compare_stride_days),
+            ],
+            "expected": [],
+            "cleanup": [],
         },
     }
 

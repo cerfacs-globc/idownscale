@@ -19,6 +19,7 @@ from tqdm import tqdm
 from iriscc.runtime_paths import require_match, resolve_runtime_sample_dir, resolve_sample_file
 from iriscc.settings import (CONFIG, PREDICTION_DIR,
                              DATES_BC_TEST_HIST, METRICS_DIR,
+                             build_time_range,
                              get_metrics_test_name)
 from iriscc.value_metrics import get_spatial_metrics
 
@@ -67,12 +68,16 @@ def _std_from_sums(count, total, total_sq):
     variance = max(total_sq / count - mean * mean, 0.0)
     return float(np.sqrt(variance))
 
+
+def _uses_direct_samples(test_name: str) -> bool:
+    return test_name == "era5_raw" or test_name.startswith("baseline") or test_name.endswith("_raw")
+
 def main():
     parser = argparse.ArgumentParser(description="Compute VALUE validation metrics")
     parser.add_argument("--exp", type=str, default="exp5", help="Experiment name")
     parser.add_argument("--test-name", type=str, default="unet_all", help="Test name")
     parser.add_argument("--simu", type=str, default="gcm", help="Simulation source (gcm/rcm)")
-    parser.add_argument("--simu-test", type=str, default="gcm_bc", help="Simulation test variant")
+    parser.add_argument("--simu-test", type=str, default=None, help="Simulation test variant")
     parser.add_argument("--startdate", type=str, default=DATES_BC_TEST_HIST[0].strftime("%Y%m%d"), help="Historical validation start date")
     parser.add_argument("--enddate", type=str, default=DATES_BC_TEST_HIST[-1].strftime("%Y%m%d"), help="Historical validation end date")
     args = parser.parse_args()
@@ -81,30 +86,25 @@ def main():
     metric_dir = METRICS_DIR / args.exp
     metric_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2. Identify historical test files
-    # Note: These are expected in PREDICTION_DIR for the configured validation window.
-    period = "historical" if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get("ssp", "ssp585")
-    pred_files = require_match(
-        PREDICTION_DIR,
-        f"tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc",
-        "prediction file",
-        allow_multiple=True,
-    )
-
-    if len(pred_files) == 1:
-        ds_pred = xr.open_dataset(pred_files[0])
-    else:
-        ds_pred = xr.concat([xr.open_dataset(path) for path in pred_files], dim="time")
-
-    # 3. Load Target Data (ERA5)
-    # The ERA5 target data is saved in the sample files or we can load it from raw if easier.
-    # However, 'compute_test_metrics_day.py' loads it from the BC test dataset samples.
-    # We'll do the same for consistency.
     sample_dir = resolve_runtime_sample_dir(args.exp, args.test_name, simu_test=args.simu_test)
+    direct_samples = _uses_direct_samples(args.test_name)
+    ds_pred = None
+    if direct_samples:
+        pred_dates = build_time_range(args.startdate, args.enddate, "daily")
+    else:
+        period = "historical" if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get("ssp", "ssp585")
+        pred_files = require_match(
+            PREDICTION_DIR,
+            f"tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc",
+            "prediction file",
+            allow_multiple=True,
+        )
 
-    # 3. Load Target Data (ERA5)
-    # We only load samples that match the prediction time range
-    pred_dates = pd.to_datetime(ds_pred.time.values)
+        if len(pred_files) == 1:
+            ds_pred = xr.open_dataset(pred_files[0])
+        else:
+            ds_pred = xr.concat([xr.open_dataset(path) for path in pred_files], dim="time")
+        pred_dates = pd.to_datetime(ds_pred.time.values)
 
     rng = np.random.default_rng(0)
     max_distribution_samples = 2_000_000
@@ -128,8 +128,10 @@ def main():
         # Get target from sample
         y = np.squeeze(data["y"]).astype(np.float64) # Squeeze to handle (64,64) or (1,64,64)
 
-        # Get prediction from netcdf for the same date
-        y_hat = np.asarray(ds_pred.tas.isel(time=index).values, dtype=np.float64)
+        if direct_samples:
+            y_hat = np.asarray(data["x"][-1], dtype=np.float64)
+        else:
+            y_hat = np.asarray(ds_pred.tas.isel(time=index).values, dtype=np.float64)
         valid = np.isfinite(y) & np.isfinite(y_hat)
         if not np.any(valid):
             continue
@@ -166,7 +168,8 @@ def main():
         pred_distribution_samples.append(pred_values[sample_indices].astype(np.float32))
         matched_dates += 1
 
-    ds_pred.close()
+    if ds_pred is not None:
+        ds_pred.close()
 
     if matched_dates == 0:
         print("Error: No matching samples found for the prediction period.")

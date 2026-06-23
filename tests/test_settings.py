@@ -14,6 +14,7 @@ from iriscc.settings import (
     get_bias_corrected_netcdf_path,
     get_bias_corrected_sample_dir,
     get_dataset_variant_dir,
+    get_evaluation_sample_dir,
     get_experiment_output_frequency,
     get_experiment_prediction_frequency,
     get_experiment_training_frequency,
@@ -43,6 +44,13 @@ def test_expc_config():
     assert expc["shape"] == (503, 326)
     assert expc["phase1_target_method"] == "bilinear"
     assert expc["phase1_crop_target"] is False
+
+
+def test_expg_config_uses_trimmed_germany_domain():
+    assert "expg" in CONFIG
+    expg = CONFIG["expg"]
+    assert expg["domain"] == [6.0, 14.8, 48.1, 55.2]
+    assert expg["shape"] == (328, 178)
 
 
 def test_cerra_frequency_metadata_is_explicit():
@@ -101,6 +109,11 @@ def test_dataset_variant_dir_is_experiment_specific():
     assert exp5_dir == DATASET_BC_DIR / "dataset_exp5_test_gcm"
     assert expc_dir == DATASET_BC_DIR / "dataset_expc_test_gcm"
     assert exp5_dir != expc_dir
+
+
+def test_baseline_evaluation_uses_corrected_variant_when_provided():
+    sample_dir = get_evaluation_sample_dir("exp5", "baseline", "gcm_bc")
+    assert sample_dir == DATASET_BC_DIR / "dataset_exp5_test_gcm_bc"
 
 
 def test_bias_corrected_netcdf_names_encode_experiment_windows():

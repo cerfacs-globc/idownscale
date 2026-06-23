@@ -35,6 +35,31 @@ from iriscc.settings import (CONFIG,
                              DATASET_DIR)
 
 
+def _seasonal_stack(values):
+    if not values:
+        return np.array([], dtype=np.float64)
+    return np.stack(values)
+
+
+def _seasonal_tensor_stack(values):
+    if not values:
+        return None
+    return torch.stack(values)
+
+
+def _corr_temporal_by_pixel(obs_tensor, pred_tensor, corr_metric):
+    if obs_tensor is None or pred_tensor is None or obs_tensor.size(dim=0) < 2:
+        return np.array([], dtype=np.float64)
+    return np.stack([corr_metric(pred_tensor[:, j], obs_tensor[:, j]).cpu() for j in range(obs_tensor.size(dim=1))])
+
+
+def _safe_mean(array_like):
+    data = np.asarray(array_like, dtype=np.float64)
+    if data.size == 0:
+        return np.nan
+    return float(np.nanmean(data))
+
+
 def get_config(exp: str,
                test_name: str,
                simu_test: Optional[str],
@@ -213,38 +238,40 @@ if __name__=='__main__':
 
     dT = [y_temporal[i] - y_temporal[i-1] for i in range(len(y_temporal)-1)]
     dT_hat = [y_hat_temporal[i] - y_hat_temporal[i-1] for i in range(len(y_hat_temporal)-1)]
-    dT, dT_hat = np.stack(dT), np.stack(dT_hat)
-    dT_summer = np.stack([dT[i-1,:] for i in i_summer])
-    dT_hat_summer = np.stack([dT_hat[i-1,:] for i in i_summer])
-    dT_winter = np.stack([dT[i-1,:] for i in i_winter])
-    dT_hat_winter = np.stack([dT_hat[i-1,:] for i in i_winter])
-    var = np.mean(np.abs(dT_hat), axis=0) - np.mean(np.abs(dT), axis=0)
-    var_summer = np.mean(np.abs(dT_hat_summer), axis=0) - np.mean(np.abs(dT_summer), axis=0)
-    var_winter = np.mean(np.abs(dT_hat_winter), axis=0) - np.mean(np.abs(dT_winter), axis=0)
+    if dT:
+        dT, dT_hat = np.stack(dT), np.stack(dT_hat)
+        dT_summer = _seasonal_stack([dT[i-1,:] for i in i_summer if i > 0])
+        dT_hat_summer = _seasonal_stack([dT_hat[i-1,:] for i in i_summer if i > 0])
+        dT_winter = _seasonal_stack([dT[i-1,:] for i in i_winter if i > 0])
+        dT_hat_winter = _seasonal_stack([dT_hat[i-1,:] for i in i_winter if i > 0])
+        var = np.mean(np.abs(dT_hat), axis=0) - np.mean(np.abs(dT), axis=0)
+        var_summer = np.full_like(var, np.nan) if dT_summer.size == 0 else np.mean(np.abs(dT_hat_summer), axis=0) - np.mean(np.abs(dT_summer), axis=0)
+        var_winter = np.full_like(var, np.nan) if dT_winter.size == 0 else np.mean(np.abs(dT_hat_winter), axis=0) - np.mean(np.abs(dT_winter), axis=0)
+    else:
+        var = np.full(tuple(y_temporal[0].shape), np.nan, dtype=np.float64)
+        var_summer = np.full_like(var, np.nan)
+        var_winter = np.full_like(var, np.nan)
 
     y_temporal, y_hat_temporal = torch.stack(y_temporal), torch.stack(y_hat_temporal)
-    corr_temporal = [corr(y_hat_temporal[:,j], y_temporal[:,j]).cpu() for j in range(y_temporal.size(dim=1))]
-    corr_temporal = np.stack(corr_temporal)
-    y_temporal_summer = torch.stack([y_temporal[i,:] for i in i_summer])
-    y_hat_temporal_summer = torch.stack([y_hat_temporal[i,:] for i in i_summer])
-    corr_temporal_summer = [corr(y_hat_temporal_summer[:,j], y_temporal_summer[:,j]).cpu() for j in range(y_temporal.size(dim=1))]
-    corr_temporal = np.stack(corr_temporal_summer)
-    y_temporal_winter = torch.stack([y_temporal[i,:] for i in i_winter])
-    y_hat_temporal_winter = torch.stack([y_hat_temporal[i,:] for i in i_winter])
-    corr_temporal_winter = [corr(y_hat_temporal_winter[:,j], y_temporal_winter[:,j]).cpu() for j in range(y_temporal.size(dim=1))]
-    corr_temporal = np.stack(corr_temporal_winter)
+    corr_temporal = _corr_temporal_by_pixel(y_temporal, y_hat_temporal, corr)
+    y_temporal_summer = _seasonal_tensor_stack([y_temporal[i,:] for i in i_summer])
+    y_hat_temporal_summer = _seasonal_tensor_stack([y_hat_temporal[i,:] for i in i_summer])
+    corr_temporal_summer = _corr_temporal_by_pixel(y_temporal_summer, y_hat_temporal_summer, corr)
+    y_temporal_winter = _seasonal_tensor_stack([y_temporal[i,:] for i in i_winter])
+    y_hat_temporal_winter = _seasonal_tensor_stack([y_hat_temporal[i,:] for i in i_winter])
+    corr_temporal_winter = _corr_temporal_by_pixel(y_temporal_winter, y_hat_temporal_winter, corr)
 
     rmse_spatial = np.sqrt(rmse_spatial / len(dates))
-    rmse_spatial_summer = np.sqrt(rmse_spatial_summer / len(i_summer))
-    rmse_spatial_winter = np.sqrt(rmse_spatial_winter / len(i_winter))
+    rmse_spatial_summer = np.full_like(rmse_spatial, np.nan) if len(i_summer) == 0 else np.sqrt(rmse_spatial_summer / len(i_summer))
+    rmse_spatial_winter = np.full_like(rmse_spatial, np.nan) if len(i_winter) == 0 else np.sqrt(rmse_spatial_winter / len(i_winter))
     bias_spatial = bias_spatial / len(dates)
-    bias_spatial_summer = bias_spatial_summer / len(i_summer)
-    bias_spatial_winter = bias_spatial_winter / len(i_winter)
+    bias_spatial_summer = np.full_like(bias_spatial, np.nan) if len(i_summer) == 0 else bias_spatial_summer / len(i_summer)
+    bias_spatial_winter = np.full_like(bias_spatial, np.nan) if len(i_winter) == 0 else bias_spatial_winter / len(i_winter)
 
-    rmse_temporal_summer = np.stack([rmse_temporal[i] for i in i_summer])
-    rmse_temporal_winter = np.stack([rmse_temporal[i] for i in i_winter])
-    corr_spatial_summer = np.stack([corr_spatial[i] for i in i_summer])
-    corr_spatial_winter = np.stack([corr_spatial[i] for i in i_winter])
+    rmse_temporal_summer = np.asarray([rmse_temporal[i] for i in i_summer], dtype=np.float64)
+    rmse_temporal_winter = np.asarray([rmse_temporal[i] for i in i_winter], dtype=np.float64)
+    corr_spatial_summer = np.asarray([corr_spatial[i] for i in i_summer], dtype=np.float64)
+    corr_spatial_winter = np.asarray([corr_spatial[i] for i in i_winter], dtype=np.float64)
 
     # Save temporal and spatial values only for all period
     d = {'rmse_temporal': rmse_temporal,
@@ -257,13 +284,13 @@ if __name__=='__main__':
     np.savez(metric_dir/f'metrics_test_daily_{exp}_{test_name}.npz', **d)
 
     # Save mean values
-    d_mean = {'rmse_temporal_mean' : [np.mean(rmse_temporal), np.mean(rmse_temporal_summer), np.mean(rmse_temporal_winter)],
+    d_mean = {'rmse_temporal_mean' : [_safe_mean(rmse_temporal), _safe_mean(rmse_temporal_summer), _safe_mean(rmse_temporal_winter)],
         'rmse_spatial_mean' : [np.nanmean(rmse_spatial),np.nanmean(rmse_spatial_summer), np.nanmean(rmse_spatial_winter)],
         'bias_spatial_mean' : [np.nanmean(bias_spatial),np.nanmean(bias_spatial_summer), np.nanmean(bias_spatial_winter)],
         'bias_spatial_std' : [np.nanstd(bias_spatial),np.nanstd(bias_spatial_summer), np.nanstd(bias_spatial_winter)],
-        'corr_spatial_mean' : [np.mean(corr_spatial), np.mean(corr_spatial_summer), np.mean(corr_spatial_winter)],
-        'corr_temporal_mean' : [np.mean(corr_temporal), np.mean(corr_temporal_summer), np.mean(corr_temporal_winter)],
-        'variability_mean' : [np.mean(var), np.mean(var_summer), np.mean(var_winter)]}
+        'corr_spatial_mean' : [_safe_mean(corr_spatial), _safe_mean(corr_spatial_summer), _safe_mean(corr_spatial_winter)],
+        'corr_temporal_mean' : [_safe_mean(corr_temporal), _safe_mean(corr_temporal_summer), _safe_mean(corr_temporal_winter)],
+        'variability_mean' : [_safe_mean(var), _safe_mean(var_summer), _safe_mean(var_winter)]}
 
     df = pd.DataFrame(d_mean, index = ['all', 'summer', 'winter'])
     df.to_csv(metric_dir/f'metrics_test_mean_daily_{exp}_{test_name}.csv')
