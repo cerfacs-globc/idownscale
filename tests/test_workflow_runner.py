@@ -113,6 +113,7 @@ def test_sbck_mbcn_allows_speed_scalar_downstream_after_derivation():
     ]
     with pytest.MonkeyPatch.context() as monkeypatch:
         monkeypatch.setattr(sys, "argv", argv)
+        monkeypatch.setattr(workflow, "write_provjson", lambda path, bundle: path)
         assert workflow.main() == 0
 
 
