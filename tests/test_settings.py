@@ -23,6 +23,7 @@ from iriscc.settings import (
     get_source_default_frequency,
     get_source_native_frequency,
     get_prediction_output_path,
+    normalize_variable_group_tag,
 )
 
 def test_repo_dir_exists():
@@ -88,6 +89,12 @@ def test_bc_bundle_paths_are_experiment_specific():
     assert exp5_path == DATASET_BC_DIR / "bc_train_hist_exp5_gcm.npz"
     assert expc_path == DATASET_BC_DIR / "bc_train_hist_expc_gcm.npz"
     assert exp5_path != expc_path
+
+
+def test_paired_bc_bundle_paths_encode_variable_group():
+    paired_path = get_bc_bundle_path("exp5", "gcm", "train_hist", variables=["uas", "vas"])
+    assert paired_path == DATASET_BC_DIR / "bc_train_hist_exp5_gcm_uas_vas.npz"
+    assert normalize_variable_group_tag("tas,huss") == "tas_huss"
 
 
 def test_bias_corrected_sample_dirs_are_experiment_specific():
