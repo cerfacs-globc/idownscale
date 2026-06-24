@@ -32,12 +32,18 @@ if __name__=="__main__":
     parser.add_argument("--simu", type=str, default="simu")
     parser.add_argument("--ssp", type=str, default="historical")
     parser.add_argument("--var", type=str, default="tas")
+    parser.add_argument("--paired-vars", type=str, default=None, help="Optional comma-separated pair of variables to package jointly, e.g. uas,vas.")
     parser.add_argument("--exp", type=str, default="exp5")
     parser.add_argument("--start_date", type=str, default=None)
     parser.add_argument("--end_date", type=str, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--test", action="store_true", help="Test mode: process 1 day per period")
     args = parser.parse_args()
+    paired_vars = [item.strip() for item in (args.paired_vars or "").split(",") if item.strip()]
+    if paired_vars and len(paired_vars) != 2:
+        raise ValueError("--paired-vars requires exactly two comma-separated variables.")
+    variables = paired_vars or [args.var]
+    bundle_var_tag = variables if paired_vars else None
 
     domain = CONFIG[args.exp]["domain"]
     bc_domain = CONFIG[args.exp].get("bc_domain", domain)
@@ -59,7 +65,7 @@ if __name__=="__main__":
         current_file = None
         current_dates = []
         for date in pd.DatetimeIndex(dates):
-            resolved = get_bc_data._resolve_source_file(source_name, args.var, date=date, ssp=args.ssp)
+            resolved = get_bc_data._resolve_source_file(source_name, variables[0], date=date, ssp=args.ssp)
             if resolved != current_file and current_dates:
                 groups.append((current_file, pd.DatetimeIndex(current_dates)))
                 current_dates = []
@@ -116,13 +122,13 @@ if __name__=="__main__":
         ds = ds.sel(time=common)
         return ds
 
-    def load_batch_dataset(source_name, dates, *, domain_override=None):
+    def load_batch_dataset(source_name, dates, var, *, domain_override=None):
         spec = get_bc_data.get_source_spec(source_name)
-        ds = get_bc_data._open_source_dataset(source_name, args.var, date=dates[0], ssp=args.ssp)
+        ds = get_bc_data._open_source_dataset(source_name, var, date=dates[0], ssp=args.ssp)
         ds = select_frequency_window(ds, dates, source_name)
         if spec.get("geometry") != "rcm":
             ds = crop_domain_from_ds(ds, domain_override if domain_override is not None else get_bc_data.domain)
-        ds[args.var].values = get_bc_data.clean_data(ds[args.var].values, args.var, data_type=spec.get("data_type"))
+        ds[var].values = get_bc_data.clean_data(ds[var].values, var, data_type=spec.get("data_type"))
         return ds
 
     def process_period(dates, label):
@@ -144,9 +150,9 @@ if __name__=="__main__":
             bc_domain[3] + ERA5_BC_DOMAIN_MARGIN,
         ]
         if simu_family == "gcm":
-            target_grid = load_batch_dataset(simu_source, pd.DatetimeIndex([dates[0]])).isel(time=0, drop=True)
+            target_grid = load_batch_dataset(simu_source, pd.DatetimeIndex([dates[0]]), variables[0]).isel(time=0, drop=True)
         else:
-            ds_gcm_target = load_batch_dataset(gcm_source, pd.DatetimeIndex([dates[0]]))
+            ds_gcm_target = load_batch_dataset(gcm_source, pd.DatetimeIndex([dates[0]]), variables[0])
             # Preserve the archival BC geometry on the GCM bridge grid; the
             # later sample materialization step is responsible for reformatting
             # corrected fields onto the final target domain.
@@ -157,46 +163,57 @@ if __name__=="__main__":
                 f"[{label}] batch {batch_dates[0].date()} -> {batch_dates[-1].date()} from {Path(batch_file).name}",
                 flush=True,
             )
-            ds_simu = load_batch_dataset(simu_source, batch_dates)
+            simu_vars = []
+            for var in variables:
+                ds_simu = load_batch_dataset(simu_source, batch_dates, var)
 
-            if simu_family == "rcm":
-                input_projection = ALADIN_PROJ_PYPROJ if simu_source == "rcm_aladin" else None
-                ds_simu = interpolation_target_grid(
-                    ds_simu,
-                    ds_target=target_grid,
-                    method=target_regrid_method,
-                    input_projection=input_projection,
-                )
-
-            if not is_future:
-                era5_batch_list = []
-                for _, era5_batch_dates in grouped_dates_for_source(bc_reanalysis_source, batch_dates):
-                    ds_era5 = load_batch_dataset(
-                        bc_reanalysis_source,
-                        era5_batch_dates,
-                        domain_override=era5_domain,
-                    )
-                    ds_target_regrid = interpolation_target_grid(
-                        ds_era5,
+                if simu_family == "rcm":
+                    input_projection = ALADIN_PROJ_PYPROJ if simu_source == "rcm_aladin" else None
+                    ds_simu = interpolation_target_grid(
+                        ds_simu,
                         ds_target=target_grid,
                         method=target_regrid_method,
+                        input_projection=input_projection,
                     )
-                    era5_batch_list.append(ds_target_regrid[args.var].values)
-                era5_list.append(np.concatenate(era5_batch_list, axis=0))
+                simu_vars.append(ds_simu[var].values)
 
-            simu_list.append(ds_simu[args.var].values)
+            if not is_future:
+                era5_vars = []
+                for var in variables:
+                    era5_batch_list = []
+                    for _, era5_batch_dates in grouped_dates_for_source(bc_reanalysis_source, batch_dates):
+                        ds_era5 = load_batch_dataset(
+                            bc_reanalysis_source,
+                            era5_batch_dates,
+                            var,
+                            domain_override=era5_domain,
+                        )
+                        ds_target_regrid = interpolation_target_grid(
+                            ds_era5,
+                            ds_target=target_grid,
+                            method=target_regrid_method,
+                        )
+                        era5_batch_list.append(ds_target_regrid[var].values)
+                    era5_vars.append(np.concatenate(era5_batch_list, axis=0))
+                era5_list.append(np.stack(era5_vars, axis=-1) if paired_vars else era5_vars[0])
+
+            simu_list.append(np.stack(simu_vars, axis=-1) if paired_vars else simu_vars[0])
 
         # Persistence Logic (Isolated Schema)
         simu_stack = np.concatenate(simu_list, axis=0)
         output_path = (
-            Path(args.output_dir) / f"bc_{label}_{args.simu}.npz"
+            Path(args.output_dir) / (
+                f"bc_{label}_{args.simu}_{'_'.join(variables)}.npz" if paired_vars else f"bc_{label}_{args.simu}.npz"
+            )
             if args.output_dir
-            else get_bc_bundle_path(args.exp, args.simu, label)
+            else get_bc_bundle_path(args.exp, args.simu, label, variables=bundle_var_tag)
         )
 
         save_dict = {args.simu: simu_stack, "dates": dates}
         if not is_future:
             save_dict["era5"] = np.concatenate(era5_list, axis=0)
+        if paired_vars:
+            save_dict["variables"] = np.asarray(variables, dtype=str)
 
         np.savez_compressed(output_path, **save_dict)
         print(f"--- {label} Isolated Volume Saved to {output_path} ---", flush=True)
