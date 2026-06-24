@@ -1,5 +1,6 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import sys
 
 import pytest
 from iriscc import settings
@@ -59,3 +60,37 @@ def test_default_comparison_step_can_be_disabled():
 
     resolved = workflow.maybe_add_default_comparison_step(["predict_loop", "metrics_day"], Args())
     assert "compare_suite" not in resolved
+
+
+def test_sbck_mbcn_requires_two_paired_variables():
+    workflow = load_workflow_module()
+    argv = [
+        "run_obs_workflow.py",
+        "--steps",
+        "bc_dataset,bc_apply",
+        "--bc-method",
+        "sbck_mbcn",
+        "--paired-vars",
+        "uas",
+    ]
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(sys, "argv", argv)
+        with pytest.raises(ValueError, match="exactly two variables"):
+            workflow.main()
+
+
+def test_sbck_mbcn_rejects_scalar_ml_steps():
+    workflow = load_workflow_module()
+    argv = [
+        "run_obs_workflow.py",
+        "--steps",
+        "bc_dataset,bc_apply,pp_dataset",
+        "--bc-method",
+        "sbck_mbcn",
+        "--paired-vars",
+        "uas,vas",
+    ]
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(sys, "argv", argv)
+        with pytest.raises(NotImplementedError, match="supports only the BC bundle and BC apply stages"):
+            workflow.main()

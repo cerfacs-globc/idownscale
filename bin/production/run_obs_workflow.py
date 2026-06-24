@@ -117,11 +117,12 @@ def parse_args() -> argparse.Namespace:
         help="Simulation alias or model source key for phase2 steps, e.g. gcm, rcm, cordex, gcm_cnrm_cm6_1.",
     )
     parser.add_argument("--var", default="tas", help="Variable for phase2 steps.")
+    parser.add_argument("--paired-vars", default=None, help="Optional comma-separated pair of variables for paired multivariate BC methods.")
     parser.add_argument("--ssp", default=None, help="Override SSP scenario. Defaults to experiment config.")
     parser.add_argument(
         "--bc-method",
         default=None,
-        help="Bias-correction method override. Supported production methods: ibicus_cdft, sbck_cdft.",
+        help="Bias-correction method override. Supported production methods: ibicus_cdft, sbck_cdft, sbck_mbcn.",
     )
     parser.add_argument("--test-name", default=None, help="Model run name for inference/evaluation steps.")
     parser.add_argument("--checkpoint-bundle", default=None, help="Optional portable checkpoint bundle directory for inference/evaluation.")
@@ -263,9 +264,11 @@ def main() -> int:
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
     bc_method = args.bc_method or exp_cfg.get("bias_correction_method", "ibicus_cdft")
+    paired_vars = [item.strip() for item in (args.paired_vars or "").split(",") if item.strip()]
     bc_apply_script = {
         "ibicus_cdft": "bin/preprocessing/bias_correction_ibicus.py",
         "sbck_cdft": "bin/preprocessing/bias_correction_sbck.py",
+        "sbck_mbcn": "bin/preprocessing/bias_correction_sbck_mbcn.py",
     }.get(bc_method)
     phase1_start_date, phase1_end_date = (
         (args.phase1_start_date, args.phase1_end_date)
@@ -286,6 +289,7 @@ def main() -> int:
         "dataset_dir": dataset_dir,
         "ssp": ssp,
         "bc_method": bc_method,
+        "paired_vars": paired_vars,
         "simu": args.simu,
         "training_frequency": get_experiment_training_frequency(exp),
         "prediction_frequency": get_experiment_prediction_frequency(exp),
@@ -318,19 +322,32 @@ def main() -> int:
         Path(exp_cfg["target_file"]),
         Path(exp_cfg["orog_file"]),
     ]
+    bc_bundle_variables = paired_vars if bc_method == "sbck_mbcn" else None
     bc_outputs = [
-        get_bc_bundle_path(exp, args.simu, "train_hist"),
-        get_bc_bundle_path(exp, args.simu, "test_hist"),
-        get_bc_bundle_path(exp, args.simu, "test_future"),
+        get_bc_bundle_path(exp, args.simu, "train_hist", variables=bc_bundle_variables),
+        get_bc_bundle_path(exp, args.simu, "test_hist", variables=bc_bundle_variables),
+        get_bc_bundle_path(exp, args.simu, "test_future", variables=bc_bundle_variables),
     ]
     raw_dataset_dir = get_dataset_variant_dir(exp, args.simu)
     bc_dataset_dir = get_bias_corrected_sample_dir(exp, args.simu)
-    bc_apply_outputs = [
-        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
-        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),
-        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
-        bc_dataset_dir / f"sample_{first_hist_train_day(exp)}.npz",
-    ]
+    if bc_method == "sbck_mbcn":
+        bc_apply_outputs = [
+            get_bias_corrected_netcdf_path(exp, args.simu, var, "train_hist", ssp=ssp, bc_tag="sbck_mbcn")
+            for var in paired_vars
+        ] + [
+            get_bias_corrected_netcdf_path(exp, args.simu, var, "test_hist", ssp=ssp, bc_tag="sbck_mbcn")
+            for var in paired_vars
+        ] + [
+            get_bias_corrected_netcdf_path(exp, args.simu, var, "test_future", ssp=ssp, bc_tag="sbck_mbcn")
+            for var in paired_vars
+        ]
+    else:
+        bc_apply_outputs = [
+            get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
+            get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),
+            get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
+            bc_dataset_dir / f"sample_{first_hist_train_day(exp)}.npz",
+        ]
     pp_outputs = [
         bc_dataset_dir
         / f"sample_{format_sample_time_token(get_bc_test_hist_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz"
@@ -426,7 +443,7 @@ def main() -> int:
                 ssp,
                 "--var",
                 args.var,
-            ],
+            ] + (["--paired-vars", ",".join(paired_vars)] if bc_method == "sbck_mbcn" else []),
             "expected": bc_outputs,
             "cleanup": bc_outputs,
         },
@@ -442,7 +459,7 @@ def main() -> int:
                 args.simu,
                 "--var",
                 args.var,
-            ],
+            ] + (["--paired-vars", ",".join(paired_vars)] if bc_method == "sbck_mbcn" else []),
             "expected": bc_apply_outputs,
             "cleanup": bc_apply_outputs + [bc_dataset_dir, GRAPHS_DIR / "biascorrection"],
         },
@@ -643,8 +660,18 @@ def main() -> int:
     if bc_apply_script is None and "bc_apply" in steps:
         raise NotImplementedError(
             f"Bias-correction method '{bc_method}' is not wired into the production workflow yet. "
-            "Supported production methods are 'ibicus_cdft' and 'sbck_cdft'."
+            "Supported production methods are 'ibicus_cdft', 'sbck_cdft', and 'sbck_mbcn'."
         )
+    if bc_method == "sbck_mbcn":
+        if len(paired_vars) != 2:
+            raise ValueError("--paired-vars is required with exactly two variables for --bc-method sbck_mbcn.")
+        unsupported = {"raw_dataset", "pp_dataset", "train", "predict_loop", "metrics_day", "metrics_month", "value_metrics", "plot_metrics_day", "plot_metrics_month", "compare_suite"}
+        requested_unsupported = [step for step in steps if step in unsupported]
+        if requested_unsupported:
+            raise NotImplementedError(
+                "sbck_mbcn currently supports only the BC bundle and BC apply stages. "
+                f"Unsupported requested steps: {', '.join(requested_unsupported)}"
+            )
     if "train" in steps and not args.test_name:
         raise ValueError("--test-name is required for the train step")
     evaluation_steps = [
