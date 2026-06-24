@@ -20,7 +20,7 @@ import xarray as xr
 from ibicus.evaluate import marginal, metrics, trend
 
 from bin.preprocessing.build_dataset_pp import build_perfect_model_target
-from iriscc.datautils import Data, reformat_as_target
+from iriscc.datautils import Data, reformat_as_target, return_unit
 from iriscc.settings import (
     CONFIG,
     GRAPHS_DIR,
@@ -41,6 +41,7 @@ def plot_tprofiles_short_range(
     z: np.ndarray,
     title: str,
     savedir: str,
+    var: str,
     simu: str | None = None,
 ) -> None:
     plt.figure(figsize=(15, 5))
@@ -49,7 +50,7 @@ def plot_tprofiles_short_range(
     plt.plot(x[1000:2000], label=f"{simu}", color="blue")
     plt.plot(z[1000:2000], label=f"{simu} bc", color="green")
     plt.xlabel("Days")
-    plt.ylabel("Daily {var}")
+    plt.ylabel(f"Daily {var} ({return_unit(var)})")
     plt.title(title)
     plt.legend()
     plt.savefig(savedir)
@@ -62,6 +63,7 @@ def plot_seasonal_hist(
     dates: list,
     title: str,
     savedir: str,
+    var: str,
     simu: str | None = None,
 ) -> None:
     i_summer = []
@@ -75,15 +77,16 @@ def plot_seasonal_hist(
     if y is not None:
         ax1.hist([y[i] for i in i_winter], histtype="step", color="red", label="ERA5", density=True)
         ax2.hist([y[i] for i in i_summer], histtype="step", color="red", label="ERA5", density=True)
-    ax1.hist([x[i] for i in i_winter], histtype="step", color="blue", label=f"{simu}", density=True, range=(265, 300))
+    ax1.hist([x[i] for i in i_winter], histtype="step", color="blue", label=f"{simu}", density=True)
     ax1.hist([z[i] for i in i_winter], histtype="step", color="green", label=f"{simu} bc", density=True)
-    ax2.hist([x[i] for i in i_summer], histtype="step", color="blue", label=f"{simu}", density=True, range=(265, 300))
+    ax2.hist([x[i] for i in i_summer], histtype="step", color="blue", label=f"{simu}", density=True)
     ax2.hist([z[i] for i in i_summer], histtype="step", color="green", label=f"{simu} bc", density=True)
     plt.suptitle(title)
     ax1.set_title("Winter")
     ax2.set_title("Summer")
-    ax1.set_xlabel("{var} (K)")
-    ax2.set_xlabel("{var} (K)")
+    unit = return_unit(var)
+    ax1.set_xlabel(f"{var} ({unit})")
+    ax2.set_xlabel(f"{var} ({unit})")
     ax2.legend()
     plt.tight_layout()
     plt.savefig(savedir)
@@ -178,7 +181,7 @@ def materialize_corrected_samples(
             mask=True,
         )
         try:
-            x = np.stack([orog, ds_day_target.tas.values], axis=0).astype(np.float32)
+            x = np.stack([orog, ds_day_target[var].values], axis=0).astype(np.float32)
         finally:
             ds_day_target.close()
 
@@ -268,8 +271,8 @@ def corrected_geometry_reference(exp: str, simu: str, simu_source: str) -> str:
     return simu_source
 
 
-def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates: np.ndarray) -> xr.Dataset:
-    spatial_dims = reference_ds["tas"].dims
+def build_corrected_dataset(reference_ds: xr.Dataset, var: str, values: np.ndarray, dates: np.ndarray) -> xr.Dataset:
+    spatial_dims = reference_ds[var].dims
     coords = {"time": ("time", dates)}
     for coord_name in ("lon", "lat", "x", "y"):
         if coord_name not in reference_ds.coords:
@@ -278,7 +281,7 @@ def build_corrected_dataset(reference_ds: xr.Dataset, values: np.ndarray, dates:
         if coord.dims:
             coords[coord_name] = (coord.dims, coord.values)
     return xr.Dataset(
-        data_vars=dict(tas=(("time",) + spatial_dims, values)),
+        data_vars=dict(**{var: (("time",) + spatial_dims, values)}),
         coords=coords,
     )
 
@@ -288,7 +291,7 @@ if __name__ == "__main__":
     parser.add_argument("--exp", type=str, help="Experiment name (e.g., exp1)")
     parser.add_argument("--ssp", type=str, help="SSP scenario (e.g., ssp585)")
     parser.add_argument("--simu", type=str, help="Simulation alias or model source key", default="gcm")
-    parser.add_argument("--var", type=str, help="tas, pr", default="tas")
+    parser.add_argument("--var", type=str, help="Scalar variable to bias-correct", default="tas")
     parser.add_argument("--test", action="store_true", help="Skip expensive diagnostics and only materialize corrected outputs")
     parser.add_argument("--bc-tag", type=str, default=None, help="Optional suffix to keep BC outputs separate across methods.")
     args = parser.parse_args()
@@ -364,6 +367,7 @@ if __name__ == "__main__":
             z0_mean,
             title=f"Daily {var} over the historical Train period (1980-1999)",
             savedir=GRAPHS_DIR / f"biascorrection/{var}_sbck_train_hist_tprofiles_{simu}.png",
+            var=var,
             simu=simu,
         )
         plot_tprofiles_short_range(
@@ -372,6 +376,7 @@ if __name__ == "__main__":
             z1_mean,
             title=f"Daily {var} over the historical Test period (2000-2014)",
             savedir=GRAPHS_DIR / f"biascorrection/{var}_sbck_test_hist_tprofiles_{simu}.png",
+            var=var,
             simu=simu,
         )
         plot_tprofiles_short_range(
@@ -380,6 +385,7 @@ if __name__ == "__main__":
             z2_mean,
             title=f"Daily {var} over the future Test period (2015-2100 {ssp})",
             savedir=GRAPHS_DIR / f"biascorrection/{var}_sbck_test_future_tprofiles_{ssp}_{simu}.png",
+            var=var,
             simu=simu,
         )
 
@@ -387,11 +393,10 @@ if __name__ == "__main__":
         plt.scatter(x1_mean, z1_mean, color="blue", s=5, label="2000-2014")
         plt.scatter(x2_mean, z2_mean, color="green", s=5, label=f"2015-2100 {ssp}")
         plt.plot(np.arange(270, 300), np.arange(270, 300), color="black")
-        plt.xlim(270, 300)
-        plt.ylim(270, 300)
         plt.legend()
-        plt.xlabel(f"{var} {simu} (K)")
-        plt.ylabel(f"{var} {simu} bc (K)")
+        unit = return_unit(var)
+        plt.xlabel(f"{var} {simu} ({unit})")
+        plt.ylabel(f"{var} {simu} bc ({unit})")
         plt.title(f"Daily mean {var} over the historical and future test period")
         plt.savefig(GRAPHS_DIR / f"biascorrection/{var}_sbck_test_hist_linear_{ssp}_{simu}.png")
 
@@ -429,7 +434,7 @@ if __name__ == "__main__":
         plt.plot(df_simu_year.index, np.where(df_simu_year["labels"] == 3., df_simu_year["values"], None), color="blue")
         plt.plot(df_simu_bc_year.index, np.where(df_simu_bc_year["labels"] == 3., df_simu_bc_year["values"], None), color="green")
         plt.title(f"Annual mean {var} {simu} ({ssp})")
-        plt.ylabel("{var} (K)")
+        plt.ylabel(f"{var} ({return_unit(var)})")
         plt.legend()
         plt.savefig(GRAPHS_DIR / f"biascorrection/{var}_bc_datasets_temporal_profiles_sbck_{ssp}_{simu}.png")
 
@@ -441,6 +446,7 @@ if __name__ == "__main__":
             dates,
             title=f"Monthly mean {var} over the historical Train period (1980-1999)",
             savedir=GRAPHS_DIR / f"biascorrection/{var}_sbck_train_hist_histo_{simu}.png",
+            var=var,
             simu=simu,
         )
         y1_hist, x1_hist, z1_hist, dates = monthly_mean(y1_mean, x1_mean, z1_mean, test_hist["dates"])
@@ -451,6 +457,7 @@ if __name__ == "__main__":
             dates,
             title=f"Monthly mean {var} over the historical Test period (2000-2014)",
             savedir=GRAPHS_DIR / f"biascorrection/{var}_sbck_test_hist_histo_{simu}.png",
+            var=var,
             simu=simu,
         )
         _, x2_hist, z2_hist, dates = monthly_mean(None, x2_mean, z2_mean, test_future["dates"])
@@ -461,12 +468,13 @@ if __name__ == "__main__":
             dates,
             title=f"Monthly mean {var} over the future Test period (2015-2100 {ssp})",
             savedir=GRAPHS_DIR / f"biascorrection/{var}_sbck_test_future_histo_{ssp}_{simu}.png",
+            var=var,
             simu=simu,
         )
 
-    ds_train_hist_bc = build_corrected_dataset(model_ds, train_hist_bc, train_hist["dates"])
-    ds_test_hist_bc = build_corrected_dataset(model_ds, test_hist_bc, test_hist["dates"])
-    ds_test_future_bc = build_corrected_dataset(model_ds, test_future_bc, test_future["dates"])
+    ds_train_hist_bc = build_corrected_dataset(model_ds, var, train_hist_bc, train_hist["dates"])
+    ds_test_hist_bc = build_corrected_dataset(model_ds, var, test_hist_bc, test_hist["dates"])
+    ds_test_future_bc = build_corrected_dataset(model_ds, var, test_future_bc, test_future["dates"])
     ds_train_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, "train_hist", ssp=ssp, bc_tag=bc_tag))
     ds_test_hist_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, "test_hist", ssp=ssp, bc_tag=bc_tag))
     ds_test_future_bc.to_netcdf(get_bias_corrected_netcdf_path(exp, simu, var, "test_future", ssp=ssp, bc_tag=bc_tag))
