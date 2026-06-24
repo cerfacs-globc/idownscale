@@ -28,6 +28,7 @@ from iriscc.settings import (
     get_bc_test_hist_dates,
     get_bc_train_hist_dates,
     get_bias_corrected_netcdf_path,
+    get_bias_corrected_sample_dir,
     get_experiment_prediction_frequency,
     get_experiment_training_frequency,
     get_frequency_pandas_rule,
@@ -428,7 +429,12 @@ if __name__ == "__main__":
         or "conservative_normed"
     )
     variant = f"{args.simu}_bc" if args.corrected else args.simu
-    output_dir = Path(args.output_dir) if args.output_dir else dataset_variant_dir(exp, variant)
+    if args.output_dir:
+        output_dir = Path(args.output_dir)
+    elif args.corrected:
+        output_dir = get_bias_corrected_sample_dir(exp, args.simu, bc_tag=bc_tag)
+    else:
+        output_dir = dataset_variant_dir(exp, variant)
     output_dir.mkdir(parents=True, exist_ok=True)
     training_frequency = get_experiment_training_frequency(exp)
     prediction_frequency = get_experiment_prediction_frequency(exp)
