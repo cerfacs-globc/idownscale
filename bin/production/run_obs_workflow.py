@@ -194,7 +194,6 @@ def maybe_add_default_comparison_step(steps: list[str], args: argparse.Namespace
     if args.skip_default_comparisons:
         return steps
     evaluation_steps = {
-        "predict_loop",
         "metrics_day",
         "metrics_month",
         "value_metrics",
