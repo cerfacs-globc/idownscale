@@ -35,6 +35,38 @@ single ML method. BC-only workflows are also supported: the suite still
 produces raw/BC diagnostics and a target/raw/BC comparison curve when no ML
 model is selected.
 
+Production assessment rule
+--------------------------
+
+For production, bias correction must be treated as a hypothesis to test, not
+as an automatic requirement.
+
+The minimum scientific assessment for an observation-target experiment is:
+
+* raw-model baseline
+* BC baseline
+* ML driven by raw packaged inputs
+* ML driven by BC packaged inputs
+
+The reason is practical as well as scientific: BC is intended to make
+inference-time coarse-model inputs more consistent with the training-input
+family, but this does not guarantee better final target-space performance after
+packaging and remapping. Some experiment families benefit from BC, while others
+can degrade.
+
+Operationally, this means that a production candidate should be evaluated with
+at least two ML inference configurations:
+
+* ``--simu-test gcm``
+* ``--simu-test gcm_bc``
+
+The default comparison suite already regenerates the raw and BC baselines for
+each evaluation run. To decide whether BC should remain in the final production
+chain, compare the resulting ML metrics from the raw-input and BC-input runs
+against those baselines. The selected production path should be the one that is
+scientifically best supported by the metrics, plots, and climate-signal
+diagnostics, not the one that uses the most preprocessing steps.
+
 **Workload Manager (Slurm):**
 
 .. code-block:: bash
