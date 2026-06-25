@@ -110,6 +110,19 @@ Advanced Metrics Calculation
 
 The ``compute_value_metrics.py`` script provides a consolidated summary table based on the VALUE framework, comparing the downscaled model against ERA5 ground truth for the configured historical validation window.
 
+For wind-component pairs corrected jointly (for example ``uas``/``vas`` with
+paired ``MBCn``), the standard scalar evaluation workflow should be applied to
+derived wind speed once it has been materialized as ``sfcWind``. The helper
+``bin/postprocessing/derive_wind_products.py`` derives:
+
+* ``sfcWind`` from paired components
+* ``windFromDirection`` in meteorological degrees clockwise from north
+
+Only wind speed is directly compatible with the existing scalar metrics and
+comparison suite. Wind direction is circular and therefore needs dedicated
+direction-aware diagnostics rather than the default scalar VALUE/day/month
+metrics.
+
 .. code-block:: bash
 
    python3 bin/evaluation/compute_value_metrics.py --exp exp5 --test-name unet_all --simu-test gcm_bc

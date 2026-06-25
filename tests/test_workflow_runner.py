@@ -92,5 +92,48 @@ def test_sbck_mbcn_rejects_scalar_ml_steps():
     ]
     with pytest.MonkeyPatch.context() as monkeypatch:
         monkeypatch.setattr(sys, "argv", argv)
-        with pytest.raises(NotImplementedError, match="supports only the BC bundle and BC apply stages"):
+        with pytest.raises(NotImplementedError, match="require deriving a scalar product first"):
+            workflow.main()
+
+
+def test_sbck_mbcn_allows_speed_scalar_downstream_after_derivation():
+    workflow = load_workflow_module()
+    argv = [
+        "run_obs_workflow.py",
+        "--steps",
+        "bc_dataset,bc_apply,derive_products,pp_dataset",
+        "--bc-method",
+        "sbck_mbcn",
+        "--paired-vars",
+        "uas,vas",
+        "--derive-wind-products",
+        "--var",
+        "sfcWind",
+        "--dry-run",
+    ]
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(sys, "argv", argv)
+        monkeypatch.setattr(workflow, "write_provjson", lambda path, bundle: path)
+        assert workflow.main() == 0
+
+
+def test_sbck_mbcn_rejects_direction_scalar_metrics():
+    workflow = load_workflow_module()
+    argv = [
+        "run_obs_workflow.py",
+        "--steps",
+        "bc_dataset,bc_apply,derive_products,metrics_day",
+        "--bc-method",
+        "sbck_mbcn",
+        "--paired-vars",
+        "uas,vas",
+        "--derive-wind-products",
+        "--var",
+        "windFromDirection",
+        "--test-name",
+        "demo",
+    ]
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(sys, "argv", argv)
+        with pytest.raises(NotImplementedError, match="circular diagnostics"):
             workflow.main()

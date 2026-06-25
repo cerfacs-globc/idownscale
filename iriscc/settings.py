@@ -448,7 +448,10 @@ def get_simu_family(exp: str, simu: str) -> str:
 
 
 def get_variant_source(exp: str, simu_variant: str) -> str:
-    return get_simu_source(exp, simu_variant[:-3] if simu_variant.endswith("_bc") else simu_variant)
+    base_variant = simu_variant
+    if "_bc" in simu_variant:
+        base_variant = simu_variant.split("_bc", 1)[0]
+    return get_simu_source(exp, base_variant)
 
 
 def get_bias_corrected_root(exp: str, simu: str) -> Path:
