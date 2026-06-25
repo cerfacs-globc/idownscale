@@ -77,6 +77,26 @@ The same orchestration concepts support three practical modes:
 
 The important scientific point is that the BC stage is part of the coarse-model
 conditioning pipeline, not an afterthought bolted onto only one model family.
+But this does not mean BC is mandatory in the final selected production path.
+For an observation-target experiment, BC should be assessed empirically rather
+than assumed beneficial.
+
+In practice, the minimum production comparison is:
+
+* raw coarse-model baseline
+* BC baseline
+* ML on raw packaged inputs
+* ML on BC packaged inputs
+
+The workflow supports this by separating the baseline diagnostics from the ML
+inference input choice. Baseline diagnostics cover raw and BC directly, while
+the ML path can be evaluated at least twice:
+
+* ``--simu-test gcm`` for ML on raw inputs
+* ``--simu-test gcm_bc`` for ML on BC inputs
+
+This is now the recommended default scientific protocol before choosing the
+final production chain for a new experiment family, target dataset, or domain.
 
 Provenance And Validation
 -------------------------
