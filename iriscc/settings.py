@@ -448,7 +448,10 @@ def get_simu_family(exp: str, simu: str) -> str:
 
 
 def get_variant_source(exp: str, simu_variant: str) -> str:
-    return get_simu_source(exp, simu_variant[:-3] if simu_variant.endswith("_bc") else simu_variant)
+    base_variant = simu_variant
+    if "_bc" in simu_variant:
+        base_variant = simu_variant.split("_bc", 1)[0]
+    return get_simu_source(exp, base_variant)
 
 
 def get_bias_corrected_root(exp: str, simu: str) -> Path:
@@ -464,10 +467,28 @@ def normalize_bc_tag(bc_tag: str | None) -> str:
     return str(bc_tag).strip().replace(" ", "_")
 
 
-def get_bc_bundle_path(exp: str, simu: str, period: str) -> Path:
+def normalize_variable_group_tag(variables: str | list[str] | tuple[str, ...] | None) -> str:
+    if variables is None:
+        return ""
+    if isinstance(variables, str):
+        items = [item.strip() for item in variables.split(",") if item.strip()]
+    else:
+        items = [str(item).strip() for item in variables if str(item).strip()]
+    return "_".join(items)
+
+
+def get_bc_bundle_path(
+    exp: str,
+    simu: str,
+    period: str,
+    variables: str | list[str] | tuple[str, ...] | None = None,
+) -> Path:
     valid_periods = {"train_hist", "test_hist", "test_future"}
     if period not in valid_periods:
         raise ValueError(f"Unsupported BC bundle period '{period}'. Expected one of {sorted(valid_periods)}.")
+    variable_suffix = normalize_variable_group_tag(variables)
+    if variable_suffix:
+        return DATASET_BC_DIR / f"bc_{period}_{exp}_{simu}_{variable_suffix}.npz"
     return DATASET_BC_DIR / f"bc_{period}_{exp}_{simu}.npz"
 
 

@@ -51,6 +51,7 @@ OPTIONAL_STEPS = [
     "train",
     "raw_dataset",
     "pp_dataset",
+    "derive_products",
     "predict_loop",
     "metrics_day",
     "metrics_month",
@@ -117,11 +118,17 @@ def parse_args() -> argparse.Namespace:
         help="Simulation alias or model source key for phase2 steps, e.g. gcm, rcm, cordex, gcm_cnrm_cm6_1.",
     )
     parser.add_argument("--var", default="tas", help="Variable for phase2 steps.")
+    parser.add_argument("--paired-vars", default=None, help="Optional comma-separated pair of variables for paired multivariate BC methods.")
+    parser.add_argument("--derive-wind-products", action="store_true", help="Derive scalar wind products from paired corrected components.")
+    parser.add_argument("--u-var", default="uas", help="Zonal wind-component variable name used for wind-product derivation.")
+    parser.add_argument("--v-var", default="vas", help="Meridional wind-component variable name used for wind-product derivation.")
+    parser.add_argument("--speed-var", default="sfcWind", help="Derived wind-speed variable name.")
+    parser.add_argument("--direction-var", default="windFromDirection", help="Derived wind-direction variable name.")
     parser.add_argument("--ssp", default=None, help="Override SSP scenario. Defaults to experiment config.")
     parser.add_argument(
         "--bc-method",
         default=None,
-        help="Bias-correction method override. Supported production methods: ibicus_cdft, sbck_cdft.",
+        help="Bias-correction method override. Supported production methods: ibicus_cdft, sbck_cdft, sbck_mbcn.",
     )
     parser.add_argument("--test-name", default=None, help="Model run name for inference/evaluation steps.")
     parser.add_argument("--checkpoint-bundle", default=None, help="Optional portable checkpoint bundle directory for inference/evaluation.")
@@ -263,9 +270,16 @@ def main() -> int:
     exp_cfg = CONFIG[exp]
     ssp = args.ssp or exp_cfg.get("ssp", "ssp585")
     bc_method = args.bc_method or exp_cfg.get("bias_correction_method", "ibicus_cdft")
+    paired_vars = [item.strip() for item in (args.paired_vars or "").split(",") if item.strip()]
+    bc_output_tag = "sbck_mbcn" if bc_method == "sbck_mbcn" else None
+    workflow_simu_test = args.simu_test
+    default_corrected_variant = f"{args.simu}_bc"
+    if bc_output_tag and workflow_simu_test == default_corrected_variant:
+        workflow_simu_test = f"{default_corrected_variant}_{bc_output_tag}"
     bc_apply_script = {
         "ibicus_cdft": "bin/preprocessing/bias_correction_ibicus.py",
         "sbck_cdft": "bin/preprocessing/bias_correction_sbck.py",
+        "sbck_mbcn": "bin/preprocessing/bias_correction_sbck_mbcn.py",
     }.get(bc_method)
     phase1_start_date, phase1_end_date = (
         (args.phase1_start_date, args.phase1_end_date)
@@ -286,7 +300,9 @@ def main() -> int:
         "dataset_dir": dataset_dir,
         "ssp": ssp,
         "bc_method": bc_method,
+        "paired_vars": paired_vars,
         "simu": args.simu,
+        "simu_test": workflow_simu_test,
         "training_frequency": get_experiment_training_frequency(exp),
         "prediction_frequency": get_experiment_prediction_frequency(exp),
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
@@ -318,19 +334,32 @@ def main() -> int:
         Path(exp_cfg["target_file"]),
         Path(exp_cfg["orog_file"]),
     ]
+    bc_bundle_variables = paired_vars if bc_method == "sbck_mbcn" else None
     bc_outputs = [
-        get_bc_bundle_path(exp, args.simu, "train_hist"),
-        get_bc_bundle_path(exp, args.simu, "test_hist"),
-        get_bc_bundle_path(exp, args.simu, "test_future"),
+        get_bc_bundle_path(exp, args.simu, "train_hist", variables=bc_bundle_variables),
+        get_bc_bundle_path(exp, args.simu, "test_hist", variables=bc_bundle_variables),
+        get_bc_bundle_path(exp, args.simu, "test_future", variables=bc_bundle_variables),
     ]
     raw_dataset_dir = get_dataset_variant_dir(exp, args.simu)
-    bc_dataset_dir = get_bias_corrected_sample_dir(exp, args.simu)
-    bc_apply_outputs = [
-        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
-        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),
-        get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
-        bc_dataset_dir / f"sample_{first_hist_train_day(exp)}.npz",
-    ]
+    bc_dataset_dir = get_bias_corrected_sample_dir(exp, args.simu, bc_tag=bc_output_tag)
+    if bc_method == "sbck_mbcn":
+        bc_apply_outputs = [
+            get_bias_corrected_netcdf_path(exp, args.simu, var, "train_hist", ssp=ssp, bc_tag=bc_output_tag)
+            for var in paired_vars
+        ] + [
+            get_bias_corrected_netcdf_path(exp, args.simu, var, "test_hist", ssp=ssp, bc_tag=bc_output_tag)
+            for var in paired_vars
+        ] + [
+            get_bias_corrected_netcdf_path(exp, args.simu, var, "test_future", ssp=ssp, bc_tag=bc_output_tag)
+            for var in paired_vars
+        ]
+    else:
+        bc_apply_outputs = [
+            get_bias_corrected_netcdf_path(exp, args.simu, args.var, "train_hist", ssp=ssp),
+            get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_hist", ssp=ssp),
+            get_bias_corrected_netcdf_path(exp, args.simu, args.var, "test_future", ssp=ssp),
+            bc_dataset_dir / f"sample_{first_hist_train_day(exp)}.npz",
+        ]
     pp_outputs = [
         bc_dataset_dir
         / f"sample_{format_sample_time_token(get_bc_test_hist_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz"
@@ -341,13 +370,13 @@ def main() -> int:
         raw_dataset_dir
         / f"sample_{format_sample_time_token(get_bc_test_future_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz",
     ]
-    prediction_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
+    prediction_test_name = f"{args.test_name}_{workflow_simu_test}" if args.test_name and workflow_simu_test else args.test_name
     prediction_outputs = []
     if prediction_test_name:
         prediction_outputs = [
             get_prediction_output_path(
                 exp,
-                args.simu_test,
+                workflow_simu_test,
                 args.var,
                 predict_start_date,
                 predict_end_date,
@@ -358,7 +387,7 @@ def main() -> int:
     value_outputs = []
     if args.test_name:
         value_outputs = [METRICS_DIR / exp / f"value_metrics_{exp}_{args.test_name}.csv"]
-    metrics_test_name = f"{args.test_name}_{args.simu_test}" if args.test_name and args.simu_test else args.test_name
+    metrics_test_name = f"{args.test_name}_{workflow_simu_test}" if args.test_name and workflow_simu_test else args.test_name
     metrics_day_outputs = []
     metrics_month_outputs = []
     plot_day_outputs = []
@@ -426,7 +455,7 @@ def main() -> int:
                 ssp,
                 "--var",
                 args.var,
-            ],
+            ] + (["--paired-vars", ",".join(paired_vars)] if bc_method == "sbck_mbcn" else []),
             "expected": bc_outputs,
             "cleanup": bc_outputs,
         },
@@ -442,7 +471,7 @@ def main() -> int:
                 args.simu,
                 "--var",
                 args.var,
-            ],
+            ] + (["--paired-vars", ",".join(paired_vars)] if bc_method == "sbck_mbcn" else []),
             "expected": bc_apply_outputs,
             "cleanup": bc_apply_outputs + [bc_dataset_dir, GRAPHS_DIR / "biascorrection"],
         },
@@ -500,10 +529,62 @@ def main() -> int:
                 ssp,
                 "--corrected",
             ]
+            + (["--bc-tag", bc_output_tag] if bc_output_tag else [])
             + (["--startdate", args.sample_start_date] if args.sample_start_date else [])
             + (["--enddate", args.sample_end_date] if args.sample_end_date else []),
             "expected": pp_outputs,
             "cleanup": [bc_dataset_dir],
+        },
+        "derive_products": {
+            "command": [
+                args.python_bin,
+                "bin/postprocessing/run_derive_wind_products_from_bc.py",
+                "--exp",
+                exp,
+                "--simu",
+                args.simu,
+                "--ssp",
+                ssp,
+                "--u-var",
+                args.u_var,
+                "--v-var",
+                args.v_var,
+                "--speed-var",
+                args.speed_var,
+                "--bc-tag",
+                bc_output_tag or "sbck_mbcn",
+                "--python-bin",
+                args.python_bin,
+            ]
+            + (["--direction", "--direction-var", args.direction_var] if args.derive_wind_products else []),
+            "expected": [
+                get_bias_corrected_netcdf_path(exp, args.simu, args.speed_var, "train_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                get_bias_corrected_netcdf_path(exp, args.simu, args.speed_var, "test_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                get_bias_corrected_netcdf_path(exp, args.simu, args.speed_var, "test_future", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+            ]
+            + (
+                [
+                    get_bias_corrected_netcdf_path(exp, args.simu, args.direction_var, "train_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                    get_bias_corrected_netcdf_path(exp, args.simu, args.direction_var, "test_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                    get_bias_corrected_netcdf_path(exp, args.simu, args.direction_var, "test_future", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                ]
+                if args.derive_wind_products
+                else []
+            ),
+            "cleanup": [
+                get_bias_corrected_netcdf_path(exp, args.simu, args.speed_var, "train_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                get_bias_corrected_netcdf_path(exp, args.simu, args.speed_var, "test_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                get_bias_corrected_netcdf_path(exp, args.simu, args.speed_var, "test_future", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+            ]
+            + (
+                [
+                    get_bias_corrected_netcdf_path(exp, args.simu, args.direction_var, "train_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                    get_bias_corrected_netcdf_path(exp, args.simu, args.direction_var, "test_hist", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                    get_bias_corrected_netcdf_path(exp, args.simu, args.direction_var, "test_future", ssp=ssp, bc_tag=bc_output_tag or "sbck_mbcn"),
+                ]
+                if args.derive_wind_products
+                else []
+            ),
         },
         "predict_loop": {
             "command": [
@@ -514,7 +595,7 @@ def main() -> int:
                 "--test-name",
                 args.test_name or "",
                 "--simu-test",
-                args.simu_test,
+                workflow_simu_test,
                 "--startdate",
                 predict_start_date,
                 "--enddate",
@@ -532,7 +613,7 @@ def main() -> int:
                 "--test-name",
                 args.test_name or "",
                 "--simu-test",
-                args.simu_test,
+                workflow_simu_test,
                 "--simu",
                 args.simu,
                 "--startdate",
@@ -556,7 +637,7 @@ def main() -> int:
                 "--test-name",
                 args.test_name or "",
                 "--simu-test",
-                args.simu_test,
+                workflow_simu_test,
             ] + (["--checkpoint-bundle", args.checkpoint_bundle] if args.checkpoint_bundle else []),
             "expected": metrics_day_outputs,
             "cleanup": metrics_day_outputs,
@@ -574,7 +655,7 @@ def main() -> int:
                 "--test-name",
                 args.test_name or "",
                 "--simu-test",
-                args.simu_test,
+                workflow_simu_test,
             ] + (["--checkpoint-bundle", args.checkpoint_bundle] if args.checkpoint_bundle else []),
             "expected": metrics_month_outputs,
             "cleanup": metrics_month_outputs,
@@ -616,7 +697,7 @@ def main() -> int:
                 "--simu",
                 args.simu,
                 "--simu-test",
-                args.simu_test,
+                workflow_simu_test,
                 "--var",
                 args.var,
                 "--startdate",
@@ -643,8 +724,24 @@ def main() -> int:
     if bc_apply_script is None and "bc_apply" in steps:
         raise NotImplementedError(
             f"Bias-correction method '{bc_method}' is not wired into the production workflow yet. "
-            "Supported production methods are 'ibicus_cdft' and 'sbck_cdft'."
+            "Supported production methods are 'ibicus_cdft', 'sbck_cdft', and 'sbck_mbcn'."
         )
+    if bc_method == "sbck_mbcn":
+        if len(paired_vars) != 2:
+            raise ValueError("--paired-vars is required with exactly two variables for --bc-method sbck_mbcn.")
+        if args.var == args.direction_var and any(
+            step in steps
+            for step in {"metrics_day", "metrics_month", "value_metrics", "plot_metrics_day", "plot_metrics_month", "compare_suite"}
+        ):
+            raise NotImplementedError("windFromDirection requires dedicated circular diagnostics and is not supported by the default scalar evaluation steps.")
+        scalar_downstream = {"pp_dataset", "train", "predict_loop", "metrics_day", "metrics_month", "value_metrics", "plot_metrics_day", "plot_metrics_month", "compare_suite"}
+        requested_scalar_downstream = [step for step in steps if step in scalar_downstream]
+        if requested_scalar_downstream and not ("derive_products" in steps and args.var == args.speed_var):
+            raise NotImplementedError(
+                "sbck_mbcn scalar downstream steps currently require deriving a scalar product first. "
+                f"Requested steps: {', '.join(requested_scalar_downstream)}. "
+                f"Use --derive-wind-products with --var {args.speed_var} and include derive_products in --steps."
+            )
     if "train" in steps and not args.test_name:
         raise ValueError("--test-name is required for the train step")
     evaluation_steps = [
