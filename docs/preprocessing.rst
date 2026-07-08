@@ -91,9 +91,11 @@ now variable-generic for scalar fields such as ``tas``, ``pr``, ``psl``, or
 ``sfcWind``. It no longer assumes temperature-specific variable names when
 writing corrected NetCDF files or materializing corrected samples.
 
-Joint multivariate corrections such as wind-vector ``u/v`` with ``MBCn`` are
-not part of this scalar path and should be implemented as a dedicated
-multivariate workflow.
+Joint multivariate corrections with ``MBCn`` belong to a separate paired-variable
+workflow. That paired path should stay generic for any two-variable pair
+(``uas,vas``, ``tas,huss``, etc.) rather than assuming the pair is a physical
+vector. Pair-specific postprocessing or diagnostics should be added separately
+only when scientifically justified.
 
 Perfect-Model Sample Layout
 ---------------------------
