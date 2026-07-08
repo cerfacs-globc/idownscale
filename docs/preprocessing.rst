@@ -83,6 +83,18 @@ The statistics file is now treated as a required dataset artifact rather than a
 silent shared fallback. Model evaluation and denormalization must resolve a
 dataset-specific ``statistics.json`` that matches the actual training samples.
 
+Bias-Correction Methods
+-----------------------
+
+The scalar SBCK workflow in ``bin/preprocessing/bias_correction_sbck.py`` is
+now variable-generic for scalar fields such as ``tas``, ``pr``, ``psl``, or
+``sfcWind``. It no longer assumes temperature-specific variable names when
+writing corrected NetCDF files or materializing corrected samples.
+
+Joint multivariate corrections such as wind-vector ``u/v`` with ``MBCn`` are
+not part of this scalar path and should be implemented as a dedicated
+multivariate workflow.
+
 Perfect-Model Sample Layout
 ---------------------------
 
