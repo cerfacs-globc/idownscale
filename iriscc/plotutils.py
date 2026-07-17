@@ -12,6 +12,12 @@ import pandas as pd
 sys.path.append('.')
 
 DEFAULT_FRANCE_EXTENT = [-5.0, 11.0, 41.0, 51.0]
+SHARED_METRIC_LEVELS = {
+    ("rmse", "daily"): np.arange(0.0, 7.0 + 0.5, 0.5),
+    ("rmse", "monthly"): np.arange(0.0, 1.2 + 0.1, 0.1),
+    ("bias", "daily"): np.arange(-4.0, 4.0 + 0.5, 0.5),
+    ("bias", "monthly"): np.arange(-0.6, 0.6 + 0.1, 0.1),
+}
 
 
 def looks_like_geographic_extent(domain: list | tuple | None) -> bool:
@@ -42,6 +48,16 @@ def resolve_plot_extent(
             stacklevel=2,
         )
     return DEFAULT_FRANCE_EXTENT.copy()
+
+
+def get_shared_metric_levels(metric: str, scale: str) -> np.ndarray:
+    """Return fixed comparison levels shared across methods for a metric/scale."""
+    key = (metric.lower(), scale.lower())
+    if key not in SHARED_METRIC_LEVELS:
+        raise ValueError(
+            f"Unsupported shared metric level request for metric={metric!r}, scale={scale!r}"
+        )
+    return SHARED_METRIC_LEVELS[key].copy()
 
 def plot_map_image(var,
                     var_desc: str | None = None,
@@ -117,6 +133,7 @@ def plot_map_contour(var,
                      fig_projection: ccrs.Projection | None = None,
                      data_projection: ccrs.Projection | None = None,
                      levels: list | None = None,
+                     extend: str = "neither",
                      domain: list | None = None,
                      plot_extent: list | None = None,
                      title: str | None = None,
@@ -131,6 +148,7 @@ def plot_map_contour(var,
         fig_projection (ccrs.Projection, optional): The map projection for the figure. Defaults to PlateCarree.
         data_projection (ccrs.Projection, optional): The projection of the input data. Defaults to PlateCarree.
         levels (list, optional): Contour levels for the plot. If None, levels are automatically determined.
+        extend (str, optional): Colorbar extension behaviour for out-of-range values.
         domain (list, optional): Data extent passed to contourf in the input data projection.
         plot_extent (list, optional): Geographic map view extent in the format
             [min_lon, max_lon, min_lat, max_lat]. Defaults to the geographic
@@ -154,6 +172,7 @@ def plot_map_contour(var,
     cs = ax.contourf(var,
                      cmap=cmap,
                      levels=levels,
+                     extend=extend,
                      extent=domain,
                      transform=data_projection
                      )
@@ -162,7 +181,7 @@ def plot_map_contour(var,
     ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
     ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
 
-    cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.8)
+    cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.8, ticks=levels)
     cbar.set_label(label=var_desc, size=14, labelpad=10)
     cbar.ax.tick_params(labelsize=14)
     plt.tight_layout()

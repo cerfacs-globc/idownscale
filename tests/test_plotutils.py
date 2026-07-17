@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from iriscc import plotutils
 
@@ -33,3 +34,30 @@ def test_looks_like_geographic_extent_rejects_projected_domain():
 
 def test_looks_like_geographic_extent_accepts_lon_lat_domain():
     assert plotutils.looks_like_geographic_extent([-5.0, 11.0, 41.0, 51.0]) is True
+
+
+@pytest.mark.parametrize(
+    ("metric", "scale", "expected"),
+    [
+        ("rmse", "daily", np.arange(0.0, 7.0 + 0.5, 0.5)),
+        ("rmse", "monthly", np.arange(0.0, 1.2 + 0.1, 0.1)),
+        ("bias", "daily", np.arange(-4.0, 4.0 + 0.5, 0.5)),
+        ("bias", "monthly", np.arange(-0.6, 0.6 + 0.1, 0.1)),
+    ],
+)
+def test_get_shared_metric_levels_returns_expected_ranges(metric, scale, expected):
+    levels = plotutils.get_shared_metric_levels(metric, scale)
+    np.testing.assert_allclose(levels, expected)
+
+
+def test_get_shared_metric_levels_returns_copy():
+    levels = plotutils.get_shared_metric_levels("rmse", "daily")
+    levels[0] = -999.0
+
+    fresh_levels = plotutils.get_shared_metric_levels("rmse", "daily")
+    assert fresh_levels[0] == 0.0
+
+
+def test_get_shared_metric_levels_rejects_unknown_request():
+    with pytest.raises(ValueError, match="Unsupported shared metric level request"):
+        plotutils.get_shared_metric_levels("mae", "daily")

@@ -9,7 +9,11 @@ import matplotlib.colors as mcolors
 from pathlib import Path
 
 from iriscc.settings import CONFIG,METRICS_DIR, GRAPHS_DIR
-from iriscc.plotutils import plot_map_contour, plot_monthly_var_seasonal_cycle
+from iriscc.plotutils import (
+    get_shared_metric_levels,
+    plot_map_contour,
+    plot_monthly_var_seasonal_cycle,
+)
 
 parser = argparse.ArgumentParser(description="Predict and plot results for full period")
 parser.add_argument("--exp", type=str, help="Experiment name (e.g., exp1)")
@@ -43,43 +47,29 @@ rmse_spatial = rmse_spatial.reshape(h, w)
 bias_spatial = bias_spatial.reshape(h, w)
 print(np.nanmax(bias_spatial), np.nanmax(rmse_spatial))
 
-
-def nice_levels(data: np.ndarray, *, n_levels: int = 13, floor: float | None = None, ceil: float | None = None) -> np.ndarray:
-    lo = float(np.nanmin(data)) if floor is None else floor
-    hi = float(np.nanmax(data)) if ceil is None else ceil
-    if np.isclose(lo, hi):
-        hi = lo + 1.0
-    return np.linspace(lo, hi, n_levels)
-
-
-def nice_symmetric_levels(data: np.ndarray, *, n_levels: int = 13, minimum_abs: float | None = None) -> np.ndarray:
-    limit = float(np.nanmax(np.abs(data)))
-    if minimum_abs is not None:
-        limit = max(limit, minimum_abs)
-    if np.isclose(limit, 0.0):
-        limit = 1.0
-    return np.linspace(-limit, limit, n_levels)
-
 # Spatial distribution
 ## RMSE
-if args.scale == "daily":
-    levels = nice_levels(rmse_spatial, floor=np.floor(np.nanmin(rmse_spatial)), ceil=np.ceil(np.nanmax(rmse_spatial)))
-else:
-    levels = nice_levels(rmse_spatial, floor=0.0, ceil=max(0.9, float(np.ceil(np.nanmax(rmse_spatial) * 10.0) / 10.0)))
-colors = [
+levels = get_shared_metric_levels("rmse", args.scale)
+rmse_palette = [
     "#9ecae1", "#3182bd", "#08519c",
     "#a1d99b", "#41ab5d", "#006d2c",  # Vert clair -> foncé
     "#ffeda0", "#feb24c", "#d45f00",
     "#fc9272", "#de2d26", "#a50f15"   # Rouge clair -> foncé
 
 ]
+rmse_cmap = mcolors.LinearSegmentedColormap.from_list(
+    "shared_rmse",
+    rmse_palette,
+    N=len(levels) - 1,
+)
 fig, ax = plot_map_contour(rmse_spatial,
                     domain = domain,
                     data_projection = CONFIG[args.exp]["data_projection"],
                     fig_projection = CONFIG[args.exp]["fig_projection"],
                     title = f"{args.scale} {args.test_name} ({target})",
-                    cmap=mcolors.ListedColormap(colors[:len(levels) - 1]),
+                    cmap=rmse_cmap,
                     levels=levels ,
+                    extend="max",
                     var_desc="RMSE (K)")
 ax.text(0.03, 0.07, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}",
         transform=ax.transAxes, fontsize=10, verticalalignment="top", zorder=10,
@@ -88,8 +78,7 @@ ax.text(0.03, 0.07, f"Mean spatial RMSE: {np.nanmean(rmse_spatial):.2f}",
 plt.savefig(graph_dir / f"{args.scale}_spatial_rmse_distribution_{args.test_name}.png")
 
 ## Bias
-minimum_bias = 0.08 if args.scale == "monthly" else 1.0
-levels = nice_symmetric_levels(bias_spatial, minimum_abs=minimum_bias)
+levels = get_shared_metric_levels("bias", args.scale)
 fig, ax = plot_map_contour(bias_spatial,
                     domain = domain,
                     data_projection = CONFIG[args.exp]["data_projection"],
@@ -97,6 +86,7 @@ fig, ax = plot_map_contour(bias_spatial,
                     title = f"{args.scale} {args.test_name} ({target})",
                     cmap="BrBG",
                     levels=levels,
+                    extend="both",
                     var_desc="Bias (K)")
 ax.text(0.03, 0.07, f"Mean spatial Bias: {np.nanmean(bias_spatial):.2f}",
         transform=ax.transAxes, fontsize=10, verticalalignment="top", zorder=10,
