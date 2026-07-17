@@ -8,6 +8,7 @@ author : Zoé GARCIA
 """
 
 import sys
+
 sys.path.append(".")
 
 from torch.utils.data import Dataset, DataLoader
@@ -18,17 +19,11 @@ from torch import Tensor
 
 from iriscc.settings import get_train_split_dates
 from iriscc.hparams import IRISCCHyperParameters
-from iriscc.transforms import (MinMaxNormalisation,
-                               LandSeaMask,
-                               Pad,
-                               FillMissingValue,
-                               Log10Transform)
+from iriscc.transforms import MinMaxNormalisation, LandSeaMask, Pad, FillMissingValue, Log10Transform
+
 
 class IRISCC(Dataset):
-    def __init__(self,
-                 transform: v2.Compose | None,
-                 hparams: IRISCCHyperParameters,
-                 data_type: str = "train"):
+    def __init__(self, transform: v2.Compose | None, hparams: IRISCCHyperParameters, data_type: str = "train"):
         """
         A custom PyTorch Dataset for loading and transforming IRISCC data.
 
@@ -48,9 +43,9 @@ class IRISCC(Dataset):
         test_start = np.where(list_data == str(self.sample_dir / f"sample_{split_dates[2]}.npz"))[0][0]
 
         if self.data_type == "train":
-            self.samples = list_data[train_start:val_start-1]
+            self.samples = list_data[train_start : val_start - 1]
         elif self.data_type == "val":
-            self.samples = list_data[val_start:test_start-1]
+            self.samples = list_data[val_start : test_start - 1]
         elif self.data_type == "test":
             self.samples = list_data[test_start:]
 
@@ -93,17 +88,16 @@ def get_dataloaders(data_type: str, hparams: IRISCCHyperParameters | None = None
     """
     if hparams is None:
         hparams = IRISCCHyperParameters()
-    transforms = v2.Compose([
-                Log10Transform(hparams.channels),
-                MinMaxNormalisation(hparams.statistics_dir, hparams.output_norm, hparams.output_range),
-                LandSeaMask(hparams.mask, hparams.fill_value),
-                FillMissingValue(hparams.fill_value),
-                Pad(hparams.fill_value)
-                ])
-    training_data = IRISCC(transform=transforms,
-                            hparams=hparams,
-                            data_type=data_type)
-
+    transforms = v2.Compose(
+        [
+            Log10Transform(hparams.channels),
+            MinMaxNormalisation(hparams.statistics_dir, hparams.output_norm, hparams.output_range),
+            LandSeaMask(hparams.mask, hparams.fill_value),
+            FillMissingValue(hparams.fill_value),
+            Pad(hparams.fill_value),
+        ]
+    )
+    training_data = IRISCC(transform=transforms, hparams=hparams, data_type=data_type)
 
     if data_type == "train":
         shuffle = True
@@ -112,20 +106,18 @@ def get_dataloaders(data_type: str, hparams: IRISCCHyperParameters | None = None
 
     if data_type == "train":
         batch_size = hparams.batch_size
-    else :
+    else:
         batch_size = 1
 
-    return DataLoader(training_data,
-                      batch_size=batch_size,
-                      shuffle=shuffle,
-                      num_workers=1)
+    return DataLoader(training_data, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+
 
 if __name__ == "__main__":
     train_dataloader = get_dataloaders("test")
     for batch in train_dataloader:
         x = batch[0][0, :, :, :]
         y = batch[1][0, :, :, :]
-        y[y == -1.] = torch.nan
+        y[y == -1.0] = torch.nan
 
         print(x.shape, y.shape)
         print(y)

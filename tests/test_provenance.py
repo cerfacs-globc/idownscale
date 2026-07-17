@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from iriscc.provenance import describe_path, inventory_paths
 
 

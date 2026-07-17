@@ -9,21 +9,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-sys.path.append('.')
+sys.path.append(".")
 
 DEFAULT_FRANCE_EXTENT = [-5.0, 11.0, 41.0, 51.0]
+SHARED_METRIC_LEVELS = {
+    ("rmse", "daily"): np.arange(0.0, 7.0 + 0.5, 0.5),
+    ("rmse", "monthly"): np.arange(0.0, 1.2 + 0.1, 0.1),
+    ("bias", "daily"): np.arange(-4.0, 4.0 + 0.5, 0.5),
+    ("bias", "monthly"): np.arange(-0.6, 0.6 + 0.1, 0.1),
+}
 
 
 def looks_like_geographic_extent(domain: list | tuple | None) -> bool:
     if domain is None or len(domain) != 4:
         return False
     lon_min, lon_max, lat_min, lat_max = [float(value) for value in domain]
-    return (
-        -180.0 <= lon_min <= 180.0
-        and -180.0 <= lon_max <= 180.0
-        and -90.0 <= lat_min <= 90.0
-        and -90.0 <= lat_max <= 90.0
-    )
+    return -180.0 <= lon_min <= 180.0 and -180.0 <= lon_max <= 180.0 and -90.0 <= lat_min <= 90.0 and -90.0 <= lat_max <= 90.0
 
 
 def resolve_plot_extent(
@@ -43,18 +44,29 @@ def resolve_plot_extent(
         )
     return DEFAULT_FRANCE_EXTENT.copy()
 
-def plot_map_image(var,
-                    var_desc: str | None = None,
-                    cmap: str = 'OrRd',
-                    vmin: float | None = None,
-                    vmax: float | None = None,
-                    domain: list | None = None,
-                    plot_extent: list | None = None,
-                    fig_projection: ccrs.Projection | None = None,
-                    data_projection: ccrs.Projection | None = None,
-                    title: str | None = None,
-                    save_dir: str | None = None
-                   ):
+
+def get_shared_metric_levels(metric: str, scale: str) -> np.ndarray:
+    """Return fixed comparison levels shared across methods for a metric/scale."""
+    key = (metric.lower(), scale.lower())
+    if key not in SHARED_METRIC_LEVELS:
+        message = f"Unsupported shared metric level request for metric={metric!r}, scale={scale!r}"
+        raise ValueError(message)
+    return SHARED_METRIC_LEVELS[key].copy()
+
+
+def plot_map_image(
+    var,
+    var_desc: str | None = None,
+    cmap: str = "OrRd",
+    vmin: float | None = None,
+    vmax: float | None = None,
+    domain: list | None = None,
+    plot_extent: list | None = None,
+    fig_projection: ccrs.Projection | None = None,
+    data_projection: ccrs.Projection | None = None,
+    title: str | None = None,
+    save_dir: str | None = None,
+):
     """Plots a 2D map image using the provided data and configurations.
 
     Args:
@@ -72,33 +84,22 @@ def plot_map_image(var,
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): Path to save the plot as an image file. If None, the function returns the figure and axis objects. Defaults to None.
 
-    Returns:
+    Returns
+    -------
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
-
     if fig_projection is None:
         fig_projection = ccrs.PlateCarree()
     if data_projection is None:
         data_projection = ccrs.PlateCarree()
 
-    fig, ax = plt.subplots(
-        figsize=(6,5),
-        subplot_kw={"projection": fig_projection}
-    )
+    fig, ax = plt.subplots(figsize=(6, 5), subplot_kw={"projection": fig_projection})
 
-    img = ax.imshow(
-        var,
-        extent=domain,
-        transform=data_projection,
-        origin='lower',
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax
-    )
+    img = ax.imshow(var, extent=domain, transform=data_projection, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax)
     ax.set_extent(resolve_plot_extent(domain, plot_extent), crs=ccrs.PlateCarree())
-    ax.add_feature(cfeature.OCEAN, facecolor='white', zorder=100, edgecolor='black')
-    ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
-    ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
+    ax.add_feature(cfeature.OCEAN, facecolor="white", zorder=100, edgecolor="black")
+    ax.add_feature(cfeature.COASTLINE, edgecolor="black", linewidth=1, zorder=10)
+    ax.add_feature(cfeature.BORDERS, linestyle="--", linewidth=1, edgecolor="gray", zorder=10)
 
     cbar = plt.colorbar(img, ax=ax, pad=0.05, shrink=0.8)
     cbar.set_label(label=var_desc, size=14, labelpad=10)
@@ -107,21 +108,23 @@ def plot_map_image(var,
     plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
         return fig, ax
-    else:
-        plt.savefig(save_dir)
-        return None
+    plt.savefig(save_dir)
+    return None
 
-def plot_map_contour(var,
-                     var_desc: str | None = None,
-                     cmap: str = "OrRd",
-                     fig_projection: ccrs.Projection | None = None,
-                     data_projection: ccrs.Projection | None = None,
-                     levels: list | None = None,
-                     domain: list | None = None,
-                     plot_extent: list | None = None,
-                     title: str | None = None,
-                     save_dir: str | None = None
-                     ):
+
+def plot_map_contour(
+    var,
+    var_desc: str | None = None,
+    cmap: str = "OrRd",
+    fig_projection: ccrs.Projection | None = None,
+    data_projection: ccrs.Projection | None = None,
+    levels: list | None = None,
+    extend: str = "neither",
+    domain: list | None = None,
+    plot_extent: list | None = None,
+    title: str | None = None,
+    save_dir: str | None = None,
+):
     """Plots a contour map using the provided data and configurations.
 
     Args:
@@ -131,6 +134,7 @@ def plot_map_contour(var,
         fig_projection (ccrs.Projection, optional): The map projection for the figure. Defaults to PlateCarree.
         data_projection (ccrs.Projection, optional): The projection of the input data. Defaults to PlateCarree.
         levels (list, optional): Contour levels for the plot. If None, levels are automatically determined.
+        extend (str, optional): Colorbar extension behaviour for out-of-range values.
         domain (list, optional): Data extent passed to contourf in the input data projection.
         plot_extent (list, optional): Geographic map view extent in the format
             [min_lon, max_lon, min_lat, max_lat]. Defaults to the geographic
@@ -138,7 +142,8 @@ def plot_map_contour(var,
         title (str, optional): Title of the plot. Defaults to None.
         save_dir (str, optional): File path to save the plot. If None, the function returns the figure and axis objects.
 
-    Returns:
+    Returns
+    -------
         tuple: A tuple containing the figure and axis objects if `save_dir` is None. Otherwise, saves the plot to the specified directory.
     """
     if fig_projection is None:
@@ -146,35 +151,27 @@ def plot_map_contour(var,
     if data_projection is None:
         data_projection = ccrs.PlateCarree()
 
-    fig, ax = plt.subplots(
-        figsize=(6, 5),
-        subplot_kw={"projection": fig_projection}
-    )
+    fig, ax = plt.subplots(figsize=(6, 5), subplot_kw={"projection": fig_projection})
 
-    cs = ax.contourf(var,
-                     cmap=cmap,
-                     levels=levels,
-                     extent=domain,
-                     transform=data_projection
-                     )
+    cs = ax.contourf(var, cmap=cmap, levels=levels, extend=extend, extent=domain, transform=data_projection)
     ax.set_extent(resolve_plot_extent(domain, plot_extent), crs=ccrs.PlateCarree())
-    ax.add_feature(cfeature.OCEAN, facecolor='white', zorder=100, edgecolor='black')
-    ax.add_feature(cfeature.COASTLINE, edgecolor='black', linewidth=1, zorder=10)
-    ax.add_feature(cfeature.BORDERS, linestyle='--', linewidth=1, edgecolor='gray', zorder=10)
+    ax.add_feature(cfeature.OCEAN, facecolor="white", zorder=100, edgecolor="black")
+    ax.add_feature(cfeature.COASTLINE, edgecolor="black", linewidth=1, zorder=10)
+    ax.add_feature(cfeature.BORDERS, linestyle="--", linewidth=1, edgecolor="gray", zorder=10)
 
-    cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.8)
+    cbar = plt.colorbar(cs, ax=ax, pad=0.05, shrink=0.8, ticks=levels)
     cbar.set_label(label=var_desc, size=14, labelpad=10)
     cbar.ax.tick_params(labelsize=14)
     plt.tight_layout()
     plt.title(title, fontsize=16, pad=10)
     if save_dir is None:
         return fig, ax
-    else:
-        plt.savefig(save_dir)
-        return None
+    plt.savefig(save_dir)
+    return None
+
 
 def plot_test(var: np.ndarray, save_dir: str, title: str | None = None, vmin: float | None = None, vmax: float | None = None):
-    '''
+    """
     Simple test plot function.
 
     Args:
@@ -183,31 +180,28 @@ def plot_test(var: np.ndarray, save_dir: str, title: str | None = None, vmin: fl
         save_dir (str): Path to save the generated plot.
         vmin (float, optional): Minimum value for colormap scaling. Defaults to None.
         vmax (float, optional): Maximum value for colormap scaling. Defaults to None.
-    Returns:
-        None
-    '''
 
+    Returns
+    -------
+        None
+    """
     var = np.flip(var, axis=0)
     _, ax = plt.subplots()
-    im = ax.imshow(var, aspect='equal', cmap='OrRd', vmin=vmin, vmax=vmax)
+    im = ax.imshow(var, aspect="equal", cmap="OrRd", vmin=vmin, vmax=vmax)
     plt.colorbar(im, ax=ax, pad=0.05)
     plt.title(title)
     plt.savefig(save_dir)
 
+
 def plot_contour(var, title, save_dir, levels=None):
     _, ax = plt.subplots()
-    cs = ax.contourf(var, cmap='Paired', levels=levels)
+    cs = ax.contourf(var, cmap="Paired", levels=levels)
     plt.colorbar(cs, ax=ax, pad=0.05)
     plt.title(title)
     plt.savefig(save_dir)
 
-def plot_monthly_var_seasonal_cycle(
-    var_temporal: np.ndarray,
-    dates: np.ndarray,
-    title: str,
-    var_desc: str,
-    save_dir: str
-) -> None:
+
+def plot_monthly_var_seasonal_cycle(var_temporal: np.ndarray, dates: np.ndarray, title: str, var_desc: str, save_dir: str) -> None:
     """Plots the seasonal cycle of a variable.
 
     Shows the mean monthly values and individual yearly trends,
@@ -225,47 +219,54 @@ def plot_monthly_var_seasonal_cycle(
     -------
     None
     """
-    df_var = pd.DataFrame({'date': dates, 'var_temporal': var_temporal})
-    df_var['date'] = pd.to_datetime(df_var['date'])
+    df_var = pd.DataFrame({"date": dates, "var_temporal": var_temporal})
+    df_var["date"] = pd.to_datetime(df_var["date"])
 
     # Determine if the data is daily or monthly
-    if len(df_var['date'].dt.day.unique()) > 1:  # Data is daily
-        df_var['month'] = df_var['date'].dt.month
-        df_var['year'] = df_var['date'].dt.year
-        var_monthly_mean = df_var.groupby('month')['var_temporal'].mean()
-        var_per_year = df_var.pivot_table(index='month', columns='year', values='var_temporal')
+    if len(df_var["date"].dt.day.unique()) > 1:  # Data is daily
+        df_var["month"] = df_var["date"].dt.month
+        df_var["year"] = df_var["date"].dt.year
+        var_monthly_mean = df_var.groupby("month")["var_temporal"].mean()
+        var_per_year = df_var.pivot_table(index="month", columns="year", values="var_temporal")
     else:  # Data is already monthly
-        df_var['month'] = df_var['date'].dt.month
-        df_var['year'] = df_var['date'].dt.year
-        var_monthly_mean = df_var.groupby('month')['var_temporal'].mean()
-        var_per_year = df_var.pivot_table(index='month', columns='year', values='var_temporal')
+        df_var["month"] = df_var["date"].dt.month
+        df_var["year"] = df_var["date"].dt.year
+        var_monthly_mean = df_var.groupby("month")["var_temporal"].mean()
+        var_per_year = df_var.pivot_table(index="month", columns="year", values="var_temporal")
 
     plt.figure(figsize=(10, 6))
     plt.suptitle(title, fontsize=16)
     ax = plt.gca()
-    plt.plot(var_monthly_mean.index, var_monthly_mean.values, label='Mean', color='red', linewidth=2)
+    plt.plot(var_monthly_mean.index, var_monthly_mean.values, label="Mean", color="red", linewidth=2)
     for year in var_per_year.columns:
-        plt.plot(var_per_year.index, var_per_year[year], label=str(year), alpha=0.3, linestyle='--')
+        plt.plot(var_per_year.index, var_per_year[year], label=str(year), alpha=0.3, linestyle="--")
     plt.xticks(
         ticks=np.arange(1, 13),
         labels=["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
         fontsize=12,
     )
-    plt.ylabel(f'{var_desc}')
-    plt.xlabel('Month')
-    plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.legend(loc='upper right', fontsize=12, ncol=2)
-    ax.text(0.02, 0.10, f"Mean temporal {var_desc}: {np.mean(var_temporal):.2f}", transform=ax.transAxes, fontsize=12,
-        verticalalignment='top', horizontalalignment='left', color='red')
+    plt.ylabel(f"{var_desc}")
+    plt.xlabel("Month")
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+    plt.legend(loc="upper right", fontsize=12, ncol=2)
+    ax.text(
+        0.02,
+        0.10,
+        f"Mean temporal {var_desc}: {np.mean(var_temporal):.2f}",
+        transform=ax.transAxes,
+        fontsize=12,
+        verticalalignment="top",
+        horizontalalignment="left",
+        color="red",
+    )
     plt.tight_layout()
     plt.savefig(save_dir)
 
 
 def plot_histogram(data, ax, labels, colors, xlabel):
     for i in range(len(data)):
-        ax.hist(data[i], histtype='step', color=colors[i],
-                label=labels[i], density=True, range=(260,310), bins=100, linewidth=2)
-        ax.axvline(np.nanmean(data[i]), color=colors[i], linestyle='--', linewidth=2)
+        ax.hist(data[i], histtype="step", color=colors[i], label=labels[i], density=True, range=(260, 310), bins=100, linewidth=2)
+        ax.axvline(np.nanmean(data[i]), color=colors[i], linestyle="--", linewidth=2)
     ax.set_ylim(0, 0.07)
     ax.set_xlabel(xlabel)
     ax.legend()

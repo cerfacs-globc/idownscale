@@ -27,8 +27,10 @@ from iriscc.settings import (
     normalize_variable_group_tag,
 )
 
+
 def test_repo_dir_exists():
     assert REPO_DIR.exists()
+
 
 def test_exp5_config():
     assert "exp5" in CONFIG
@@ -138,6 +140,7 @@ def test_bias_corrected_netcdf_names_encode_experiment_windows():
     assert "_exp5_bc" in exp5_path.name
     assert "_expc_bc" in expc_path.name
     assert exp5_path.name != expc_path.name
+
 
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="datasets directory not present in CI")
 def test_dataset_dir_exists():
