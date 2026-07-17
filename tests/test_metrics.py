@@ -1,6 +1,6 @@
 import torch
-import pytest
 from iriscc.metrics import MaskedRMSE, MaskedMAE
+
 
 def test_masked_rmse():
     rmse = MaskedRMSE()
@@ -10,6 +10,7 @@ def test_masked_rmse():
     rmse.update(x, y)
     val = rmse.compute()
     assert torch.isclose(val, torch.tensor(2.5**0.5))
+
 
 def test_masked_mae():
     mae = MaskedMAE()

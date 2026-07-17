@@ -44,10 +44,7 @@ def require_match(
         return matches
     if len(matches) > 1:
         joined = ", ".join(str(path.name) for path in matches)
-        message = (
-            f"Expected exactly one {description} under {root_path} matching {pattern}, "
-            f"found {len(matches)}: {joined}"
-        )
+        message = f"Expected exactly one {description} under {root_path} matching {pattern}, found {len(matches)}: {joined}"
         raise FileExistsError(message)
     return matches[0]
 
