@@ -548,6 +548,8 @@ def get_prediction_output_path(
 
 
 def get_metrics_test_name(test_name: str, simu_test: str | None = None) -> str:
+    if test_name.endswith("_raw"):
+        return test_name
     if simu_test:
         return f"{test_name}_{simu_test}"
     return test_name

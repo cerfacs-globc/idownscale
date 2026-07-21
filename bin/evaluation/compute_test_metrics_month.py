@@ -34,6 +34,7 @@ from iriscc.settings import (CONFIG,
                              GRAPHS_DIR,
                              METRICS_DIR,
                              DATASET_DIR,
+                             get_metrics_test_name,
                              )
 
 
@@ -173,8 +174,7 @@ if __name__=='__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model, transforms, sample_dir = get_config(exp, test_name, simu_test, args.checkpoint_bundle, device)
 
-    if simu_test:
-        test_name = f'{test_name}_{simu_test}'
+    test_name = get_metrics_test_name(test_name, simu_test)
     graph_dir = GRAPHS_DIR/f'metrics/{exp}/{test_name}/'
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
     os.makedirs(graph_dir, exist_ok=True)
