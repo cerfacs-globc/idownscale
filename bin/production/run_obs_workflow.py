@@ -36,6 +36,7 @@ from iriscc.settings import (
     get_experiment_prediction_frequency,
     get_experiment_training_frequency,
     get_frequency_pandas_rule,
+    get_metrics_test_name,
     get_bias_corrected_netcdf_path,
     get_phase1_dates,
     get_prediction_output_path,
@@ -370,7 +371,7 @@ def main() -> int:
         raw_dataset_dir
         / f"sample_{format_sample_time_token(get_bc_test_future_dates(exp)[0], get_experiment_prediction_frequency(exp))}.npz",
     ]
-    prediction_test_name = f"{args.test_name}_{workflow_simu_test}" if args.test_name and workflow_simu_test else args.test_name
+    prediction_test_name = get_metrics_test_name(args.test_name, workflow_simu_test) if args.test_name else None
     prediction_outputs = []
     if prediction_test_name:
         prediction_outputs = [
@@ -387,7 +388,7 @@ def main() -> int:
     value_outputs = []
     if args.test_name:
         value_outputs = [METRICS_DIR / exp / f"value_metrics_{exp}_{args.test_name}.csv"]
-    metrics_test_name = f"{args.test_name}_{workflow_simu_test}" if args.test_name and workflow_simu_test else args.test_name
+    metrics_test_name = get_metrics_test_name(args.test_name, workflow_simu_test) if args.test_name else None
     metrics_day_outputs = []
     metrics_month_outputs = []
     plot_day_outputs = []

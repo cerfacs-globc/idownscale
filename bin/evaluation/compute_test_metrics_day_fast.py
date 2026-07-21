@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 sys.path.append('.')
 from iriscc.settings import (CONFIG, PREDICTION_DIR, DATASET_BC_DIR,
-                             DATES_BC_TEST_HIST, METRICS_DIR)
+                             DATES_BC_TEST_HIST, METRICS_DIR, get_metrics_test_name)
 
 def main():
     parser = argparse.ArgumentParser(description="Fast vectorized legacy metrics")
@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--startdate', type=str, default=DATES_BC_TEST_HIST[0].strftime('%Y%m%d'), help='Start date')
     parser.add_argument('--enddate', type=str, default=DATES_BC_TEST_HIST[-1].strftime('%Y%m%d'), help='End date')
     args = parser.parse_args()
+    metrics_test_name = get_metrics_test_name(args.test_name, args.simu_test)
 
     # Paths
     metric_dir = METRICS_DIR / args.exp / 'mean_metrics'
@@ -33,7 +34,7 @@ def main():
     period = 'historical' if pd.Timestamp(args.enddate) <= DATES_BC_TEST_HIST[-1] else CONFIG[args.exp].get('ssp', 'ssp585')
     pred_files = list(
         PREDICTION_DIR.glob(
-            f'tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{args.test_name}_{args.simu_test}.nc'
+            f'tas*{period}*{args.startdate}_{args.enddate}_{args.exp}_{metrics_test_name}.nc'
         )
     )
     if not pred_files:
@@ -128,7 +129,7 @@ def main():
     }
     
     df = pd.DataFrame(d_mean, index=['all', 'summer', 'winter'])
-    csv_path = metric_dir / f'metrics_test_mean_daily_{args.exp}_{args.test_name}_{args.simu_test}.csv'
+    csv_path = metric_dir / f'metrics_test_mean_daily_{args.exp}_{metrics_test_name}.csv'
     df.to_csv(csv_path)
     
     # Save .npz for plot_test_metrics.py
@@ -145,7 +146,7 @@ def main():
         else:
             corr_spatial.append(np.nan)
 
-    npz_path = metric_dir / f'metrics_test_daily_{args.exp}_{args.test_name}_{args.simu_test}.npz'
+    npz_path = metric_dir / f'metrics_test_daily_{args.exp}_{metrics_test_name}.npz'
     np.savez(npz_path, 
              rmse_temporal=np.array(rmse_temporal),
              rmse_spatial=rmse_spatial_all.flatten(),

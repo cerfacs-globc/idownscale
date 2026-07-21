@@ -42,6 +42,10 @@ def test_prediction_output_path_matches_metrics_default_naming():
     assert path.name.endswith("_20000101_20141231_exp5_unet_all_gcm_bc.nc")
 
 
+def test_metrics_test_name_keeps_raw_alias_without_simu_suffix():
+    assert settings.get_metrics_test_name("gcm_raw", "gcm") == "gcm_raw"
+
+
 def test_default_comparison_step_is_added_for_evaluation_steps():
     workflow = load_workflow_module()
 

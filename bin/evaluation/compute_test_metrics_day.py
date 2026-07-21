@@ -32,7 +32,8 @@ from iriscc.transforms import DeMinMaxNormalisation, MinMaxNormalisation, LandSe
 from iriscc.settings import (CONFIG,
                              DATES_BC_TEST_HIST,
                              METRICS_DIR,
-                             DATASET_DIR)
+                             DATASET_DIR,
+                             get_metrics_test_name)
 
 
 def _seasonal_stack(values):
@@ -163,8 +164,7 @@ if __name__=='__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model, transforms, sample_dir = get_config(exp, test_name, simu_test, args.checkpoint_bundle, device)
 
-    if simu_test:
-        test_name = f'{test_name}_{simu_test}'
+    test_name = get_metrics_test_name(test_name, simu_test)
     metric_dir = METRICS_DIR/f'{exp}/mean_metrics'
     os.makedirs(metric_dir, exist_ok=True)
 
