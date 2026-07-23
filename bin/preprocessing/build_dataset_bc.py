@@ -44,6 +44,19 @@ def require_expected_time_length(ds, dates, source_name: str, var: str, label: s
     return ds
 
 
+def require_expected_array_time_length(values, dates, source_name: str, var: str, label: str, source_file=None):
+    expected = len(pd.DatetimeIndex(dates))
+    actual = int(np.asarray(values).shape[0])
+    if actual != expected:
+        file_context = f" from {Path(source_file).name}" if source_file is not None else ""
+        raise ValueError(
+            f"BC {label} array for source '{source_name}' variable '{var}'{file_context} has {actual} time steps, "
+            f"but {expected} were requested ({pd.DatetimeIndex(dates)[0]} -> {pd.DatetimeIndex(dates)[-1]}). "
+            "This usually means the time dimension was lost during regridding or stacking."
+        )
+    return values
+
+
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Isolated Decoupled BC Dataset Builder")
     parser.add_argument("--simu", type=str, default="simu")
@@ -195,13 +208,21 @@ if __name__=="__main__":
                         method=target_regrid_method,
                         input_projection=input_projection,
                     )
-                simu_vars.append(ds_simu[var].values)
+                simu_values = require_expected_array_time_length(
+                    ds_simu[var].values,
+                    batch_dates,
+                    simu_source,
+                    var,
+                    f"{label} simulation",
+                    batch_file,
+                )
+                simu_vars.append(simu_values)
 
             if not is_future:
                 era5_vars = []
                 for var in variables:
                     era5_batch_list = []
-                    for _, era5_batch_dates in grouped_dates_for_source(bc_reanalysis_source, batch_dates):
+                    for era5_file, era5_batch_dates in grouped_dates_for_source(bc_reanalysis_source, batch_dates):
                         ds_era5 = load_batch_dataset(
                             bc_reanalysis_source,
                             era5_batch_dates,
@@ -213,11 +234,37 @@ if __name__=="__main__":
                             ds_target=target_grid,
                             method=target_regrid_method,
                         )
-                        era5_batch_list.append(ds_target_regrid[var].values)
+                        era5_values = require_expected_array_time_length(
+                            ds_target_regrid[var].values,
+                            era5_batch_dates,
+                            bc_reanalysis_source,
+                            var,
+                            f"{label} reference after regridding",
+                            era5_file,
+                        )
+                        era5_batch_list.append(era5_values)
                     era5_vars.append(np.concatenate(era5_batch_list, axis=0))
-                era5_list.append(np.stack(era5_vars, axis=-1) if paired_vars else era5_vars[0])
+                era5_stack = np.stack(era5_vars, axis=-1) if paired_vars else era5_vars[0]
+                era5_stack = require_expected_array_time_length(
+                    era5_stack,
+                    batch_dates,
+                    bc_reanalysis_source,
+                    ",".join(variables),
+                    f"{label} reference stack",
+                    batch_file,
+                )
+                era5_list.append(era5_stack)
 
-            simu_list.append(np.stack(simu_vars, axis=-1) if paired_vars else simu_vars[0])
+            simu_stack_batch = np.stack(simu_vars, axis=-1) if paired_vars else simu_vars[0]
+            simu_stack_batch = require_expected_array_time_length(
+                simu_stack_batch,
+                batch_dates,
+                simu_source,
+                ",".join(variables),
+                f"{label} simulation stack",
+                batch_file,
+            )
+            simu_list.append(simu_stack_batch)
 
         # Persistence Logic (Isolated Schema)
         simu_stack = np.concatenate(simu_list, axis=0)
@@ -231,7 +278,15 @@ if __name__=="__main__":
 
         save_dict = {args.simu: simu_stack, "dates": dates}
         if not is_future:
-            save_dict["era5"] = np.concatenate(era5_list, axis=0)
+            reference_stack = np.concatenate(era5_list, axis=0)
+            reference_stack = require_expected_array_time_length(
+                reference_stack,
+                dates,
+                bc_reanalysis_source,
+                ",".join(variables),
+                f"{label} reference final",
+            )
+            save_dict["era5"] = reference_stack
         if paired_vars:
             save_dict["variables"] = np.asarray(variables, dtype=str)
 

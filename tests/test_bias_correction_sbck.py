@@ -67,3 +67,24 @@ def test_materialize_corrected_samples_uses_requested_scalar_variable(tmp_path, 
     np.testing.assert_array_equal(sample["x"][0], np.full((2, 2), 42.0, dtype=np.float32))
     np.testing.assert_array_equal(sample["x"][1], corrected_ds["psl"].isel(time=0).values.astype(np.float32))
     np.testing.assert_array_equal(sample["y"], np.expand_dims(np.full((2, 2), 7.0, dtype=np.float32), axis=0))
+
+
+def test_bc_dataset_array_time_validation_identifies_source_file():
+    module_path = Path(__file__).resolve().parents[1] / "bin/preprocessing/build_dataset_bc.py"
+    spec = spec_from_file_location("build_dataset_bc", module_path)
+    module = module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    with np.testing.assert_raises_regex(
+        ValueError,
+        "source 'cerra'.*variable 'uas'.*uas_3h_CERRA_1985.nc.*has 1 time steps.*7305 were requested",
+    ):
+        module.require_expected_array_time_length(
+            np.zeros((1, 44, 49), dtype=np.float32),
+            np.arange("1985-01-01", "2005-01-01", dtype="datetime64[D]"),
+            "cerra",
+            "uas",
+            "train_hist reference after regridding",
+            "uas_3h_CERRA_1985.nc",
+        )
