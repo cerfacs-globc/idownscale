@@ -119,6 +119,16 @@ def bundle_obs(bundle: dict) -> np.ndarray:
     raise KeyError("BC bundle does not contain an 'obs' or legacy 'era5' reference field.")
 
 
+def validate_training_shapes(reference: np.ndarray, simulation: np.ndarray, simu: str) -> None:
+    if reference.shape != simulation.shape:
+        raise ValueError(
+            "BC training reference and simulation arrays must have identical shapes before SBCK. "
+            f"reference shape={reference.shape}, {simu} shape={simulation.shape}. "
+            "Regenerate the bc_dataset bundle and check that the reference source is time-varying "
+            "over the full training period."
+        )
+
+
 def target_sample_for_date(
     get_data: Data,
     exp: str,
@@ -213,6 +223,7 @@ def apply_sbck_cdft(train_hist: dict, test_hist: dict, test_future: dict, simu: 
     x0 = train_hist[simu]
     x1 = test_hist[simu]
     x2 = test_future[simu]
+    validate_training_shapes(y0, x0, simu)
 
     shape_train = y0.shape
     shape_hist = x1.shape

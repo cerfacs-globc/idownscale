@@ -27,6 +27,23 @@ from iriscc.settings import (ALADIN_PROJ_PYPROJ,
 
 ERA5_BC_DOMAIN_MARGIN = float(os.getenv("IDOWNSCALE_ERA5_BC_DOMAIN_MARGIN", "0.0"))
 
+
+def require_expected_time_length(ds, dates, source_name: str, var: str, label: str):
+    expected = len(pd.DatetimeIndex(dates))
+    if "time" not in ds.dims:
+        raise ValueError(
+            f"BC {label} source '{source_name}' for variable '{var}' has no time dimension. "
+            "Check that the source pattern resolves to a time-varying data file, not a static field."
+        )
+    actual = int(ds.sizes.get("time", 0))
+    if actual != expected:
+        raise ValueError(
+            f"BC {label} source '{source_name}' for variable '{var}' has {actual} time steps, "
+            f"but {expected} were requested ({pd.DatetimeIndex(dates)[0]} -> {pd.DatetimeIndex(dates)[-1]})."
+        )
+    return ds
+
+
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Isolated Decoupled BC Dataset Builder")
     parser.add_argument("--simu", type=str, default="simu")
@@ -80,7 +97,9 @@ if __name__=="__main__":
     def select_frequency_window(ds, dates, source_name):
         dates = pd.DatetimeIndex(dates).sort_values()
         if "time" not in ds.dims:
-            return ds.expand_dims(time=dates[:1])
+            raise ValueError(
+                f"Source '{source_name}' has no time dimension for requested window {dates[0]} -> {dates[-1]}."
+            )
         source_frequency = get_source_native_frequency(source_name)
         expected_frequency = get_source_default_frequency(source_name)
         if expected_frequency != workflow_frequency:
@@ -126,6 +145,7 @@ if __name__=="__main__":
         spec = get_bc_data.get_source_spec(source_name)
         ds = get_bc_data._open_source_dataset(source_name, var, date=dates[0], ssp=args.ssp)
         ds = select_frequency_window(ds, dates, source_name)
+        ds = require_expected_time_length(ds, dates, source_name, var, "dataset")
         if spec.get("geometry") != "rcm":
             ds = crop_domain_from_ds(ds, domain_override if domain_override is not None else get_bc_data.domain)
         ds[var].values = get_bc_data.clean_data(ds[var].values, var, data_type=spec.get("data_type"))
