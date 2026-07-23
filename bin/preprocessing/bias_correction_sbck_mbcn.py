@@ -41,6 +41,16 @@ def bundle_obs(bundle: dict) -> np.ndarray:
     raise KeyError("BC bundle does not contain an 'obs' or legacy 'era5' reference field.")
 
 
+def validate_training_shapes(reference: np.ndarray, simulation: np.ndarray, simu: str) -> None:
+    if reference.shape != simulation.shape:
+        raise ValueError(
+            "BC training reference and simulation arrays must have identical shapes before SBCK MBCn. "
+            f"reference shape={reference.shape}, {simu} shape={simulation.shape}. "
+            "Regenerate the paired bc_dataset bundle and check that the reference source is time-varying "
+            "over the full training period."
+        )
+
+
 def corrected_geometry_reference(exp: str, simu: str, simu_source: str) -> str:
     if get_simu_family(exp, simu) == "rcm":
         return CONFIG[exp].get("gcm_source", "gcm_cnrm_cm6_1")
@@ -95,6 +105,7 @@ def apply_sbck_mbcn(train_hist: dict, test_hist: dict, test_future: dict, simu: 
     x0 = train_hist[simu]
     x1 = test_hist[simu]
     x2 = test_future[simu]
+    validate_training_shapes(y0, x0, simu)
 
     if y0.ndim != 4 or y0.shape[-1] != 2:
         raise ValueError("sbck_mbcn currently expects paired bundles shaped (time, y, x, 2).")
