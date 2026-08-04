@@ -56,6 +56,7 @@ def get_shared_metric_levels(metric: str, scale: str) -> np.ndarray:
 
 def plot_map_image(
     var,
+    *,
     var_desc: str | None = None,
     cmap: str = "OrRd",
     vmin: float | None = None,
@@ -114,6 +115,7 @@ def plot_map_image(
 
 def plot_map_contour(
     var,
+    *,    
     var_desc: str | None = None,
     cmap: str = "OrRd",
     fig_projection: ccrs.Projection | None = None,

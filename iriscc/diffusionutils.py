@@ -80,7 +80,7 @@ def show_forward(ddpm, loader, n_images=4, n_noise_steps=5):
         break
 
 
-def generate(cddpm, input_data, n_samples=1, neighbours=False, std=1e-1, start_t: int | None = None, clamp=None, device="cpu"):
+def generate(cddpm, input_data, *, n_samples=1, neighbours=False, std=1e-1, start_t: int | None = None, clamp=None, device="cpu"):
     """
     Generates new images using the CDDPM model.
 

@@ -155,8 +155,27 @@ if __name__=="__main__":
         return ds
 
     def load_batch_dataset(source_name, dates, var, *, domain_override=None):
+        import xarray as xr
         spec = get_bc_data.get_source_spec(source_name)
-        ds = get_bc_data._open_source_dataset(source_name, var, date=dates[0], ssp=args.ssp)
+        if spec.get("combine_files_by") == "time":
+            # For yearly-file sources (e.g. cerra), _open_source_dataset called with
+            # date=dates[0] resolves only one year's file then filters to that single
+            # day, yielding 1 time step instead of the full batch window.
+            # Fix: collect files for every year in the batch and concatenate without
+            # per-date filtering; select_frequency_window handles the range slicing.
+            years = sorted({d.year for d in pd.DatetimeIndex(dates)})
+            parts = []
+            for yr in years:
+                yr_files = get_bc_data._resolve_source_files(
+                    source_name, var, date=pd.Timestamp(f"{yr}-01-01"), ssp=args.ssp
+                )
+                for f in yr_files:
+                    ds_i = xr.open_dataset(f, engine="netcdf4")
+                    ds_i = get_bc_data._standardize_source_geometry(ds_i, spec.get("geometry", "none"))
+                    parts.append(ds_i)
+            ds = xr.concat(parts, dim="time").sortby("time")
+        else:
+            ds = get_bc_data._open_source_dataset(source_name, var, date=dates[0], ssp=args.ssp)
         ds = select_frequency_window(ds, dates, source_name)
         ds = require_expected_time_length(ds, dates, source_name, var, "dataset")
         if spec.get("geometry") != "rcm":
