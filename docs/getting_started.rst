@@ -88,6 +88,42 @@ evaluation phases can run on CPU if GPU capacity is unavailable.
 Once coarse bias correction is built, the same runner can also package raw GCM test samples
 and drive downstream prediction or VALUE evaluation steps if a trained checkpoint is available.
 
+When adapting an existing workflow to a new target dataset or a custom
+observation product, avoid copying split dates blindly from another
+experiment. Before running ``compute_statistics.py``, confirm that:
+
+* the generated ``sample_*.npz`` files cover the intended phase-1 window
+* the configured train, validation, and test anchors all exist inside that
+  sample range
+* the split ordering is strictly ``train < val < test``
+
+Choose split dates from the actual generated sample window, not from another
+experiment's BC or training period. A practical rule is:
+
+* use the first available sample date as ``train_start``
+* choose ``val_start`` and ``test_start`` chronologically inside the same
+  sample window
+* prefer simple calendar boundaries when possible, for example full-year
+  validation and test blocks
+
+Example for a sample window covering ``2020-05-04`` to ``2024-12-31``:
+
+.. code-block:: python
+
+   train_split_dates = ["20200504", "20230101", "20240101"]
+
+This yields:
+
+* training: ``2020-05-04`` to ``2022-12-31``
+* validation: ``2023-01-01`` to ``2023-12-31``
+* test: ``2024-01-01`` to ``2024-12-31``
+
+If the target grid is much finer than the static fields shipped with another
+dataset family, prepare a dedicated topography file on the exact target grid
+instead of reusing a coarse orography file. The helper
+``bin/preprocessing/prepare_target_topography.py`` can be used for this step
+with a high-resolution source such as ETOPO.
+
 Resolved Context and Provenance
 -------------------------------
 

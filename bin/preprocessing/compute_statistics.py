@@ -26,14 +26,43 @@ def update_statistics(current_sum: float,
                       min_val: float,
                       max_val: float,
                       x: np.ndarray) -> tuple[float, float, int, float, float]:
-    """Compute and update sample statistics including sum, squared sum, total count, minimum, and maximum values for a given array, ignoring NaN values."""
-    x = x[~np.isnan(x)]  # Remove NaN values
-    current_sum += np.sum(x)  # Update sum
-    square_sum += np.sum(x**2)  # Update squared sum
-    n_total += x.size  # Update total count
-    min_val = min(min_val, np.min(x))
-    max_val = max(max_val, np.max(x))
+    """Update running statistics for one channel, ignoring non-finite values."""
+    valid = np.asarray(x)[np.isfinite(x)]
+    if valid.size == 0:
+        return current_sum, square_sum, n_total, min_val, max_val
+
+    current_sum += np.sum(valid, dtype=np.float64)
+    square_sum += np.sum(valid.astype(np.float64) ** 2)
+    n_total += valid.size
+    min_val = min(min_val, float(np.min(valid)))
+    max_val = max(max_val, float(np.max(valid)))
     return current_sum, square_sum, n_total, min_val, max_val
+
+
+def resolve_split_index(dataset: np.ndarray, dataset_dir: Path, date_token: str, split_name: str) -> int:
+    expected = str((dataset_dir / f"sample_{date_token}.npz").resolve())
+    matches = np.where(dataset == expected)[0]
+    if matches.size:
+        return int(matches[0])
+
+    if dataset.size == 0:
+        raise ValueError(f"Dataset directory '{dataset_dir}' contains no sample_*.npz files.")
+
+    first = Path(dataset[0]).stem.removeprefix("sample_")
+    last = Path(dataset[-1]).stem.removeprefix("sample_")
+    raise ValueError(
+        f"Could not resolve {split_name} split '{date_token}' in '{dataset_dir}'. "
+        f"Available sample range is {first}..{last}."
+    )
+
+
+def validate_split_order(train_start: int, val_start: int, test_start: int) -> None:
+    if not (train_start < val_start < test_start):
+        raise ValueError(
+            "Invalid split ordering for statistics computation: "
+            f"train_start={train_start}, val_start={val_start}, test_start={test_start}. "
+            "Expected train < val < test."
+        )
 
 
 def plot_histogram(data,
@@ -122,13 +151,16 @@ if __name__=="__main__":
     #train_end = int(0.6 * nb)
     #val_end = train_end + int(0.2 * nb)
 
-    train_start = np.where(dataset == str((dataset_dir / f"sample_{args.train_start_date}.npz").resolve()))[0][0]
-    val_start = np.where(dataset == str((dataset_dir / f"sample_{args.val_start_date}.npz").resolve()))[0][0]
-    test_start = np.where(dataset == str((dataset_dir / f"sample_{args.test_start_date}.npz").resolve()))[0][0]
+    train_start = resolve_split_index(dataset, dataset_dir, args.train_start_date, "train")
+    val_start = resolve_split_index(dataset, dataset_dir, args.val_start_date, "validation")
+    test_start = resolve_split_index(dataset, dataset_dir, args.test_start_date, "test")
+    validate_split_order(train_start, val_start, test_start)
 
     y_data = {"train" : [],
                  "val" : [],
                  "test" : []}
+    min_vals = np.full(ch, np.inf, dtype=np.float64)
+    max_vals = np.full(ch, -np.inf, dtype=np.float64)
 
     for nb, sample in enumerate(dataset):
         print(sample)
@@ -152,12 +184,8 @@ if __name__=="__main__":
                 print(np.nanmax(x[c]))
 
         # Only training statistics are used for normalization
-        if nb in range(train_start, val_start-1):
+        if train_start <= nb < val_start:
             y_data["train"].append(y.flatten())
-            if nb == train_start:
-                min_vals, max_vals = np.nanmin(x, axis=(1, 2)), np.nanmax(x, axis=(1, 2))
-                min_vals = np.concatenate((min_vals, np.nanmin(y, axis=(1, 2))))
-                max_vals = np.concatenate((max_vals, np.nanmax(y, axis=(1, 2))))
 
             for i in range(ch):
                 if i == ch-1:
@@ -178,15 +206,24 @@ if __name__=="__main__":
 
 
         # Validation and test data histograms
-        elif nb in range(val_start, test_start-1):
+        elif val_start <= nb < test_start:
             if y is not None:
                 y_data["val"].append(y.flatten())
         elif nb >= test_start :
             if y is not None:
                 y_data["test"].append(y.flatten())
 
+    if np.any(n_total == 0):
+        empty_channels = [channels[i] for i, count in enumerate(n_total) if count == 0]
+        raise ValueError(
+            "No finite training values were found for channel(s): "
+            + ", ".join(empty_channels)
+            + ". Check the split dates and sample masks before recomputing statistics."
+        )
+
     mean = total_sum / n_total
-    std = np.sqrt((square_sum / n_total) - (mean**2))
+    variance = np.maximum((square_sum / n_total) - (mean**2), 0.0)
+    std = np.sqrt(variance)
 
     stats = {}
     for i, chanel in enumerate(channels):
@@ -199,6 +236,8 @@ if __name__=="__main__":
         json.dump(stats, f)
 
     for data_type, data_list in y_data.items():
+        if not data_list:
+            continue
         data_arr = np.concatenate(data_list)
         plot_histogram(data_arr,
                     np.nanmin(data_arr),
@@ -228,4 +267,3 @@ if __name__=="__main__":
         ),
     )
     print(f"provenance_provjson={prov_path}", flush=True)
-

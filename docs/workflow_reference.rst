@@ -116,6 +116,47 @@ For long workflows, validation should happen stage by stage:
 * confirm prediction/evaluation sample directories match the intended variant
 * confirm normalization statistics come from the intended training run
 
+Two validation points are especially important for custom observation-target
+experiments:
+
+* the phase-1 sample window must match the experiment's configured
+  ``phase1_start_date`` / ``phase1_end_date`` rather than a copied date window
+  from another workflow
+* the normalization split anchors passed to ``compute_statistics.py`` must
+  exist inside the generated ``sample_*.npz`` range and must satisfy
+  ``train < val < test``
+
+If those dates drift out of sync, the statistics stage may produce invalid
+normalization values or fail to reflect the intended training subset.
+
+Static-Field Preparation
+------------------------
+
+Target-grid static fields should be prepared explicitly and versioned with the
+experiment inputs. This is especially important for topography:
+
+* do not silently reuse a coarse elevation file from a different target grid
+* prefer a higher-resolution source such as ETOPO when the target observations
+  are substantially finer than E-OBS static fields
+* regrid the topography onto the exact target grid before phase-1 dataset
+  generation
+
+The helper script ``bin/preprocessing/prepare_target_topography.py`` supports
+that workflow. A typical command is:
+
+.. code-block:: bash
+
+   python bin/preprocessing/prepare_target_topography.py \
+     --exp exp5 \
+     --topography-input /path/to/ETOPO_file.nc \
+     --output-file /path/to/target_elevation.nc \
+     --force
+
+For custom experiments, pass the experiment-specific ``--exp`` value and, when
+needed, override ``--target-file`` and ``--output-file`` so the generated
+``elevation`` variable lands on the exact target grid consumed by dataset
+generation.
+
 Notebook Examples
 -----------------
 
