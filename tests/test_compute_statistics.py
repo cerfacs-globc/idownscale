@@ -31,7 +31,7 @@ def test_resolve_split_index_raises_with_available_range(tmp_path):
         ]
     )
 
-    with pytest.raises(ValueError, match="Available sample range is 20200504..20241231"):
+    with pytest.raises(ValueError, match=r"Available sample range is 20200504\.\.20241231"):
         module.resolve_split_index(dataset, tmp_path, "20030101", "train")
 
 
