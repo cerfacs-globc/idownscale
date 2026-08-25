@@ -10,6 +10,9 @@ from iriscc.settings import (
     REPO_DIR,
     build_time_range,
     format_sample_time_token,
+    get_bc_test_future_dates,
+    get_bc_test_hist_dates,
+    get_bc_train_hist_dates,
     get_bc_bundle_path,
     get_bias_corrected_netcdf_path,
     get_bias_corrected_sample_dir,
@@ -78,6 +81,32 @@ def test_time_helpers_support_fixed_step_prediction_tokens():
     dates = build_time_range("20000101", "20000101", "3h")
     assert dates[0].strftime("%Y%m%d%H") == "2000010100"
     assert dates[-1].strftime("%Y%m%d%H") == "2000010121"
+
+
+def test_bc_date_helpers_follow_experiment_frequency(monkeypatch):
+    monkeypatch.setitem(
+        CONFIG,
+        "exp_subdaily_test",
+        {
+            "training_frequency": "3h",
+            "bc_train_hist_start_date": "2000-01-01",
+            "bc_train_hist_end_date": "2000-01-01",
+            "bc_test_hist_start_date": "2000-01-02",
+            "bc_test_hist_end_date": "2000-01-02",
+            "bc_test_future_start_date": "2000-01-03",
+            "bc_test_future_end_date": "2000-01-03",
+        },
+    )
+
+    train = get_bc_train_hist_dates("exp_subdaily_test")
+    test_hist = get_bc_test_hist_dates("exp_subdaily_test")
+    test_future = get_bc_test_future_dates("exp_subdaily_test")
+
+    assert len(train) == 8
+    assert train[0].strftime("%Y%m%d%H") == "2000010100"
+    assert train[-1].strftime("%Y%m%d%H") == "2000010121"
+    assert len(test_hist) == 8
+    assert len(test_future) == 8
 
 
 def test_prediction_path_uses_prediction_frequency_token(monkeypatch):
