@@ -93,3 +93,38 @@ def test_apply_landseamask_supports_custom_binary_mask_file(monkeypatch, tmp_pat
 
     assert float(masked["tas"].sel(lat=45.0, lon=3.0)) == 1.0
     assert float(masked["tas"].sel(lat=45.0, lon=4.0)) != float(masked["tas"].sel(lat=45.0, lon=4.0))
+
+
+def test_apply_landseamask_supports_custom_mask_with_descending_lat(monkeypatch, tmp_path):
+    ds = xr.Dataset(
+        {"tas": (("lat", "lon"), [[1.0, 2.0], [3.0, 4.0]])},
+        coords={"lat": [44.0, 45.0], "lon": [3.0, 4.0]},
+    )
+    custom_mask = xr.Dataset(
+        {
+            "mask": (
+                ("latitude", "longitude"),
+                [
+                    [1.0, 1.0],
+                    [1.0, 0.0],
+                ],
+            )
+        },
+        coords={"latitude": [45.0, 44.0], "longitude": [3.0, 4.0]},
+    )
+
+    monkeypatch.setattr("iriscc.datautils.xr.open_dataset", lambda *args, **kwargs: custom_mask)
+
+    masked = apply_landseamask(
+        ds,
+        "custom",
+        variables=["tas"],
+        source_spec={
+            "mask_file": tmp_path / "mask.nc",
+            "mask_var": "mask",
+            "mask_geometry": "regular_latlon",
+            "mask_rule": "drop_eq_0",
+        },
+    )
+
+    assert float(masked["tas"].sel(lat=44.0, lon=4.0)) != float(masked["tas"].sel(lat=44.0, lon=4.0))

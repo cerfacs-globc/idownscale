@@ -80,3 +80,15 @@ def test_standardize_latlon_geometry_adds_xy_aliases():
     assert "lat" in ds_std.coords
     assert "x" in ds_std.coords
     assert "y" in ds_std.coords
+
+
+def test_standardize_latlon_geometry_flips_descending_latitude():
+    ds = xr.Dataset(
+        coords={"longitude": [2.0, 3.0], "latitude": [45.0, 44.0]},
+        data_vars={"tas": (("latitude", "longitude"), [[1.0, 2.0], [3.0, 4.0]])},
+    )
+
+    ds_std = standardize_latlon_geometry(ds, add_xy_aliases=True)
+
+    assert float(ds_std.lat.values[0]) == 44.0
+    assert float(ds_std.lat.values[-1]) == 45.0
