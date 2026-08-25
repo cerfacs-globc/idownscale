@@ -52,6 +52,7 @@ exclude = [
     "bin/",
     "iriscc/datautils.py",
     "iriscc/settings.py",
+    "iriscc/settings_base.py",
     "iriscc/transforms.py",
     "iriscc/lightning_module.py",
     "iriscc/lightning_module_ddpm.py",

@@ -22,6 +22,12 @@ These roots can be overridden with environment variables such as
 not need to be edited when moving between machines if these variables are set
 correctly.
 
+The active settings module itself can also be overridden through
+``IDOWNSCALE_SETTINGS_MODULE`` or, for the observation-target workflow,
+``--settings-module``. This is useful when a custom experiment lives in a
+dedicated settings module and you want every subprocess in the workflow to use
+that same configuration consistently.
+
 Source Catalog
 --------------
 

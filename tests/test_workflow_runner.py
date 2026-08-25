@@ -43,6 +43,35 @@ def test_resolve_phase1_chunk_days_rejects_non_positive_cli_value():
         workflow.resolve_phase1_chunk_days("exp5", 0)
 
 
+def test_preflight_stats_split_dates_rejects_split_outside_planned_phase1_window(monkeypatch, tmp_path):
+    workflow = load_workflow_module()
+    monkeypatch.setattr(workflow, "get_train_split_dates", lambda exp: ["20000101", "20010101", "20020101"])
+
+    with pytest.raises(ValueError, match="falls outside the planned phase1 window"):
+        workflow.preflight_stats_split_dates(
+            exp="exp5",
+            dataset_dir=tmp_path,
+            phase1_start_date="20200101",
+            phase1_end_date="20200131",
+            will_run_phase1=True,
+        )
+
+
+def test_preflight_stats_split_dates_rejects_missing_existing_dataset_split(monkeypatch, tmp_path):
+    workflow = load_workflow_module()
+    monkeypatch.setattr(workflow, "get_train_split_dates", lambda exp: ["20200101", "20200102", "20200103"])
+    (tmp_path / "sample_20200101.npz").write_text("")
+
+    with pytest.raises(ValueError, match="split sample is missing"):
+        workflow.preflight_stats_split_dates(
+            exp="exp5",
+            dataset_dir=tmp_path,
+            phase1_start_date="20200101",
+            phase1_end_date="20200131",
+            will_run_phase1=False,
+        )
+
+
 def test_prediction_output_path_accepts_fixed_step_mixed_cadence(monkeypatch):
     monkeypatch.setitem(settings.CONFIG["exp5"], "prediction_frequency", "3h")
     path = settings.get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "test_run")

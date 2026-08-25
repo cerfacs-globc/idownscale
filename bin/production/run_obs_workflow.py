@@ -11,6 +11,7 @@ This entrypoint keeps the clean branch usable for day-to-day work:
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -22,7 +23,22 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+
+def _bootstrap_settings_module_from_cli() -> None:
+    if os.getenv("IDOWNSCALE_SETTINGS_MODULE"):
+        return
+    if "--settings-module" not in sys.argv:
+        return
+    index = sys.argv.index("--settings-module")
+    if index + 1 >= len(sys.argv):
+        raise SystemExit("--settings-module requires a module path, e.g. iriscc.settings_demo1_france")
+    os.environ["IDOWNSCALE_SETTINGS_MODULE"] = sys.argv[index + 1]
+
+
+_bootstrap_settings_module_from_cli()
+
 from iriscc.settings import (
+    ACTIVE_SETTINGS_MODULE,
     CONFIG,
     GRAPHS_DIR,
     METRICS_DIR,
@@ -40,6 +56,7 @@ from iriscc.settings import (
     get_bias_corrected_netcdf_path,
     get_phase1_chunk_days,
     get_phase1_dates,
+    get_train_split_dates,
     get_prediction_output_path,
     get_source_default_frequency,
     format_sample_time_token,
@@ -114,6 +131,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--phase1-start-date", default=None, help="Optional YYYYMMDD start date for phase1 dataset generation.")
     parser.add_argument("--phase1-end-date", default=None, help="Optional YYYYMMDD end date for phase1 dataset generation.")
+    parser.add_argument(
+        "--settings-module",
+        default=None,
+        help="Optional import path for an alternate settings module, e.g. iriscc.settings_demo1_france.",
+    )
     parser.add_argument(
         "--phase1-chunk-days",
         type=int,
@@ -255,6 +277,68 @@ def resolve_phase1_chunk_days(exp: str, cli_value: int | None) -> int | None:
     return get_phase1_chunk_days(exp)
 
 
+def validate_split_date_order(split_dates: list[str]) -> None:
+    ordered = [pd.Timestamp(value) for value in split_dates]
+    if not (ordered[0] < ordered[1] < ordered[2]):
+        raise ValueError(
+            "Invalid train_split_dates ordering. Expected train < val < test, "
+            f"got {split_dates}."
+        )
+
+
+def describe_existing_sample_range(dataset_dir: Path) -> str:
+    samples = sorted(dataset_dir.glob("sample_*.npz"))
+    if not samples:
+        return "no sample_*.npz files found"
+    first = samples[0].stem.removeprefix("sample_")
+    last = samples[-1].stem.removeprefix("sample_")
+    return f"available sample range is {first}..{last}"
+
+
+def preflight_stats_split_dates(
+    *,
+    exp: str,
+    dataset_dir: Path,
+    phase1_start_date: str,
+    phase1_end_date: str,
+    will_run_phase1: bool,
+) -> list[str]:
+    split_dates = get_train_split_dates(exp)
+    validate_split_date_order(split_dates)
+
+    window_start = pd.Timestamp(phase1_start_date)
+    window_end = pd.Timestamp(phase1_end_date)
+    for split_name, token in zip(["train", "validation", "test"], split_dates):
+        ts = pd.Timestamp(token)
+        if will_run_phase1:
+            if ts < window_start or ts > window_end:
+                raise ValueError(
+                    f"{split_name} split '{token}' falls outside the planned phase1 window "
+                    f"{phase1_start_date}..{phase1_end_date}. Update train_split_dates or the requested phase1 window."
+                )
+        else:
+            sample_path = dataset_dir / f"sample_{token}.npz"
+            if not sample_path.exists():
+                raise ValueError(
+                    f"{split_name} split sample is missing: {sample_path}. "
+                    f"For this dataset, {describe_existing_sample_range(dataset_dir)}."
+                )
+    return split_dates
+
+
+def summarize_phase1_chunk_status(exp: str, dataset_dir: Path, phase1_start_date: str, phase1_end_date: str, chunk_days: int | None) -> None:
+    chunks = build_date_chunks(phase1_start_date, phase1_end_date, chunk_days)
+    complete = 0
+    print(f"[phase1-plan] {len(chunks)} chunk(s) covering {phase1_start_date}..{phase1_end_date}")
+    for chunk_start, chunk_end in chunks:
+        chunk_outputs = list_phase1_outputs(exp, dataset_dir, chunk_start, chunk_end)
+        is_complete = all(path.exists() for path in chunk_outputs)
+        complete += int(is_complete)
+        state = "done" if is_complete else "todo"
+        print(f"[phase1-plan] {state} {chunk_start}..{chunk_end} ({len(chunk_outputs)} sample(s))")
+    print(f"[phase1-plan] complete={complete} missing={len(chunks) - complete}")
+
+
 def run_phase1_step_in_chunks(
     *,
     exp: str,
@@ -266,6 +350,7 @@ def run_phase1_step_in_chunks(
     if_exists: str,
     dry_run: bool,
 ) -> None:
+    summarize_phase1_chunk_status(exp, dataset_dir, phase1_start_date, phase1_end_date, chunk_days)
     for chunk_start, chunk_end in build_date_chunks(phase1_start_date, phase1_end_date, chunk_days):
         chunk_outputs = list_phase1_outputs(exp, dataset_dir, chunk_start, chunk_end)
         chunk_command = list(base_command) + ["--start_date", chunk_start, "--end_date", chunk_end]
@@ -361,6 +446,7 @@ def main() -> int:
         "paired_vars": paired_vars,
         "simu": args.simu,
         "simu_test": workflow_simu_test,
+        "settings_module": ACTIVE_SETTINGS_MODULE,
         "training_frequency": get_experiment_training_frequency(exp),
         "phase1_chunk_days": phase1_chunk_days,
         "prediction_frequency": get_experiment_prediction_frequency(exp),
@@ -381,6 +467,14 @@ def main() -> int:
         inputs={"dataset_dir": dataset_dir},
         outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
     )
+    if "stats" in steps:
+        preflight_stats_split_dates(
+            exp=exp,
+            dataset_dir=dataset_dir,
+            phase1_start_date=phase1_start_date,
+            phase1_end_date=phase1_end_date,
+            will_run_phase1="phase1" in steps,
+        )
     phase1_outputs = list_phase1_outputs(exp, dataset_dir, phase1_start_date, phase1_end_date)
 
     stats_outputs = [
