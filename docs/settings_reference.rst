@@ -40,6 +40,10 @@ fields are:
 * ``data_type``: loader family used by ``Data``
 * ``historical_pattern`` / ``scenario_pattern`` or yearly/glob patterns:
   filename discovery rules
+* optional target-grid metadata for observation families:
+  ``target_grid_file`` and ``target_topography_file``
+* optional custom mask metadata:
+  ``mask_file``, ``mask_var``, ``mask_geometry``, ``mask_rule``
 * ``native_frequency`` and ``default_frequency``: native cadence and default
   workflow cadence
 * ``daily_aggregation`` or ``aggregation``: how a finer native cadence is
@@ -50,6 +54,11 @@ fields are:
 The CERRA integration follows this mechanism: native data are 3-hourly, while
 the current training workflow defaults to daily means through the source
 metadata rather than through a hard-coded special case.
+
+For custom observation products on arbitrary target grids, prefer the generic
+geometry labels ``regular_latlon`` or ``external_target_grid`` rather than
+adding dataset-specific loader code. Pair those with a target-grid topography
+file and, when needed, a custom mask file declared in the source metadata.
 
 Experiment Configuration
 ------------------------

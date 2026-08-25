@@ -45,32 +45,34 @@ def _require_unique_path(candidates: list[str], description: str) -> str:
       raise FileExistsError(message)
    return candidates[0]
 
-def standardize_era5_geometry(ds):
-    # v86.67 Native-First: Minimal Renaming for ESMF recognition
+def standardize_latlon_geometry(ds, add_xy_aliases: bool = False):
+    # Generic regular lat/lon normalization for observation target grids.
     rename_dict = {}
     if "longitude" in ds.coords: rename_dict["longitude"] = "lon"
     if "latitude" in ds.coords: rename_dict["latitude"] = "lat"
     if rename_dict: ds = ds.rename(rename_dict)
+
+    if add_xy_aliases:
+        if "lon" in ds.coords:
+            ds = ds.assign_coords(x=ds.lon)
+        if "lat" in ds.coords:
+            ds = ds.assign_coords(y=ds.lat)
     return ds
+
+
+def standardize_era5_geometry(ds):
+    # v86.67 Native-First: Minimal Renaming for ESMF recognition
+    return standardize_latlon_geometry(ds)
+
 
 def standardize_gcm_geometry(ds):
     # v86.67 Native-First: Minimal Renaming for ESMF recognition
-    rename_dict = {}
-    if "longitude" in ds.coords: rename_dict["longitude"] = "lon"
-    if "latitude" in ds.coords: rename_dict["latitude"] = "lat"
-    if rename_dict: ds = ds.rename(rename_dict)
-    return ds
+    return standardize_latlon_geometry(ds)
+
 
 def standardize_eobs_geometry(ds):
     # v86.67 Post-Regrid Protocol: x/y Compatibility Bridge
-    rename_dict = {}
-    if "longitude" in ds.coords: rename_dict["longitude"] = "lon"
-    if "latitude" in ds.coords: rename_dict["latitude"] = "lat"
-    if rename_dict: ds = ds.rename(rename_dict)
-
-    # x/y coordinate aliasing for pipeline compatibility
-    if "lon" in ds.coords: ds = ds.assign_coords(x=ds.lon)
-    if "lat" in ds.coords: ds = ds.assign_coords(y=ds.lat)
+    ds = standardize_latlon_geometry(ds, add_xy_aliases=True)
     return ds
 
 
@@ -346,38 +348,79 @@ def remove_countries(array:np.ndarray) -> np.ndarray:
    return array
 
 
-def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None) -> xr.Dataset:
-   def is_gcm_sea(data):
-      return data < 2
+def _standardize_geometry_by_name(ds: xr.Dataset, geometry: str) -> xr.Dataset:
+   if geometry == "era5":
+      ds = standardize_era5_geometry(ds)
+      ds = standardize_longitudes(ds)
+      if "lat" in ds.coords:
+         ds = ds.reindex(lat=ds.lat[::-1])
+      return ds
+   if geometry == "gcm":
+      ds = standardize_gcm_geometry(ds)
+      ds = standardize_longitudes(ds)
+      return ds
+   if geometry == "eobs":
+      return standardize_eobs_geometry(ds)
+   if geometry in {"latlon", "regular_latlon", "external_target_grid"}:
+      ds = standardize_latlon_geometry(ds, add_xy_aliases=True)
+      return standardize_longitudes(ds)
+   if geometry == "cerra":
+      return standardize_cerra_geometry(ds)
+   if geometry == "safran":
+      return ds
+   if geometry == "rcm":
+      if "x" in ds.dims and "x" not in ds.coords:
+         ds = ds.assign_coords(x=("x", np.arange(ds.sizes["x"], dtype=np.float64) * 1000.0))
+      if "y" in ds.dims and "y" not in ds.coords:
+         ds = ds.assign_coords(y=("y", np.arange(ds.sizes["y"], dtype=np.float64) * 1000.0))
+      return ds
+   return ds
 
-   def is_era5_sea(data):
-      return data < 0.1
 
-   def is_eobs_land(data):
-      return data == 1.0
+def _mask_rule(rule: str):
+   if rule == "drop_lt_2":
+      return lambda data: data < 2
+   if rule == "drop_lt_0.1":
+      return lambda data: data < 0.1
+   if rule == "drop_eq_1":
+      return lambda data: data == 1.0
+   if rule == "drop_eq_0":
+      return lambda data: data == 0.0
+   raise ValueError(
+      "Invalid mask rule. Choose from 'drop_lt_2', 'drop_lt_0.1', 'drop_eq_1', or 'drop_eq_0'."
+   )
 
+
+def _resolve_mask_definition(mask_type: str, source_spec: dict | None = None) -> tuple[Path | str, str, str, str]:
    if mask_type == "gcm":
-      mask = xr.open_dataset(LANDSEAMASK_GCM, engine="netcdf4")
-      mask = standardize_longitudes(mask)
-      mask_var = mask["sftlf"]
-      condition_value = is_gcm_sea
-   elif mask_type == "era5":
-      mask = xr.open_dataset(LANDSEAMASK_ERA5, engine="netcdf4").isel(time=0)
-      mask = standardize_era5_geometry(mask)
-      mask = standardize_longitudes(mask)
-      mask_var = mask["lsm"]
-      condition_value = is_era5_sea
-   elif mask_type == "eobs":
-      mask = xr.open_dataset(LANDSEAMASK_EOBS, engine="netcdf4")
-      mask = standardize_eobs_geometry(mask)
-      mask_var = mask["landseamask"]
-      condition_value = is_eobs_land
-   else:
-      raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', or 'eobs'.")
+      return LANDSEAMASK_GCM, "gcm", "sftlf", "drop_lt_2"
+   if mask_type == "era5":
+      return LANDSEAMASK_ERA5, "era5", "lsm", "drop_lt_0.1"
+   if mask_type == "eobs":
+      return LANDSEAMASK_EOBS, "eobs", "landseamask", "drop_eq_1"
+   if source_spec and source_spec.get("mask_file"):
+      return (
+         source_spec["mask_file"],
+         source_spec.get("mask_geometry", source_spec.get("geometry", "regular_latlon")),
+         source_spec.get("mask_var", "landseamask"),
+         source_spec.get("mask_rule", "drop_eq_0"),
+      )
+   raise ValueError("Invalid mask_type. Choose from 'gcm', 'era5', 'eobs', or configure a custom mask_file.")
 
-   mask = mask.sel(lon=slice(ds["lon"].values.min(), ds["lon"].values.max()),
-                   lat=slice(ds["lat"].values.min(), ds["lat"].values.max()))
-   condition = condition_value(mask_var.sel(lon=mask["lon"], lat=mask["lat"]))
+
+def apply_landseamask(ds:xr.Dataset, mask_type:str, variables, domain=None, source_spec: dict | None = None) -> xr.Dataset:
+   mask_file, mask_geometry, mask_var_name, mask_rule = _resolve_mask_definition(mask_type, source_spec)
+   mask = xr.open_dataset(mask_file, engine="netcdf4")
+   if "time" in mask.dims:
+      mask = mask.isel(time=0)
+   mask = _standardize_geometry_by_name(mask, mask_geometry)
+   mask_var = mask[mask_var_name]
+
+   mask = mask.sel(
+      lon=slice(ds["lon"].values.min(), ds["lon"].values.max()),
+      lat=slice(ds["lat"].values.min(), ds["lat"].values.max()),
+   )
+   condition = _mask_rule(mask_rule)(mask_var.sel(lon=mask["lon"], lat=mask["lat"]))
    for var in variables:
       ds[var] = ds[var].where(~condition)
       ds["mask"] = xr.where(~np.isnan(ds[var]), 1, 0)
@@ -394,31 +437,7 @@ class Data:
       return SOURCE_CATALOG[source_name]
 
    def _standardize_source_geometry(self, ds: xr.Dataset, geometry: str) -> xr.Dataset:
-      if geometry == "era5":
-         ds = standardize_era5_geometry(ds)
-         ds = standardize_longitudes(ds)
-         if "lat" in ds.coords:
-            ds = ds.reindex(lat=ds.lat[::-1])
-         return ds
-      if geometry == "gcm":
-         ds = standardize_gcm_geometry(ds)
-         ds = standardize_longitudes(ds)
-         return ds
-      if geometry == "eobs":
-         ds = standardize_eobs_geometry(ds)
-         return ds
-      if geometry == "cerra":
-         ds = standardize_cerra_geometry(ds)
-         return ds
-      if geometry == "safran":
-         return ds
-      if geometry == "rcm":
-         if "x" in ds.dims and "x" not in ds.coords:
-            ds = ds.assign_coords(x=("x", np.arange(ds.sizes["x"], dtype=np.float64) * 1000.0))
-         if "y" in ds.dims and "y" not in ds.coords:
-            ds = ds.assign_coords(y=("y", np.arange(ds.sizes["y"], dtype=np.float64) * 1000.0))
-         return ds
-      return ds
+      return _standardize_geometry_by_name(ds, geometry)
 
    def _resolve_source_files(self, source_name: str, var: str, date=None, ssp: str | None = None) -> list[str]:
       spec = self.get_source_spec(source_name)
@@ -733,7 +752,7 @@ class Data:
          ds = ds.reindex(y=ds.lat.values[::-1])
       mask_type = spec.get("mask_type")
       if mask_type:
-         ds = apply_landseamask(ds, mask_type, variables=[var])
+         ds = apply_landseamask(ds, mask_type, variables=[var], source_spec=spec)
       if not skip_domain_crop:
          ds = crop_domain_from_ds(ds, self.domain)
       ds[var].values = self.clean_data(ds[var].values, var, data_type=spec.get("data_type", source_name))
