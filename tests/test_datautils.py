@@ -4,7 +4,13 @@ import pytest
 
 pytest.importorskip("esmpy")
 
-from iriscc.datautils import standardize_longitudes, generate_bounds, standardize_dims_and_coords, crop_domain_from_ds
+from iriscc.datautils import (
+    crop_domain_from_ds,
+    generate_bounds,
+    standardize_dims_and_coords,
+    standardize_latlon_geometry,
+    standardize_longitudes,
+)
 
 
 def test_standardize_longitudes():
@@ -60,3 +66,17 @@ def test_crop_domain_from_curvilinear_ds():
     assert ds_cropped.sizes["x"] == 1
     assert ds_cropped.sizes["y"] == 1
     assert ds_cropped.lon.values[0, 0] == 10.0
+
+
+def test_standardize_latlon_geometry_adds_xy_aliases():
+    ds = xr.Dataset(
+        coords={"longitude": [2.0, 3.0], "latitude": [44.0, 45.0]},
+        data_vars={"tas": (("latitude", "longitude"), np.zeros((2, 2)))},
+    )
+
+    ds_std = standardize_latlon_geometry(ds, add_xy_aliases=True)
+
+    assert "lon" in ds_std.coords
+    assert "lat" in ds_std.coords
+    assert "x" in ds_std.coords
+    assert "y" in ds_std.coords

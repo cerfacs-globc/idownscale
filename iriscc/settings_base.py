@@ -158,6 +158,21 @@ def build_custom_obs_source() -> dict:
         "data_type": env_str("IDOWNSCALE_CUSTOM_OBS_DATA_TYPE", "eobs"),
         "mask_type": os.getenv("IDOWNSCALE_CUSTOM_OBS_MASK_TYPE"),
     }
+    custom_mask_file = os.getenv("IDOWNSCALE_CUSTOM_OBS_MASK_FILE")
+    if custom_mask_file:
+        spec["mask_file"] = Path(custom_mask_file).expanduser()
+        spec["mask_var"] = env_str("IDOWNSCALE_CUSTOM_OBS_MASK_VAR", "landseamask")
+        spec["mask_geometry"] = env_str(
+            "IDOWNSCALE_CUSTOM_OBS_MASK_GEOMETRY",
+            spec["geometry"],
+        )
+        spec["mask_rule"] = env_str("IDOWNSCALE_CUSTOM_OBS_MASK_RULE", "drop_eq_0")
+    target_grid_file = os.getenv("IDOWNSCALE_CUSTOM_OBS_TARGET_GRID_FILE")
+    if target_grid_file:
+        spec["target_grid_file"] = Path(target_grid_file).expanduser()
+    target_topography_file = os.getenv("IDOWNSCALE_CUSTOM_OBS_TARGET_TOPOGRAPHY_FILE")
+    if target_topography_file:
+        spec["target_topography_file"] = Path(target_topography_file).expanduser()
     yearly_pattern = os.getenv("IDOWNSCALE_CUSTOM_OBS_YEARLY_PATTERN")
     yearly_patterns = os.getenv("IDOWNSCALE_CUSTOM_OBS_YEARLY_PATTERNS")
     glob_pattern = os.getenv("IDOWNSCALE_CUSTOM_OBS_GLOB_PATTERN", "{var}*")

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import xarray as xr
 
-from iriscc.datautils import crop_domain_from_ds, interpolation_target_grid, standardize_eobs_geometry, standardize_longitudes
+from iriscc.datautils import crop_domain_from_ds, interpolation_target_grid, standardize_latlon_geometry, standardize_longitudes
 from iriscc.settings import CONFIG
 
 
@@ -51,14 +51,14 @@ def main() -> int:
     ds_target = xr.open_dataset(target_file, engine="netcdf4")
     if "time" in ds_target.dims:
         ds_target = ds_target.isel(time=0, drop=True)
-    ds_target = standardize_eobs_geometry(ds_target)
+    ds_target = standardize_latlon_geometry(ds_target, add_xy_aliases=True)
     ds_target = standardize_longitudes(ds_target)
     ds_target = crop_domain_from_ds(ds_target, cfg["domain"])
 
     ds_topo = xr.open_dataset(args.topography_input, engine="netcdf4")
     if "time" in ds_topo.dims:
         ds_topo = ds_topo.isel(time=0, drop=True)
-    ds_topo = standardize_eobs_geometry(ds_topo)
+    ds_topo = standardize_latlon_geometry(ds_topo, add_xy_aliases=True)
     ds_topo = standardize_longitudes(ds_topo)
     ds_topo = crop_domain_from_ds(ds_topo, cfg["domain"])
 

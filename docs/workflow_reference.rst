@@ -157,6 +157,13 @@ needed, override ``--target-file`` and ``--output-file`` so the generated
 ``elevation`` variable lands on the exact target grid consumed by dataset
 generation.
 
+For custom observational targets, keep the workflow generic:
+
+* prepare the target observation files on the final target grid
+* prepare the target topography on that same grid
+* if a dedicated land-sea mask is needed, declare it through source metadata
+  instead of adding dataset-specific code paths
+
 Notebook Examples
 -----------------
 
