@@ -980,17 +980,29 @@ def get_phase1_chunk_days(exp: str) -> int | None:
 
 def get_bc_train_hist_dates(exp: str) -> pd.DatetimeIndex:
     cfg = CONFIG[exp]
-    return pd.date_range(start=cfg["bc_train_hist_start_date"], end=cfg["bc_train_hist_end_date"], freq="D")
+    return build_time_range(
+        cfg["bc_train_hist_start_date"],
+        cfg["bc_train_hist_end_date"],
+        get_experiment_training_frequency(exp),
+    )
 
 
 def get_bc_test_hist_dates(exp: str) -> pd.DatetimeIndex:
     cfg = CONFIG[exp]
-    return pd.date_range(start=cfg["bc_test_hist_start_date"], end=cfg["bc_test_hist_end_date"], freq="D")
+    return build_time_range(
+        cfg["bc_test_hist_start_date"],
+        cfg["bc_test_hist_end_date"],
+        get_experiment_training_frequency(exp),
+    )
 
 
 def get_bc_test_future_dates(exp: str) -> pd.DatetimeIndex:
     cfg = CONFIG[exp]
-    return pd.date_range(start=cfg["bc_test_future_start_date"], end=cfg["bc_test_future_end_date"], freq="D")
+    return build_time_range(
+        cfg["bc_test_future_start_date"],
+        cfg["bc_test_future_end_date"],
+        get_experiment_training_frequency(exp),
+    )
 
 CONFIG["exp5_audit"] = {
     "target":"eobs",

@@ -117,6 +117,10 @@ The cadence helpers are now explicit:
 This separation matters when the observational target is sub-daily, such as
 CERRA, but the packaged training workflow remains daily.
 
+Bias-correction windows inherit the experiment training frequency as well. For
+sub-daily experiments, the BC train/test date helpers resolve full timestamp
+ranges rather than silently collapsing to daily anchors.
+
 Scientific Checklist
 --------------------
 
