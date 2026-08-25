@@ -163,7 +163,7 @@ def test_sbck_mbcn_rejects_direction_scalar_metrics():
             workflow.main()
 
 
-def test_phase1_chunking_runs_multiple_chunk_substeps(monkeypatch):
+def test_phase1_chunking_runs_multiple_chunk_substeps(monkeypatch, tmp_path):
     workflow = load_workflow_module()
     seen = []
 
@@ -174,7 +174,7 @@ def test_phase1_chunking_runs_multiple_chunk_substeps(monkeypatch):
 
     workflow.run_phase1_step_in_chunks(
         exp="exp5",
-        dataset_dir=Path("/tmp/dataset"),
+        dataset_dir=tmp_path / "dataset",
         base_command=["python", "bin/preprocessing/build_dataset.py", "--exp", "exp5"],
         phase1_start_date="20200101",
         phase1_end_date="20200105",
