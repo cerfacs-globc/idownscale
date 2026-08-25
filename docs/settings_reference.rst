@@ -56,6 +56,7 @@ combines:
 * geometry: ``shape``, ``domain``, optional target/grid interpolation settings
 * workflow dates and scenario: historical windows, future start, ``ssp``
 * cadence: optional ``training_frequency`` and ``prediction_frequency``
+* chunking: optional ``phase1_chunk_days`` for sequential temporal phase-1 runs
 * phase-specific behavior: BC method, target preparation, sample packaging
 
 For current observation-target workflows:
@@ -109,6 +110,7 @@ Before launching a new experiment, verify these settings-level questions:
 * Which target observational dataset is selected?
 * Which model source is used for the coarse predictor?
 * What are the historical and future windows?
+* Does the experiment need temporal phase-1 chunking for memory reasons?
 * What cadence is native, what cadence is used for training, and what cadence
   is used for prediction?
 * Where will corrected NetCDFs, packaged samples, predictions, and metrics be

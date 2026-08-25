@@ -23,6 +23,26 @@ def test_list_phase1_outputs_requires_daily_frequency(monkeypatch, tmp_path):
         workflow.list_phase1_outputs("exp5", tmp_path, "20000101", "20000102")
 
 
+def test_build_date_chunks_returns_single_window_without_chunking():
+    workflow = load_workflow_module()
+    assert workflow.build_date_chunks("20200101", "20200110", None) == [("20200101", "20200110")]
+
+
+def test_build_date_chunks_splits_contiguous_windows():
+    workflow = load_workflow_module()
+    assert workflow.build_date_chunks("20200101", "20200105", 2) == [
+        ("20200101", "20200102"),
+        ("20200103", "20200104"),
+        ("20200105", "20200105"),
+    ]
+
+
+def test_resolve_phase1_chunk_days_rejects_non_positive_cli_value():
+    workflow = load_workflow_module()
+    with pytest.raises(ValueError, match="positive integer"):
+        workflow.resolve_phase1_chunk_days("exp5", 0)
+
+
 def test_prediction_output_path_accepts_fixed_step_mixed_cadence(monkeypatch):
     monkeypatch.setitem(settings.CONFIG["exp5"], "prediction_frequency", "3h")
     path = settings.get_prediction_output_path("exp5", "gcm_bc", "tas", "20000101", "20000102", "test_run")
@@ -141,3 +161,30 @@ def test_sbck_mbcn_rejects_direction_scalar_metrics():
         monkeypatch.setattr(sys, "argv", argv)
         with pytest.raises(NotImplementedError, match="circular diagnostics"):
             workflow.main()
+
+
+def test_phase1_chunking_runs_multiple_chunk_substeps(monkeypatch):
+    workflow = load_workflow_module()
+    seen = []
+
+    def fake_run_step(**kwargs):
+        seen.append((kwargs["name"], kwargs["command"][-4:]))
+
+    monkeypatch.setattr(workflow, "run_step", fake_run_step)
+
+    workflow.run_phase1_step_in_chunks(
+        exp="exp5",
+        dataset_dir=Path("/tmp/dataset"),
+        base_command=["python", "bin/preprocessing/build_dataset.py", "--exp", "exp5"],
+        phase1_start_date="20200101",
+        phase1_end_date="20200105",
+        chunk_days=2,
+        if_exists="skip",
+        dry_run=True,
+    )
+
+    assert seen == [
+        ("phase1[20200101_20200102]", ["--start_date", "20200101", "--end_date", "20200102"]),
+        ("phase1[20200103_20200104]", ["--start_date", "20200103", "--end_date", "20200104"]),
+        ("phase1[20200105_20200105]", ["--start_date", "20200105", "--end_date", "20200105"]),
+    ]

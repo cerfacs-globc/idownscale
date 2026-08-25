@@ -88,6 +88,27 @@ evaluation phases can run on CPU if GPU capacity is unavailable.
 Once coarse bias correction is built, the same runner can also package raw GCM test samples
 and drive downstream prediction or VALUE evaluation steps if a trained checkpoint is available.
 
+For large grids or long phase-1 periods, the observation-target workflow can
+split phase-1 generation into sequential temporal chunks instead of requiring a
+single monolithic run. This is useful when the full target period is too large
+for available memory.
+
+You can enable this either ad hoc:
+
+.. code-block:: bash
+
+   python bin/production/run_obs_workflow.py \
+     --exp exp5 \
+     --steps phase1,stats \
+     --phase1-chunk-days 30
+
+or through the experiment configuration with ``phase1_chunk_days`` in
+``iriscc/settings.py``.
+
+Chunking is temporal only: the workflow still writes the standard
+``sample_*.npz`` files for the full experiment period, but it computes them in
+contiguous date windows one chunk at a time.
+
 When adapting an existing workflow to a new target dataset or a custom
 observation product, avoid copying split dates blindly from another
 experiment. Before running ``compute_statistics.py``, confirm that:

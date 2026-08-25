@@ -952,6 +952,17 @@ def get_train_split_dates(exp: str) -> list[str]:
     return list(cfg.get("train_split_dates", [f"{year}0101" for year in DATES_TRAIN]))
 
 
+def get_phase1_chunk_days(exp: str) -> int | None:
+    cfg = CONFIG[exp]
+    value = cfg.get("phase1_chunk_days")
+    if value is None:
+        return None
+    chunk_days = int(value)
+    if chunk_days <= 0:
+        raise ValueError(f"Experiment '{exp}' configured invalid phase1_chunk_days={chunk_days}. Expected a positive integer.")
+    return chunk_days
+
+
 def get_bc_train_hist_dates(exp: str) -> pd.DatetimeIndex:
     cfg = CONFIG[exp]
     return pd.date_range(start=cfg["bc_train_hist_start_date"], end=cfg["bc_train_hist_end_date"], freq="D")

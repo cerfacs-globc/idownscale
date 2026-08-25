@@ -38,6 +38,7 @@ from iriscc.settings import (
     get_frequency_pandas_rule,
     get_metrics_test_name,
     get_bias_corrected_netcdf_path,
+    get_phase1_chunk_days,
     get_phase1_dates,
     get_prediction_output_path,
     get_source_default_frequency,
@@ -113,6 +114,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--phase1-start-date", default=None, help="Optional YYYYMMDD start date for phase1 dataset generation.")
     parser.add_argument("--phase1-end-date", default=None, help="Optional YYYYMMDD end date for phase1 dataset generation.")
+    parser.add_argument(
+        "--phase1-chunk-days",
+        type=int,
+        default=None,
+        help="Optional chunk size in days for phase1 dataset generation. Useful when large grids or long periods need sequential sub-runs.",
+    )
     parser.add_argument(
         "--simu",
         default="gcm",
@@ -223,6 +230,55 @@ def list_phase1_outputs(exp: str, dataset_dir: Path, start: str | None, end: str
     return [dataset_dir / f"sample_{date.strftime('%Y%m%d')}.npz" for date in dates]
 
 
+def build_date_chunks(start: str, end: str, chunk_days: int | None) -> list[tuple[str, str]]:
+    if chunk_days is None:
+        return [(start, end)]
+    if chunk_days <= 0:
+        raise ValueError(f"chunk_days must be positive, got {chunk_days}")
+
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    chunks: list[tuple[str, str]] = []
+    current = start_ts
+    while current <= end_ts:
+        chunk_end = min(current + pd.Timedelta(days=chunk_days - 1), end_ts)
+        chunks.append((yyyymmdd(current), yyyymmdd(chunk_end)))
+        current = chunk_end + pd.Timedelta(days=1)
+    return chunks
+
+
+def resolve_phase1_chunk_days(exp: str, cli_value: int | None) -> int | None:
+    if cli_value is not None:
+        if cli_value <= 0:
+            raise ValueError("--phase1-chunk-days must be a positive integer.")
+        return cli_value
+    return get_phase1_chunk_days(exp)
+
+
+def run_phase1_step_in_chunks(
+    *,
+    exp: str,
+    dataset_dir: Path,
+    base_command: list[str],
+    phase1_start_date: str,
+    phase1_end_date: str,
+    chunk_days: int | None,
+    if_exists: str,
+    dry_run: bool,
+) -> None:
+    for chunk_start, chunk_end in build_date_chunks(phase1_start_date, phase1_end_date, chunk_days):
+        chunk_outputs = list_phase1_outputs(exp, dataset_dir, chunk_start, chunk_end)
+        chunk_command = list(base_command) + ["--start_date", chunk_start, "--end_date", chunk_end]
+        run_step(
+            name=f"phase1[{chunk_start}_{chunk_end}]",
+            command=chunk_command,
+            expected_outputs=chunk_outputs,
+            cleanup_targets=chunk_outputs,
+            if_exists=if_exists,
+            dry_run=dry_run,
+        )
+
+
 def remove_path(path: Path) -> None:
     if path.is_dir():
         shutil.rmtree(path)
@@ -287,6 +343,7 @@ def main() -> int:
         if args.phase1_start_date and args.phase1_end_date
         else default_phase1_window(exp)
     )
+    phase1_chunk_days = resolve_phase1_chunk_days(exp, args.phase1_chunk_days)
     predict_start_date = args.predict_start_date or default_prediction_window(exp)[0]
     predict_end_date = args.predict_end_date or default_prediction_window(exp)[1]
     metrics_start_date = args.metrics_start_date or default_metrics_window(exp)[0]
@@ -305,6 +362,7 @@ def main() -> int:
         "simu": args.simu,
         "simu_test": workflow_simu_test,
         "training_frequency": get_experiment_training_frequency(exp),
+        "phase1_chunk_days": phase1_chunk_days,
         "prediction_frequency": get_experiment_prediction_frequency(exp),
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
@@ -721,7 +779,6 @@ def main() -> int:
         },
     }
 
-    step_table["phase1"]["command"].extend(["--start_date", phase1_start_date, "--end_date", phase1_end_date])
     if bc_apply_script is None and "bc_apply" in steps:
         raise NotImplementedError(
             f"Bias-correction method '{bc_method}' is not wired into the production workflow yet. "
@@ -757,6 +814,18 @@ def main() -> int:
         raise ValueError("--test-name is required for predict_loop, metrics_day, metrics_month, value_metrics, plot_metrics_day, and plot_metrics_month steps")
 
     for step in steps:
+        if step == "phase1":
+            run_phase1_step_in_chunks(
+                exp=exp,
+                dataset_dir=dataset_dir,
+                base_command=step_table["phase1"]["command"],
+                phase1_start_date=phase1_start_date,
+                phase1_end_date=phase1_end_date,
+                chunk_days=phase1_chunk_days,
+                if_exists=args.if_exists,
+                dry_run=args.dry_run,
+            )
+            continue
         run_step(
             name=step,
             command=step_table[step]["command"],
