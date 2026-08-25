@@ -51,6 +51,8 @@ def standardize_latlon_geometry(ds, add_xy_aliases: bool = False):
     if "longitude" in ds.coords: rename_dict["longitude"] = "lon"
     if "latitude" in ds.coords: rename_dict["latitude"] = "lat"
     if rename_dict: ds = ds.rename(rename_dict)
+    if "lat" in ds.coords and ds["lat"].ndim == 1 and ds.lat.values[0] > ds.lat.values[-1]:
+        ds = ds.reindex(lat=ds.lat[::-1])
 
     if add_xy_aliases:
         if "lon" in ds.coords:
