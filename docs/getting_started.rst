@@ -21,6 +21,22 @@ Runtime Configuration
 The main runtime paths are configured in ``iriscc/settings.py`` and can be
 overridden with environment variables at runtime.
 
+If you need to run the workflow against an alternate settings file, you can
+also point the workflow at another module. Two supported patterns are:
+
+.. code-block:: bash
+
+   export IDOWNSCALE_SETTINGS_MODULE=iriscc.settings_demo1_france
+
+or:
+
+.. code-block:: bash
+
+   python bin/production/run_obs_workflow.py \
+     --settings-module iriscc.settings_demo1_france \
+     --exp exp_demo1_france \
+     --steps phase1,stats
+
 The most important overrides are:
 
 .. code-block:: bash
@@ -108,6 +124,11 @@ or through the experiment configuration with ``phase1_chunk_days`` in
 Chunking is temporal only: the workflow still writes the standard
 ``sample_*.npz`` files for the full experiment period, but it computes them in
 contiguous date windows one chunk at a time.
+
+When temporal chunking is enabled, the workflow also prints a simple phase-1
+plan showing which chunks are already complete and which ones still need to be
+computed. This makes resume behavior much easier to audit with
+``--if-exists skip``.
 
 When adapting an existing workflow to a new target dataset or a custom
 observation product, avoid copying split dates blindly from another
