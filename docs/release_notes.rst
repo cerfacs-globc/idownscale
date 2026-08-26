@@ -1,6 +1,76 @@
 Release Notes
 =============
 
+v1.5.0 - Workflow Generalization, Bias-Correction Extensions, And FAIR Provenance
+----------------------------------------------------------------------------------
+
+Summary
+~~~~~~~
+This release broadens the maintained observation-target workflow well beyond the
+``v1.4.1`` alignment update. It generalizes settings and preprocessing for new
+experiments, extends the bias-correction and wind-diagnostic path, and upgrades
+runtime provenance so production reruns are more auditable and reusable.
+
+Workflow And Settings Generalization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* **Settings layer refactored**: the large runtime settings logic has been
+  moved into ``iriscc/settings_base.py`` with ``iriscc/settings.py`` acting as
+  the thin experiment-definition layer.
+* **Selectable settings modules**: workflows can now be pointed at alternate
+  settings modules explicitly, which makes engineer-specific experiment files
+  easier to manage without renaming the maintained defaults.
+* **Phase-1 temporal chunking**: the observation-target workflow now supports
+  sequential phase-1 generation in date chunks for large domains or long
+  periods, while keeping the standard sample layout.
+* **Statistics split preflight**: workflow guards now validate split anchors
+  against the actual generated sample window before statistics are recomputed.
+
+Custom Observation And Static-Field Workflow
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* **Generic custom target-grid support**: the workflow now supports arbitrary
+  observation target grids with matching topography and land-sea mask inputs,
+  without adding dataset-specific code paths for one-off production cases.
+* **Descending-latitude mask fix**: custom observation masks are now handled
+  correctly when latitude order is inverted, avoiding geometry/alignment
+  failures such as conflicting dimension sizes during preprocessing.
+* **Topography helper added and clarified**: the target-topography helper and
+  documentation now make it easier to build a dedicated high-resolution static
+  field, for example from ETOPO, on the exact target grid used by the
+  experiment.
+
+Bias Correction And Workflow Guards
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* **Generic scalar SBCK path**: scalar SBCK handling is now less experiment-
+  specific and more reusable across maintained workflows.
+* **Paired SBCK MBCn support**: the workflow now supports paired multivariate
+  MBCn operation together with downstream hooks for derived wind products.
+* **Wind postprocessing and comparison helpers**: derived wind-speed and
+  direction products, comparison-suite support, and related diagnostics have
+  been added to the maintained path.
+* **Sub-daily BC windows corrected**: historical and future BC date windows now
+  honor the experiment cadence instead of silently assuming daily sampling.
+* **MBCn fit-sample guardrails**: ``sbck_mbcn_max_fit_samples`` is now an
+  explicit workflow/settings control, warnings are emitted when capped fits are
+  used, and the cap is recorded in provenance because it can affect extremes.
+* **BC input validation hardened**: additional checks now validate reference
+  and regridded time dimensions, and CERRA multi-file ingestion has been made
+  more robust in the maintained workflow.
+* **Temporal chunking guidance hardened**: documentation now explains more
+  clearly how split dates interact with phase-1 outputs and downstream
+  statistics, reducing the risk of NaN normalization failures after manual
+  chunked preprocessing.
+
+Provenance, Traceability, And Documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* **Expanded runtime auditing**: provenance sidecars now capture richer command,
+  environment, git, dependency, resource, and file-fingerprint metadata.
+* **FAIR-oriented provenance model**: provenance now carries a schema version,
+  stable run identifiers, parameter-source metadata, model metadata, artifact
+  typing, and explicit derivation links between inputs and outputs.
+* **Operator documentation refreshed**: getting-started and workflow reference
+  pages now describe the stronger provenance behavior and the scientific
+  implications of custom masks, topography preparation, and MBCn sampling caps.
+
 v1.4.1 - Workflow Coherence And Documentation Alignment
 -------------------------------------------------------
 

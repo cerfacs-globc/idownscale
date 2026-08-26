@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "idownscale"
-version = "0.1.0"
+version = "1.5.0"
 description = "downscaling tool for climate projections"
 authors = [
     { name = "Zoé Garcia", email = "zoe.garcia@cerfacs.fr" }
