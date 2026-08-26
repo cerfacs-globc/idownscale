@@ -131,3 +131,7 @@ The most useful preprocessing provenance fields are:
 * ``parameters``: explicit dates, channels, and step flags
 * ``settings.path_inventory``: resolved input/output paths with existence,
   size, and modification time metadata
+* ``command`` / ``settings_identity`` / ``git``: the exact invocation,
+  resolved settings module, and repo state used for the run
+* ``environment`` / ``software`` / ``resources``: filtered HPC environment,
+  package versions, and visible compute resources

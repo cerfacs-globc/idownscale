@@ -189,6 +189,20 @@ silent workflow drift:
 * checkpoint and run directories
 * experiment and model names
 
+The ``.prov.json`` sidecars now also record:
+
+* the raw command line used for the run
+* the requested and resolved settings module
+* filtered ``IDOWNSCALE_*`` / ``SLURM_*`` / Python / Conda environment values
+* git commit, branch, and dirty working-tree status
+* Python and package versions, including key scientific dependencies such as
+  ``sbck``, ``xarray``, ``numpy``, and ``scipy``
+* basic runtime resource information such as CPU count, visible memory, and
+  GPU inventory when available
+* safe file fingerprints for critical inputs and outputs
+* chunking metadata for partial temporal or spatial runs when those parameters
+  are provided
+
 For partial reruns, always pass explicit date windows. This is especially
 important when running only prediction or comparison steps.
 
