@@ -2,11 +2,14 @@ from types import SimpleNamespace
 
 from iriscc.provenance import (
     build_prov_bundle,
+    build_run_id,
+    classify_artifact,
     chunk_metadata,
     command_line,
     describe_path,
     environment_snapshot,
     inventory_paths,
+    merged_parameter_sources,
     package_versions,
     runtime_software,
     runtime_resources,
@@ -119,6 +122,35 @@ def test_chunk_metadata_collects_known_keys():
     assert info == {"max_fit_samples": 1000}
 
 
+def test_classify_artifact_maps_common_labels():
+    assert classify_artifact("checkpoint_dir") == "checkpoint"
+    assert classify_artifact("statistics_json") == "statistics"
+    assert classify_artifact("prediction_netcdf") == "prediction"
+
+
+def test_merged_parameter_sources_accepts_overrides():
+    sample_dir = "/safe/sample"
+    info = merged_parameter_sources(
+        {"exp": "exp5"},
+        {"phase1_chunk_days": 30, "sample_dir": sample_dir},
+        {
+            "parameters": {"exp": "cli"},
+            "settings": {"phase1_chunk_days": "settings", "sample_dir": "derived"},
+        },
+    )
+    assert info == {
+        "parameters": {"exp": "cli"},
+        "settings": {"phase1_chunk_days": "settings", "sample_dir": "derived"},
+    }
+
+
+def test_build_run_id_is_stable_for_same_payload():
+    left = build_run_id("train.py", "2026-08-26T00:00:00Z", {"exp": "exp5"})
+    right = build_run_id("train.py", "2026-08-26T00:00:00Z", {"exp": "exp5"})
+    assert left == right
+    assert left.startswith("idownscale-run-")
+
+
 def test_runtime_resources_reports_stubbed_gpu_inventory(monkeypatch):
     monkeypatch.setattr("iriscc.provenance.os.cpu_count", lambda: 16)
     monkeypatch.setattr("iriscc.provenance._sysconf_bytes", lambda *args: 1024)
@@ -146,13 +178,37 @@ def test_build_prov_bundle_embeds_runtime_software(monkeypatch, tmp_path):
         settings={"training_frequency": "3h"},
         inputs={"bundle": tmp_path / "input.npz"},
         outputs={"result": tmp_path / "output.nc"},
+        parameter_sources={"settings": {"training_frequency": "settings"}},
+        model_metadata={"model_family": "workflow"},
     )
     agent = bundle["agent"]["idownscale:runtime-agent"]
     activity = bundle["activity"]["idownscale:run_obs_workflow.py:2026-08-26T00:00:00Z"]
+    input_entity = bundle["entity"]["idownscale:run_obs_workflow.py:input:0"]
+    output_entity = bundle["entity"]["idownscale:run_obs_workflow.py:output:0"]
     assert agent["idownscale:software"] == {"python_version": "3.12.0", "packages": {"sbck": "1.4.2"}}
     assert agent["idownscale:environment"] == {"IDOWNSCALE_RAW_DIR": str(raw_dir)}
     assert agent["idownscale:resources"] == {"cpu_count": 8}
+    assert bundle["idownscale:provenance_schema"] == "idownscale-provenance/1.0"
+    assert bundle["idownscale:run_id"].startswith("idownscale-run-")
+    assert activity["idownscale:run_id"] == bundle["idownscale:run_id"]
     assert activity["idownscale:command"] == {"argv": ["python", "run.py"], "shell": "python run.py"}
+    assert activity["idownscale:parameter_sources"] == {
+        "parameters": {"exp": "cli", "cell_start": "cli", "cell_end": "cli"},
+        "settings": {"training_frequency": "settings"},
+    }
     assert activity["idownscale:settings_identity"] == {"requested_module": "iriscc.settings_custom"}
     assert activity["idownscale:git"] == {"commit": "abc", "branch": "main", "dirty": False, "status_short": []}
     assert activity["idownscale:chunking"] == {"cell_start": 0, "cell_end": 300}
+    assert activity["idownscale:model_metadata"] == {"model_family": "workflow", "training_frequency": "3h"}
+    assert input_entity["idownscale:artifact_kind"] == "artifact"
+    assert input_entity["idownscale:details"]["path"] == str(tmp_path / "input.npz")
+    assert output_entity["idownscale:artifact_kind"] == "artifact"
+    assert output_entity["idownscale:details"]["path"] == str(tmp_path / "output.nc")
+    assert bundle["wasDerivedFrom"] == {
+        "idownscale:wdf:run_obs_workflow.py:0:0": {
+            "prov:generatedEntity": "idownscale:run_obs_workflow.py:output:0",
+            "prov:usedEntity": "idownscale:run_obs_workflow.py:input:0",
+            "idownscale:generated_role": "result",
+            "idownscale:used_role": "bundle",
+        }
+    }

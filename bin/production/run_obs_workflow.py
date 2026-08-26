@@ -470,6 +470,32 @@ def main() -> int:
         "prediction_frequency": get_experiment_prediction_frequency(exp),
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
+    parameter_sources = {
+        "settings": {
+            "exp": "cli",
+            "steps": "cli",
+            "compare_models": "cli" if args.compare_models else "derived",
+            "dataset_dir": "settings",
+            "ssp": "cli" if args.ssp else "settings",
+            "bc_method": "cli" if args.bc_method else "settings_or_default",
+            "paired_vars": "cli" if args.paired_vars else "derived",
+            "simu": "cli",
+            "simu_test": "cli_or_derived",
+            "settings_module": "cli_or_env",
+            "training_frequency": "settings",
+            "phase1_chunk_days": "cli" if args.phase1_chunk_days is not None else "settings_or_default",
+            "sbck_mbcn_max_fit_samples": "cli" if args.max_fit_samples is not None else "settings_or_default",
+            "prediction_frequency": "settings",
+            "target_default_frequency": "derived",
+        }
+    }
+    model_metadata = {
+        "workflow_family": "observation_target",
+        "checkpoint_bundle": args.checkpoint_bundle,
+        "test_name": args.test_name,
+        "bc_method": bc_method,
+        "paired_variables": paired_vars,
+    }
     path_inventory = inventory_paths(
         {
             "dataset_dir": dataset_dir,
@@ -969,6 +995,8 @@ def main() -> int:
             inputs={"dataset_dir": dataset_dir},
             outputs={"runs_dir": RUNS_DIR / exp, "metrics_dir": METRICS_DIR / exp, "graphs_dir": GRAPHS_DIR / exp},
             cwd=PROJECT_ROOT,
+            parameter_sources=parameter_sources,
+            model_metadata=model_metadata,
         ),
     )
     print(f"provenance_provjson={prov_path}", flush=True)

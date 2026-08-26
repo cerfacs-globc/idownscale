@@ -192,6 +192,7 @@ silent workflow drift:
 The ``.prov.json`` sidecars now also record:
 
 * the raw command line used for the run
+* a stable run identifier and explicit provenance schema version
 * the requested and resolved settings module
 * filtered ``IDOWNSCALE_*`` / ``SLURM_*`` / Python / Conda environment values
 * git commit, branch, and dirty working-tree status
@@ -200,8 +201,19 @@ The ``.prov.json`` sidecars now also record:
 * basic runtime resource information such as CPU count, visible memory, and
   GPU inventory when available
 * safe file fingerprints for critical inputs and outputs
+* machine-readable artifact kinds and input/output derivation links
+* parameter-origin metadata that distinguishes raw CLI inputs from resolved
+  runtime settings
+* model-oriented metadata such as checkpoint, sample, normalization, and
+  prediction/training context when those concepts apply
 * chunking metadata for partial temporal or spatial runs when those parameters
   are provided
+
+This metadata layout is intentionally designed to align with FAIR4RS and
+FAIR4ML expectations: the workflow now emits machine-actionable software,
+runtime, parameter, and artifact metadata directly in the provenance sidecars
+instead of leaving that information implicit in shell history or operator
+memory.
 
 For partial reruns, always pass explicit date windows. This is especially
 important when running only prediction or comparison steps.
