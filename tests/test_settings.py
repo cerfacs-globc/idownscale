@@ -22,6 +22,7 @@ from iriscc.settings import (
     get_experiment_prediction_frequency,
     get_experiment_training_frequency,
     get_frequency_filename_token,
+    get_sbck_mbcn_max_fit_samples,
     get_source_aggregation_method,
     get_source_default_frequency,
     get_source_native_frequency,
@@ -107,6 +108,18 @@ def test_bc_date_helpers_follow_experiment_frequency(monkeypatch):
     assert train[-1].strftime("%Y%m%d%H") == "2000010121"
     assert len(test_hist) == 8
     assert len(test_future) == 8
+
+
+def test_sbck_mbcn_max_fit_samples_is_optional_and_validated(monkeypatch):
+    monkeypatch.setitem(CONFIG, "exp_sbck_mbcn_cap_test", {"sbck_mbcn_max_fit_samples": 1000})
+    assert get_sbck_mbcn_max_fit_samples("exp_sbck_mbcn_cap_test") == 1000
+
+    monkeypatch.setitem(CONFIG, "exp_sbck_mbcn_cap_none", {})
+    assert get_sbck_mbcn_max_fit_samples("exp_sbck_mbcn_cap_none") is None
+
+    monkeypatch.setitem(CONFIG, "exp_sbck_mbcn_cap_bad", {"sbck_mbcn_max_fit_samples": 0})
+    with pytest.raises(ValueError, match="positive integer"):
+        get_sbck_mbcn_max_fit_samples("exp_sbck_mbcn_cap_bad")
 
 
 def test_prediction_path_uses_prediction_frequency_token(monkeypatch):

@@ -43,6 +43,12 @@ def test_resolve_phase1_chunk_days_rejects_non_positive_cli_value():
         workflow.resolve_phase1_chunk_days("exp5", 0)
 
 
+def test_resolve_sbck_mbcn_max_fit_samples_rejects_non_positive_cli_value():
+    workflow = load_workflow_module()
+    with pytest.raises(ValueError, match="positive integer"):
+        workflow.resolve_sbck_mbcn_max_fit_samples("exp5", 0)
+
+
 def test_preflight_stats_split_dates_rejects_split_outside_planned_phase1_window(monkeypatch, tmp_path):
     workflow = load_workflow_module()
     monkeypatch.setattr(workflow, "get_train_split_dates", lambda exp: ["20000101", "20010101", "20020101"])
@@ -190,6 +196,58 @@ def test_sbck_mbcn_rejects_direction_scalar_metrics():
         monkeypatch.setattr(sys, "argv", argv)
         with pytest.raises(NotImplementedError, match="circular diagnostics"):
             workflow.main()
+
+
+def test_sbck_mbcn_warns_when_fit_samples_are_capped(monkeypatch):
+    workflow = load_workflow_module()
+    argv = [
+        "run_obs_workflow.py",
+        "--steps",
+        "bc_dataset,bc_apply",
+        "--bc-method",
+        "sbck_mbcn",
+        "--paired-vars",
+        "uas,vas",
+        "--max-fit-samples",
+        "1000",
+        "--dry-run",
+    ]
+    with pytest.MonkeyPatch.context() as monkeypatch_ctx:
+        monkeypatch_ctx.setattr(sys, "argv", argv)
+        monkeypatch_ctx.setattr(workflow, "write_provjson", lambda path, bundle: path)
+        with pytest.warns(UserWarning, match="may degrade tails and extremes"):
+            assert workflow.main() == 0
+
+
+def test_sbck_mbcn_forwards_configured_fit_sample_cap(monkeypatch):
+    workflow = load_workflow_module()
+    seen = []
+
+    def fake_run_step(**kwargs):
+        seen.append((kwargs["name"], kwargs["command"]))
+
+    monkeypatch.setattr(workflow, "run_step", fake_run_step)
+    monkeypatch.setattr(workflow, "write_provjson", lambda path, bundle: path)
+    monkeypatch.setattr(workflow, "get_sbck_mbcn_max_fit_samples", lambda exp: 1000)
+    argv = [
+        "run_obs_workflow.py",
+        "--steps",
+        "bc_dataset,bc_apply",
+        "--bc-method",
+        "sbck_mbcn",
+        "--paired-vars",
+        "uas,vas",
+        "--dry-run",
+    ]
+    with pytest.MonkeyPatch.context() as monkeypatch_ctx:
+        monkeypatch_ctx.setattr(sys, "argv", argv)
+        with pytest.warns(UserWarning, match="may degrade tails and extremes"):
+            assert workflow.main() == 0
+
+    bc_apply_commands = [command for name, command in seen if name == "bc_apply"]
+    assert len(bc_apply_commands) == 1
+    assert "--max-fit-samples" in bc_apply_commands[0]
+    assert "1000" in bc_apply_commands[0]
 
 
 def test_phase1_chunking_runs_multiple_chunk_substeps(monkeypatch, tmp_path):

@@ -978,6 +978,20 @@ def get_phase1_chunk_days(exp: str) -> int | None:
     return chunk_days
 
 
+def get_sbck_mbcn_max_fit_samples(exp: str) -> int | None:
+    cfg = CONFIG[exp]
+    value = cfg.get("sbck_mbcn_max_fit_samples")
+    if value is None:
+        return None
+    max_fit_samples = int(value)
+    if max_fit_samples <= 0:
+        raise ValueError(
+            f"Experiment '{exp}' configured invalid sbck_mbcn_max_fit_samples={max_fit_samples}. "
+            "Expected a positive integer."
+        )
+    return max_fit_samples
+
+
 def get_bc_train_hist_dates(exp: str) -> pd.DatetimeIndex:
     cfg = CONFIG[exp]
     return build_time_range(

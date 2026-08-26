@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -56,6 +57,7 @@ from iriscc.settings import (
     get_bias_corrected_netcdf_path,
     get_phase1_chunk_days,
     get_phase1_dates,
+    get_sbck_mbcn_max_fit_samples,
     get_train_split_dates,
     get_prediction_output_path,
     get_source_default_frequency,
@@ -149,6 +151,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--var", default="tas", help="Variable for phase2 steps.")
     parser.add_argument("--paired-vars", default=None, help="Optional comma-separated pair of variables for paired multivariate BC methods.")
+    parser.add_argument(
+        "--max-fit-samples",
+        type=int,
+        default=None,
+        help="Optional SBCK MBCn training-sample cap per grid cell. Leave unset to use all finite training samples.",
+    )
     parser.add_argument("--derive-wind-products", action="store_true", help="Derive scalar wind products from paired corrected components.")
     parser.add_argument("--u-var", default="uas", help="Zonal wind-component variable name used for wind-product derivation.")
     parser.add_argument("--v-var", default="vas", help="Meridional wind-component variable name used for wind-product derivation.")
@@ -275,6 +283,14 @@ def resolve_phase1_chunk_days(exp: str, cli_value: int | None) -> int | None:
             raise ValueError("--phase1-chunk-days must be a positive integer.")
         return cli_value
     return get_phase1_chunk_days(exp)
+
+
+def resolve_sbck_mbcn_max_fit_samples(exp: str, cli_value: int | None) -> int | None:
+    if cli_value is not None:
+        if cli_value <= 0:
+            raise ValueError("--max-fit-samples must be a positive integer.")
+        return cli_value
+    return get_sbck_mbcn_max_fit_samples(exp)
 
 
 def validate_split_date_order(split_dates: list[str]) -> None:
@@ -429,6 +445,7 @@ def main() -> int:
         else default_phase1_window(exp)
     )
     phase1_chunk_days = resolve_phase1_chunk_days(exp, args.phase1_chunk_days)
+    mbcn_max_fit_samples = resolve_sbck_mbcn_max_fit_samples(exp, args.max_fit_samples) if bc_method == "sbck_mbcn" else None
     predict_start_date = args.predict_start_date or default_prediction_window(exp)[0]
     predict_end_date = args.predict_end_date or default_prediction_window(exp)[1]
     metrics_start_date = args.metrics_start_date or default_metrics_window(exp)[0]
@@ -449,6 +466,7 @@ def main() -> int:
         "settings_module": ACTIVE_SETTINGS_MODULE,
         "training_frequency": get_experiment_training_frequency(exp),
         "phase1_chunk_days": phase1_chunk_days,
+        "sbck_mbcn_max_fit_samples": mbcn_max_fit_samples,
         "prediction_frequency": get_experiment_prediction_frequency(exp),
         "target_default_frequency": get_source_default_frequency(exp_cfg.get("target_source", exp_cfg["target"])),
     }
@@ -624,7 +642,9 @@ def main() -> int:
                 args.simu,
                 "--var",
                 args.var,
-            ] + (["--paired-vars", ",".join(paired_vars)] if bc_method == "sbck_mbcn" else []),
+            ]
+            + (["--paired-vars", ",".join(paired_vars)] if bc_method == "sbck_mbcn" else [])
+            + (["--max-fit-samples", str(mbcn_max_fit_samples)] if mbcn_max_fit_samples is not None else []),
             "expected": bc_apply_outputs,
             "cleanup": bc_apply_outputs + [bc_dataset_dir, GRAPHS_DIR / "biascorrection"],
         },
@@ -881,6 +901,13 @@ def main() -> int:
     if bc_method == "sbck_mbcn":
         if len(paired_vars) != 2:
             raise ValueError("--paired-vars is required with exactly two variables for --bc-method sbck_mbcn.")
+        if mbcn_max_fit_samples is not None:
+            warnings.warn(
+                "SBCK MBCn will cap finite training samples per grid cell at "
+                f"{mbcn_max_fit_samples}. This can reduce memory usage but may degrade tails and extremes. "
+                "Leave it unset to use all available training samples.",
+                UserWarning,
+            )
         if args.var == args.direction_var and any(
             step in steps
             for step in {"metrics_day", "metrics_month", "value_metrics", "plot_metrics_day", "plot_metrics_month", "compare_suite"}

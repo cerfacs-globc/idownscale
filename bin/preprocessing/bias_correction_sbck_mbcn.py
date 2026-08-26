@@ -14,6 +14,7 @@ import sys
 sys.path.append(".")
 
 import argparse
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -23,6 +24,7 @@ from iriscc.settings import (
     get_bc_bundle_path,
     get_bc_train_hist_dates,
     get_bias_corrected_netcdf_path,
+    get_sbck_mbcn_max_fit_samples,
     get_simu_family,
     get_simu_source,
     normalize_bc_tag,
@@ -93,7 +95,21 @@ def unpack_predict_result(result):
     raise TypeError(f"Unsupported SBCK predict result type: {type(result)!r}")
 
 
-def apply_sbck_mbcn(train_hist: dict, test_hist: dict, test_future: dict, simu: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def capped_training_indices(train_mask: np.ndarray, max_fit_samples: int | None) -> np.ndarray:
+    train_indices = np.flatnonzero(train_mask)
+    if max_fit_samples is None or train_indices.size <= max_fit_samples:
+        return train_indices
+    picks = np.linspace(0, train_indices.size - 1, max_fit_samples, dtype=int)
+    return train_indices[picks]
+
+
+def apply_sbck_mbcn(
+    train_hist: dict,
+    test_hist: dict,
+    test_future: dict,
+    simu: str,
+    max_fit_samples: int | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     try:
         import SBCK
     except ModuleNotFoundError as exc:
@@ -132,13 +148,14 @@ def apply_sbck_mbcn(train_hist: dict, test_hist: dict, test_future: dict, simu: 
         train_mask = np.all(np.isfinite(y0_cell) & np.isfinite(x0_cell), axis=1)
         hist_mask = np.all(np.isfinite(x1_cell), axis=1)
         future_mask = np.all(np.isfinite(x2_cell), axis=1)
-        if train_mask.sum() < 10 or hist_mask.sum() < 10:
+        train_indices = capped_training_indices(train_mask, max_fit_samples)
+        if train_indices.size < 10 or hist_mask.sum() < 10:
             continue
 
         x0_fit = fill_missing_2d(x0_cell)
         x1_fit = fill_missing_2d(x1_cell)
         mbcn = SBCK.MBCn()
-        mbcn.fit(y0_cell[train_mask], x0_cell[train_mask], x1_fit)
+        mbcn.fit(y0_cell[train_indices], x0_cell[train_indices], x1_fit)
 
         z1_cell, z0_cell = unpack_predict_result(mbcn.predict(x1_fit, x0_fit))
         z1_flat[:, cell, :] = np.asarray(z1_cell).reshape(-1, x1_cell.shape[1])[: x1_cell.shape[0]]
@@ -167,6 +184,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--var", type=str, default=None, help="Unused compatibility argument from the generic workflow runner.")
     parser.add_argument("--paired-vars", type=str, required=True, help="Exactly two comma-separated variables, e.g. uas,vas")
     parser.add_argument("--bc-tag", type=str, default=DEFAULT_BC_TAG, help="Optional suffix to keep BC outputs separate across methods.")
+    parser.add_argument(
+        "--max-fit-samples",
+        type=int,
+        default=None,
+        help="Optional cap on the number of finite training samples used per grid cell for SBCK MBCn. "
+        "Leave unset to use all available training samples.",
+    )
     return parser.parse_args()
 
 
@@ -181,6 +205,17 @@ def main() -> int:
     simu = args.simu
     bc_tag = normalize_bc_tag(args.bc_tag) or DEFAULT_BC_TAG
     simu_source = get_simu_source(exp, simu)
+    max_fit_samples = args.max_fit_samples
+    if max_fit_samples is None:
+        max_fit_samples = get_sbck_mbcn_max_fit_samples(exp)
+    if max_fit_samples is not None and max_fit_samples <= 0:
+        raise ValueError("--max-fit-samples must be a positive integer when provided.")
+    if max_fit_samples is not None:
+        warnings.warn(
+            "SBCK MBCn is running with a capped training sample count "
+            f"(--max-fit-samples={max_fit_samples}). This can reduce memory usage but may degrade tail and extreme-value correction.",
+            UserWarning,
+        )
 
     train_hist = dict(np.load(get_bc_bundle_path(exp, simu, "train_hist", variables=variables), allow_pickle=True))
     test_hist = dict(np.load(get_bc_bundle_path(exp, simu, "test_hist", variables=variables), allow_pickle=True))
@@ -190,7 +225,13 @@ def main() -> int:
         raise ValueError(f"Paired bundle variables {bundle_variables} do not match requested variables {variables}.")
 
     print("Applying SBCK MBCn", flush=True)
-    train_hist_bc, test_hist_bc, test_future_bc = apply_sbck_mbcn(train_hist, test_hist, test_future, simu)
+    train_hist_bc, test_hist_bc, test_future_bc = apply_sbck_mbcn(
+        train_hist,
+        test_hist,
+        test_future,
+        simu,
+        max_fit_samples=max_fit_samples,
+    )
 
     geometry_source = corrected_geometry_reference(exp, simu, simu_source)
     get_data_bc = Data(CONFIG[exp].get("bc_domain", CONFIG[exp]["domain"]))

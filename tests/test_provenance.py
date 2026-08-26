@@ -109,7 +109,14 @@ def test_chunk_metadata_collects_known_keys():
             "unrelated": "skip",
         }
     )
-    assert info == {"phase1_chunk_days": 30, "cell_start": 0, "cell_end": 300}
+    assert info == {
+        "phase1_chunk_days": 30,
+        "cell_start": 0,
+        "cell_end": 300,
+        "max_fit_samples": 1000,
+    }
+    info = chunk_metadata({"max_fit_samples": 1000})
+    assert info == {"max_fit_samples": 1000}
 
 
 def test_runtime_resources_reports_stubbed_gpu_inventory(monkeypatch):
