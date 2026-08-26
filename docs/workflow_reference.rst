@@ -105,9 +105,20 @@ The active scripts now print a resolved runtime context and write PROV JSON
 files that include:
 
 * key parameters and resolved settings
+* explicit parameter-source metadata for CLI inputs and resolved runtime values
 * important input and output locations
 * path inventories for critical files and directories
+* stable run identifiers and a provenance schema version
+* model-oriented metadata when the step trains, loads, or reuses a model
+* machine-readable artifact kinds and derivation links between inputs and outputs
 * timestamps and script names
+
+This is now a built-in part of the workflow design rather than an optional
+debug trace. In practice, the provenance layer is meant to satisfy the most
+useful FAIR4RS and FAIR4ML expectations for operational climate workflows:
+software/runtime traceability, explicit parameter context, versioned execution
+metadata, and reusable machine-readable links between models, datasets, static
+fields, and outputs.
 
 For ``sbck_mbcn`` workflows, keep two operational rules in mind:
 

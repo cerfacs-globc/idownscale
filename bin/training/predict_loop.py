@@ -220,6 +220,25 @@ if __name__=="__main__":
             "prediction_netcdf": prediction_path,
         }
     )
+    parameter_sources = {
+        "settings": {
+            "checkpoint_dir": "checkpoint_bundle" if args.checkpoint_bundle else "run_directory",
+            "sample_dir": "cli" if args.sample_dir else "derived",
+            "statistics_dir": "checkpoint_hparams",
+            "batch_size": "cli" if args.batch_size is not None else "checkpoint_hparams",
+            "diffusion_num_samples": "cli" if args.num_samples != 1 else "derived",
+            "output_range": "checkpoint_hparams",
+            "model": "checkpoint_hparams",
+            "prediction_frequency": "settings",
+        }
+    }
+    model_metadata = {
+        "run_name": args.test_name,
+        "model_family": hparams.get("model"),
+        "simu_test": args.simu_test,
+        "predicted_variable": var,
+        "checkpoint_bundle": args.checkpoint_bundle,
+    }
     print_resolved_context(
         script_name="predict_loop.py",
         parameters=vars(args),
@@ -301,6 +320,8 @@ if __name__=="__main__":
             },
             outputs={"prediction_netcdf": prediction_path},
             cwd=Path(__file__).resolve().parents[2],
+            parameter_sources=parameter_sources,
+            model_metadata=model_metadata,
         ),
     )
     print(f"provenance_provjson={prov_path}", flush=True)

@@ -101,6 +101,30 @@ def main() -> int:
         "output_norm": hparams.output_norm,
         "output_range": hparams.output_range,
     }
+    parameter_sources = {
+        "settings": {
+            "exp": "cli",
+            "model": "cli",
+            "channels": "derived",
+            "in_channels": "derived",
+            "sample_dir": "cli" if args.sample_dir else "derived",
+            "statistics_dir": "derived",
+            "runs_dir": "derived",
+            "output_norm": "cli",
+            "output_range": "derived",
+        }
+    }
+    model_metadata = {
+        "run_name": args.test_name,
+        "model_family": args.model,
+        "learning_rate": args.learning_rate,
+        "max_epoch": args.max_epoch,
+        "batch_size": args.batch_size,
+        "loss": args.loss,
+        "dropout": args.dropout,
+        "seed": args.seed,
+        "diffusion_steps": args.n_steps if args.model == "cddpm" else None,
+    }
     path_inventory = inventory_paths(
         {
             "sample_dir": hparams.sample_dir,
@@ -193,6 +217,8 @@ def main() -> int:
             },
             outputs={"runs_dir": hparams.runs_dir},
             cwd=Path(__file__).resolve().parents[2],
+            parameter_sources=parameter_sources,
+            model_metadata=model_metadata,
         ),
     )
     print(f"provenance_provjson={prov_path}", flush=True)
