@@ -337,35 +337,31 @@ def build_run_id(script_name: str, start_time: str, parameters: dict[str, object
 
 def classify_artifact(label: str) -> str:
     normalized = label.lower()
-    if "checkpoint" in normalized:
-        return "checkpoint"
-    if "statistics" in normalized:
-        return "statistics"
-    if "sample" in normalized:
-        return "sample_dataset"
-    if "topograph" in normalized or "elevation" in normalized:
-        return "topography"
-    if "mask" in normalized:
-        return "mask"
-    if "grid" in normalized:
-        return "grid"
-    if "prediction" in normalized:
-        return "prediction"
-    if "metrics" in normalized:
-        return "metrics"
-    if "graph" in normalized or "plot" in normalized:
-        return "diagnostic_graphs"
-    if "run" in normalized:
-        return "run_directory"
-    if "dataset" in normalized:
-        return "dataset"
+    artifact_patterns = (
+        ("checkpoint", "checkpoint"),
+        ("statistics", "statistics"),
+        ("sample", "sample_dataset"),
+        ("topograph", "topography"),
+        ("elevation", "topography"),
+        ("mask", "mask"),
+        ("grid", "grid"),
+        ("prediction", "prediction"),
+        ("metrics", "metrics"),
+        ("graph", "diagnostic_graphs"),
+        ("plot", "diagnostic_graphs"),
+        ("run", "run_directory"),
+        ("dataset", "dataset"),
+    )
+    for pattern, artifact_kind in artifact_patterns:
+        if pattern in normalized:
+            return artifact_kind
     return "artifact"
 
 
 def default_parameter_sources(parameters: dict[str, object], settings: dict[str, object]) -> dict[str, JsonValue]:
     return {
-        "parameters": {key: "cli" for key in parameters},
-        "settings": {key: "resolved" for key in settings},
+        "parameters": dict.fromkeys(parameters, "cli"),
+        "settings": dict.fromkeys(settings, "resolved"),
     }
 
 

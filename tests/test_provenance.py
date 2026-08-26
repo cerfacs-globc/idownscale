@@ -129,9 +129,10 @@ def test_classify_artifact_maps_common_labels():
 
 
 def test_merged_parameter_sources_accepts_overrides():
+    sample_dir = "/safe/sample"
     info = merged_parameter_sources(
         {"exp": "exp5"},
-        {"phase1_chunk_days": 30, "sample_dir": "/tmp/sample"},
+        {"phase1_chunk_days": 30, "sample_dir": sample_dir},
         {
             "parameters": {"exp": "cli"},
             "settings": {"phase1_chunk_days": "settings", "sample_dir": "derived"},
