@@ -4,17 +4,40 @@ Lightweight W3C PROV-JSON helpers for workflow provenance.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shlex
 import socket
 import subprocess
+import sys
 from datetime import UTC, datetime
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 from shutil import which
 from typing import TypeAlias
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
+ENV_EXACT_NAMES = {
+    "CONDA_DEFAULT_ENV",
+    "CONDA_PREFIX",
+    "PYTHONHOME",
+    "PYTHONNOUSERSITE",
+    "PYTHONPATH",
+}
+ENV_PREFIXES = ("IDOWNSCALE_", "SLURM_")
+IMPORTANT_PACKAGES = (
+    "sbck",
+    "numpy",
+    "scipy",
+    "xarray",
+    "xesmf",
+    "ibicus",
+    "torch",
+    "pytorch-lightning",
+    "netCDF4",
+)
 
 
 def utc_now_iso() -> str:
@@ -38,6 +61,42 @@ def json_ready(value: object) -> JsonValue:
     return str(value)
 
 
+def _safe_check_output(
+    command: list[str],
+    *,
+    cwd: str | Path | None = None,
+    timeout: float = 2.0,
+) -> str | None:
+    try:
+        output = subprocess.check_output(  # noqa: S603
+            command,
+            cwd=cwd,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    stripped = output.strip()
+    return stripped or None
+
+
+def _sha256_hexdigest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def provenance_sha256_max_bytes() -> int:
+    raw_value = os.getenv("IDOWNSCALE_PROV_SHA256_MAX_BYTES", str(10 * 1024 * 1024))
+    try:
+        return max(0, int(raw_value))
+    except ValueError:
+        return 10 * 1024 * 1024
+
+
 def describe_path(path: str | Path) -> dict[str, JsonValue]:
     resolved = Path(path)
     info: dict[str, JsonValue] = {
@@ -50,6 +109,12 @@ def describe_path(path: str | Path) -> dict[str, JsonValue]:
         info["is_dir"] = resolved.is_dir()
         info["size_bytes"] = int(stat.st_size)
         info["mtime"] = datetime.fromtimestamp(stat.st_mtime, UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        if resolved.is_file():
+            max_bytes = provenance_sha256_max_bytes()
+            if stat.st_size <= max_bytes:
+                info["sha256"] = _sha256_hexdigest(resolved)
+            else:
+                info["sha256_skipped"] = f"file larger than {max_bytes} bytes"
     return info
 
 
@@ -67,18 +132,76 @@ def git_commit(cwd: str | Path | None = None) -> str | None:
     git_bin = which("git")
     if git_bin is None:
         return None
-    try:
-        return (
-            subprocess.check_output(  # noqa: S603
-                [git_bin, "rev-parse", "HEAD"],
-                cwd=cwd,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            ).strip()
-            or None
-        )
-    except (OSError, subprocess.SubprocessError):
+    return _safe_check_output([git_bin, "rev-parse", "HEAD"], cwd=cwd)
+
+
+def git_branch(cwd: str | Path | None = None) -> str | None:
+    git_bin = which("git")
+    if git_bin is None:
         return None
+    return _safe_check_output([git_bin, "branch", "--show-current"], cwd=cwd)
+
+
+def git_dirty(cwd: str | Path | None = None) -> bool | None:
+    git_bin = which("git")
+    if git_bin is None:
+        return None
+    status = _safe_check_output([git_bin, "status", "--short"], cwd=cwd)
+    if status is None:
+        return False
+    return bool(status.strip())
+
+
+def git_status_short(cwd: str | Path | None = None, max_lines: int = 50) -> list[str] | None:
+    git_bin = which("git")
+    if git_bin is None:
+        return None
+    status = _safe_check_output([git_bin, "status", "--short"], cwd=cwd)
+    if status is None:
+        return []
+    return status.splitlines()[:max_lines]
+
+
+def git_context(cwd: str | Path | None = None) -> dict[str, JsonValue]:
+    return {
+        "commit": git_commit(cwd),
+        "branch": git_branch(cwd),
+        "dirty": git_dirty(cwd),
+        "status_short": git_status_short(cwd),
+    }
+
+
+def command_line() -> dict[str, JsonValue]:
+    argv = list(sys.argv)
+    return {
+        "argv": argv,
+        "shell": shlex.join(argv),
+    }
+
+
+def environment_snapshot() -> dict[str, JsonValue]:
+    snapshot: dict[str, JsonValue] = {}
+    for name in sorted(os.environ):
+        if name in ENV_EXACT_NAMES or any(name.startswith(prefix) for prefix in ENV_PREFIXES):
+            snapshot[name] = os.environ[name]
+    return snapshot
+
+
+def settings_identity() -> dict[str, JsonValue]:
+    requested = os.getenv("IDOWNSCALE_SETTINGS_MODULE", "")
+    active = None
+    module_file = None
+    settings_module = sys.modules.get("iriscc.settings")
+    if settings_module is not None:
+        active = getattr(settings_module, "ACTIVE_SETTINGS_MODULE", None)
+        if active:
+            loaded_module = sys.modules.get(active)
+            module_file = getattr(loaded_module, "__file__", None) if loaded_module is not None else None
+    return {
+        "requested_module": requested,
+        "active_module": active,
+        "active_module_file": module_file,
+    }
 
 
 def runtime_agent() -> dict[str, JsonValue]:
@@ -94,6 +217,109 @@ def runtime_agent() -> dict[str, JsonValue]:
         "slurm_job_id": os.getenv("SLURM_JOB_ID", ""),
         "slurm_job_name": os.getenv("SLURM_JOB_NAME", ""),
     }
+
+
+def package_versions() -> dict[str, JsonValue]:
+    versions: dict[str, JsonValue] = {}
+    try:
+        distributions = importlib_metadata.distributions()
+    except (AttributeError, OSError, TypeError, ValueError):
+        return versions
+    for distribution in distributions:
+        name = distribution.metadata.get("Name")
+        if not name:
+            continue
+        versions[name] = distribution.version
+    return dict(sorted(versions.items(), key=lambda item: item[0].lower()))
+
+
+def runtime_software() -> dict[str, JsonValue]:
+    packages = package_versions()
+    return {
+        "python_version": sys.version.split()[0],
+        "python_implementation": sys.implementation.name,
+        "packages": packages,
+        "important_packages": {name: packages[name] for name in IMPORTANT_PACKAGES if name in packages},
+    }
+
+
+def _sysconf_bytes(page_key: str, size_key: str) -> int | None:
+    try:
+        pages = os.sysconf(page_key)
+        size = os.sysconf(size_key)
+    except (AttributeError, OSError, ValueError):
+        return None
+    if not isinstance(pages, int) or not isinstance(size, int):
+        return None
+    return pages * size
+
+
+def gpu_inventory() -> list[JsonValue]:
+    nvidia_smi = which("nvidia-smi")
+    if nvidia_smi is None:
+        return []
+    output = _safe_check_output(
+        [
+            nvidia_smi,
+            "--query-gpu=name,memory.total,driver_version",
+            "--format=csv,noheader",
+        ],
+        timeout=2.0,
+    )
+    if output is None:
+        return []
+    rows: list[JsonValue] = []
+    for line in output.splitlines():
+        name, memory_total, driver_version = [item.strip() for item in line.split(",", maxsplit=2)]
+        rows.append(
+            {
+                "name": name,
+                "memory_total": memory_total,
+                "driver_version": driver_version,
+            }
+        )
+    return rows
+
+
+def runtime_resources() -> dict[str, JsonValue]:
+    return {
+        "cpu_count": os.cpu_count(),
+        "mem_total_bytes": _sysconf_bytes("SC_PHYS_PAGES", "SC_PAGE_SIZE"),
+        "mem_available_bytes": _sysconf_bytes("SC_AVPHYS_PAGES", "SC_PAGE_SIZE"),
+        "slurm_cpus_per_task": os.getenv("SLURM_CPUS_PER_TASK", ""),
+        "slurm_job_cpus_per_node": os.getenv("SLURM_JOB_CPUS_PER_NODE", ""),
+        "slurm_mem_per_node": os.getenv("SLURM_MEM_PER_NODE", ""),
+        "slurm_mem_per_cpu": os.getenv("SLURM_MEM_PER_CPU", ""),
+        "slurm_gpus": os.getenv("SLURM_GPUS", ""),
+        "slurm_gres": os.getenv("SLURM_JOB_GRES", ""),
+        "gpus": gpu_inventory(),
+    }
+
+
+def chunk_metadata(parameters: dict[str, object]) -> dict[str, JsonValue]:
+    keys = [
+        "chunk_days",
+        "phase1_chunk_days",
+        "cell_start",
+        "cell_end",
+        "cells_per_worker",
+        "block_output_dir",
+        "predict_block_size",
+        "n_jobs",
+        "future_start_date",
+        "future_end_date",
+        "phase1_start_date",
+        "phase1_end_date",
+        "sample_start_date",
+        "sample_end_date",
+        "predict_start_date",
+        "predict_end_date",
+        "metrics_start_date",
+        "metrics_end_date",
+        "value_start_date",
+        "value_end_date",
+    ]
+    return {key: json_ready(parameters[key]) for key in keys if key in parameters and parameters[key] is not None}
 
 
 def build_prov_bundle(
@@ -122,9 +348,12 @@ def build_prov_bundle(
                 "prov:label": script_name,
                 "prov:startTime": start_time,
                 "prov:endTime": end_time,
+                "idownscale:command": json_ready(command_line()),
                 "idownscale:parameters": json_ready(parameters),
                 "idownscale:settings": json_ready(settings),
-                "idownscale:git_commit": git_commit(cwd),
+                "idownscale:settings_identity": json_ready(settings_identity()),
+                "idownscale:git": json_ready(git_context(cwd)),
+                "idownscale:chunking": json_ready(chunk_metadata(parameters)),
             }
         },
         "agent": {
@@ -132,6 +361,9 @@ def build_prov_bundle(
                 "prov:type": "prov:SoftwareAgent",
                 "prov:label": "idownscale runtime",
                 "idownscale:runtime": json_ready(runtime_agent()),
+                "idownscale:environment": json_ready(environment_snapshot()),
+                "idownscale:resources": json_ready(runtime_resources()),
+                "idownscale:software": json_ready(runtime_software()),
             }
         },
         "used": {},
