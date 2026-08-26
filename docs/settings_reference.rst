@@ -72,6 +72,8 @@ combines:
 * workflow dates and scenario: historical windows, future start, ``ssp``
 * cadence: optional ``training_frequency`` and ``prediction_frequency``
 * chunking: optional ``phase1_chunk_days`` for sequential temporal phase-1 runs
+* MBCn controls: optional ``sbck_mbcn_max_fit_samples`` when memory pressure
+  requires capping the number of finite training samples used per grid cell
 * phase-specific behavior: BC method, target preparation, sample packaging
 
 For current observation-target workflows:
@@ -120,6 +122,12 @@ CERRA, but the packaged training workflow remains daily.
 Bias-correction windows inherit the experiment training frequency as well. For
 sub-daily experiments, the BC train/test date helpers resolve full timestamp
 ranges rather than silently collapsing to daily anchors.
+
+For ``sbck_mbcn``, the default behavior is to use all finite training samples
+per grid cell. If a workflow needs to reduce memory usage, set
+``sbck_mbcn_max_fit_samples`` explicitly in the experiment configuration or
+pass ``--max-fit-samples`` through the workflow entrypoint. Capped fits can be
+useful operationally, but they may degrade tail and extreme-value correction.
 
 Scientific Checklist
 --------------------

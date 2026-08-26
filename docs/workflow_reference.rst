@@ -109,6 +109,15 @@ files that include:
 * path inventories for critical files and directories
 * timestamps and script names
 
+For ``sbck_mbcn`` workflows, keep two operational rules in mind:
+
+* using all finite training samples is the default and preferred scientific
+  behavior
+* if memory constraints require a cap, set it explicitly with
+  ``sbck_mbcn_max_fit_samples`` in the experiment settings or
+  ``--max-fit-samples`` in ``run_obs_workflow.py``; the workflow now warns
+  because capped fits can degrade tails and extremes
+
 For long workflows, validation should happen stage by stage:
 
 * confirm expected outputs exist

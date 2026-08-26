@@ -14,6 +14,15 @@ def load_module():
     return module
 
 
+def load_mbcn_module():
+    module_path = Path(__file__).resolve().parents[1] / "bin/preprocessing/bias_correction_sbck_mbcn.py"
+    spec = spec_from_file_location("bias_correction_sbck_mbcn", module_path)
+    module = module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_build_corrected_dataset_preserves_scalar_variable_name():
     module = load_module()
     reference = xr.Dataset(
@@ -88,3 +97,12 @@ def test_bc_dataset_array_time_validation_identifies_source_file():
             "train_hist reference after regridding",
             "uas_3h_CERRA_1985.nc",
         )
+
+
+def test_capped_training_indices_preserve_span_when_subsampling():
+    module = load_mbcn_module()
+    train_mask = np.array([True, False, True, True, False, True, True])
+    capped = module.capped_training_indices(train_mask, 3)
+    np.testing.assert_array_equal(capped, np.array([0, 3, 6]))
+    uncapped = module.capped_training_indices(train_mask, None)
+    np.testing.assert_array_equal(uncapped, np.array([0, 2, 3, 5, 6]))

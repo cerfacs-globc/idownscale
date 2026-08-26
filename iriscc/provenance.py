@@ -300,6 +300,8 @@ def chunk_metadata(parameters: dict[str, object]) -> dict[str, JsonValue]:
     keys = [
         "chunk_days",
         "phase1_chunk_days",
+        "sbck_mbcn_max_fit_samples",
+        "max_fit_samples",
         "cell_start",
         "cell_end",
         "cells_per_worker",
