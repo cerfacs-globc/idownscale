@@ -144,6 +144,7 @@ dependencies:
       - cloudpickle==3.1.2
       - dask==2026.8.0
       - datetime==6.0
+      - einops==0.8.2
       - filelock==4.2.7
       - formulaic==1.2.2
       - frozenlist==1.8.0
