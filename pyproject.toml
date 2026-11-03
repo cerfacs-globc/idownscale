@@ -25,6 +25,7 @@ dependencies = [
     "ruff",
     "pyproj",
     "pytorch_lightning",
+    "SBCK",
     "scipy",
     "seaborn",
     "timm",
