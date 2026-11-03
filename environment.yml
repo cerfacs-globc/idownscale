@@ -1,0 +1,19 @@
+# Conda environment for idownscale.
+#   conda env create -f environment.yml
+#   conda activate idownscale
+#   pip install -e .
+# Exact, tested versions for linux-64: environment-lock-linux-64.yml
+name: idownscale
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - eigen          # C++ headers needed to build SBCK from source
+  - esmpy          # ESMF Python bindings, required by xesmf
+  - xesmf
+  - netcdf4
+  - cartopy
+  - pytest
+  - pip
+  - pip:
+      - -r requirements.txt

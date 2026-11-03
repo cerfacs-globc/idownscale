@@ -1,3 +1,5 @@
+# Install conda deps first (see environment.yml): SBCK needs the eigen headers to build,
+# xesmf needs esmpy. Then: pip install -r requirements.txt
 Cartopy==0.23.0
 ibicus==1.1.1
 matplotlib==3.8.4
