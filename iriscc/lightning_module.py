@@ -23,7 +23,7 @@ from monai.networks.nets import SwinUNETR, UNet as MonaiUNet
 
 from iriscc.metrics import MaskedMAE, MaskedRMSE
 from iriscc.models.miniunet import MiniUNet
-from iriscc.models.miniswinunetr import MiniSwinUNETR
+from iriscc.models.miniswinunetr import MiniSwinUNETR, swinunetr_size_kwargs
 from iriscc.models.unet import UNet
 from iriscc.loss import MaskedMSELoss, MaskedGammaMAELoss
 
@@ -58,7 +58,7 @@ def get_model(model:str,
         case 'miniunet':
             return MiniUNet(in_channels=in_channels, out_channels=out_channels, init_features=32).float()
         case 'swinunetr':
-            return SwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2, drop_rate=dropout).float()
+            return SwinUNETR(**swinunetr_size_kwargs(img_size), in_channels=in_channels, out_channels=out_channels, spatial_dims=2, drop_rate=dropout).float()
         case 'miniswinunetr':
             return MiniSwinUNETR(img_size=img_size, in_channels=in_channels, out_channels=out_channels, spatial_dims=2,
                                  drop_rate=dropout).float()
