@@ -1,5 +1,6 @@
 Cartopy
 ibicus
+einops
 matplotlib
 numpy
 monai

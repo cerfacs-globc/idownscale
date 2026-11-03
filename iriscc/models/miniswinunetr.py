@@ -1,10 +1,20 @@
 import sys
 sys.path.append('.')
 
+import inspect
+
 import torch
 import numpy as np
 from monai.networks.nets import SwinUNETR
 from monai.networks.blocks import UnetrBasicBlock
+
+
+def swinunetr_size_kwargs(img_size):
+    """Return ``img_size`` as a kwarg only for MONAI versions that accept it (removed in MONAI 1.5)."""
+    if "img_size" in inspect.signature(SwinUNETR.__init__).parameters:
+        return {"img_size": img_size}
+    return {}
+
 
 class MiniSwinUNETR(SwinUNETR):
     def __init__(
@@ -28,7 +38,7 @@ class MiniSwinUNETR(SwinUNETR):
         num_heads = (3, 6, 12, 24)  # Ajusté en conséquence
         
         super().__init__(
-            img_size=img_size,
+            **swinunetr_size_kwargs(img_size),
             in_channels=in_channels,
             out_channels=out_channels,
             depths=depths,

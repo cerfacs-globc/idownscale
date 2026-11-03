@@ -8,6 +8,42 @@ This document provides an overview of the code structure, useful commands for ma
 
 ---
 
+## Installation
+
+Use conda (conda-forge) for the compiled dependencies, then pip for the rest.
+`xesmf` needs ESMF/`esmpy`, and `SBCK` is built from source and needs the
+**Eigen** C++ headers: without `eigen`, `pip install -r requirements.txt`
+fails on SBCK and installs nothing.
+
+```bash
+git clone https://github.com/cerfacs-globc/idownscale.git
+cd idownscale
+conda env create -f environment.yml   # conda packages + requirements.txt
+conda activate idownscale
+pip install -e .
+pytest                                 # CPU is enough for the test suite
+```
+
+For the exact versions we test on Linux (x86_64), use the lock file instead:
+
+```bash
+conda env create -f environment-lock-linux-64.yml
+conda activate idownscale
+pip install -e . --no-deps
+```
+
+Equivalent manual setup:
+
+```bash
+conda create -n idownscale -c conda-forge --override-channels \
+    python=3.11 eigen esmpy xesmf netcdf4 cartopy pytest
+conda activate idownscale
+pip install -r requirements.txt
+pip install -e .
+```
+
+---
+
 ## Runtime configuration
 
 The clean branch now centralizes the main path knobs in `iriscc/settings.py`.

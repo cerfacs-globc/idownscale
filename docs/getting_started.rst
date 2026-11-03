@@ -7,7 +7,10 @@ local workstations as well as HPC systems.
 Installation
 ------------
 
-We recommend a Conda-based setup because ``xesmf`` depends on ``ESMF``/``esmpy``.
+We recommend a Conda-based setup because ``xesmf`` depends on ``ESMF``/``esmpy``
+and ``SBCK`` is compiled from source against the ``eigen`` C++ headers.
+``environment.yml`` installs both; ``environment-lock-linux-64.yml`` pins the exact
+versions tested on Linux.
 
 .. code-block:: bash
 

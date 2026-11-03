@@ -4,6 +4,7 @@ import torch
 import pytest
 from iriscc.lightning_module_ddpm import IRISCCCDDPMLightningModule
 from iriscc.models.cddpm import CDDPM
+from iriscc.models.miniswinunetr import MiniSwinUNETR
 from iriscc.models.miniunet import MiniUNet
 from iriscc.models.unet import UNet
 
@@ -90,4 +91,7 @@ def test_swin2sr_smoke():
 
 
 def test_miniswinunetr_smoke():
-    pytest.skip("MiniSwinUNETR implementation is incompatible with installed MONAI version")
+    model = MiniSwinUNETR(img_size=(64, 64), in_channels=2, out_channels=1, spatial_dims=2)
+    x = torch.randn(1, 2, 64, 64)
+    y = model(x)
+    assert y.shape == (1, 1, 64, 64)
